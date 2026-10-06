@@ -67,6 +67,7 @@ p {
 #pipeline-table {
   display: flex;
   flex-direction: column;
+  margin-bottom: 6em;
 }
 .pipeline-row {
   display: flex;
@@ -105,6 +106,9 @@ p {
 .downloads a:hover {
   color: #ec407a;
 }
+.downloads a:active {
+  color: #ffeb3b;
+}
 .pipeline-progress {
   display: flex;
   justify-content: space-between;
@@ -132,16 +136,19 @@ p {
   border: 1px solid #cfd8dc;
 }
 
+.fail_ignored .stage-bar .progress:active{ background-color: #ffeb3b; }
 .fail_ignored .stage-bar .progress:hover{ background-color: #e65100; }
 .fail_ignored .stage-bar .progress {
   background-color: #ff9800;
 }
 
+.fail .stage-bar .progress:active{ background-color: #ffeb3b; }
 .fail .stage-bar .progress:hover{ background-color: #b61c1c; }
 .fail .stage-bar .progress {
   background-color: #f44336;
 }
 
+.success .stage-bar .progress:active{ background-color: #ffeb3b; }
 .success .stage-bar .progress:hover{ background-color: #1a237e; }
 .success .stage-bar .progress {
   background-color: #3f51b5;
@@ -182,6 +189,10 @@ p {
   fill: #ec407a;
 }
 
+.pipeline-icon:active {
+  fill: #ffeb3b;
+}
+
 .pipeline-name p{
   overflow: hidden;
   text-overflow: ellipsis;
@@ -219,6 +230,27 @@ p {
 .graph {
   margin-bottom: 6em;
 }
+
+#pipeline-stats-container {
+  display: flex;
+  margin-left 3em;
+  justify-content: space-evenly;
+}
+.pipeline-single-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pipeline-single-top {
+  display: flex;
+}
+.pipeline-single-bottom {
+  display: flex;
+  font-size: small;
+  font-variant: small-caps;
+  font-weight: bold;
+}
+
 @media (max-width: 640px){
   .pipeline-progress {
     width: 10em;
@@ -305,12 +337,46 @@ p {
       </div><!-- class="pipeline-link" -->
 
       <div class="pipeline-name">
+        <div id="pipeline-stats-container">
+          <div class="pipeline-single-stat">
+            <div class="pipeline-single-top">
+              <p>{{ summary["fail"] }}</p>
+            </div><!-- class="pipeline-single-top" -->
+            <div class="pipeline-single-bottom">
+              <p>failed</p>
+            </div><!-- class="pipeline-single-top" -->
+          </div><!-- class="pipeline-single-stat" -->
+          <div class="pipeline-single-stat">
+            <div class="pipeline-single-top">
+              <p>{{ summary["in_progress"] }}</p>
+            </div><!-- class="pipeline-single-top" -->
+            <div class="pipeline-single-bottom">
+              <p>in progress</p>
+            </div><!-- class="pipeline-single-top" -->
+          </div><!-- class="pipeline-single-stat" -->
+          <div class="pipeline-single-stat">
+            <div class="pipeline-single-top">
+              <p>{{ summary["success"] }}</p>
+            </div><!-- class="pipeline-single-top" -->
+            <div class="pipeline-single-bottom">
+              <p>succeeded</p>
+            </div><!-- class="pipeline-single-top" -->
+          </div><!-- class="pipeline-single-stat" -->
+          <div class="pipeline-single-stat">
+            <div class="pipeline-single-top">
+              <p>{{ summary["total"] }}</p>
+            </div><!-- class="pipeline-single-top" -->
+            <div class="pipeline-single-bottom">
+              <p>total</p>
+            </div><!-- class="pipeline-single-top" -->
+          </div><!-- class="pipeline-single-stat" -->
+        </div><!-- id="pipeline-stats-container" -->
       </div><!-- class="pipeline-name" -->
 
       <div class="pipeline-progress pipeline-header">
-        <p id="build-title">Build</p>
-        <p id="test-title">Test</p>
-        <p id="report-title">Report</p>
+        {% for stage in run["stages"] %}
+        <p>{{ stage }}</p>
+        {% endfor %}{# stage in run["stages"] #}
       </div><!-- class="pipeline-progress" -->
     </div><!-- class="pipeline-row" -->
 
@@ -377,18 +443,24 @@ p {
 
     </div><!-- class="pipeline-row" -->
     {% endfor %}{# pipe in run["pipelines"] #}
-
   </div><!-- id="pipeline-table" -->
 
-  <div class="graphs">
-  {% for svg in svgs %}
-  <div class="graph">
-    {% for line in svg -%}
-    {{ line }}
-    {% endfor %}{# line in svg #}
-  </div><!-- class="graph" -->
-  {% endfor -%}{# svg in svgs #}
-  </div><!-- class="graphs" -->
+
+  {% for title, svg_list in svgs.items() %}
+    {% if svg_list %}
+      <h2 class="downloads-header">{{ title }}</h2>
+      <div class="graphs">
+      {% for svg in svg_list %}
+        <div class="graph">
+          {% for line in svg -%}
+          {{ line }}
+          {% endfor %}{# line in svg #}
+        </div><!-- class="graph" -->
+      {% endfor %}{# svg in svg_list #}
+      </div><!-- class="graphs" -->
+    {% endif %}{# svg_list #}
+  {% endfor -%}{# title, svg_list in svgs #}
+
 
   <h2 class="downloads-header">Downloads</h2>
   <div class="downloads">

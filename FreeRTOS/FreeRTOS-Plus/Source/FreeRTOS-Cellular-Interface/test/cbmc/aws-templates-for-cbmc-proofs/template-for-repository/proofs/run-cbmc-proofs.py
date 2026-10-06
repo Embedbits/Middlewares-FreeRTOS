@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 
 import argparse
@@ -53,12 +53,20 @@ just the CBMC ones. In that case, you would run `litani init`
 yourself; then run `run-cbmc-proofs --no-standalone`; add any
 additional jobs that you want to execute with `litani add-job`; and
 finally run `litani run-build`.
+
+The litani dashboard will be written under the `output` directory; the
+cbmc-viewer reports remain in the `$PROOF_DIR/report` directory. The
+HTML dashboard from the latest Litani run will always be symlinked to
+`output/latest/html/index.html`, so you can keep that page open in
+your browser and reload the page whenever you re-run this script.
 """
+# 70 characters stops here ----------------------------------------> |
 
 
 def get_project_name():
     cmd = [
         "make",
+        "--no-print-directory",
         "-f", "Makefile.common",
         "echo-project-name",
     ]
@@ -100,12 +108,16 @@ def get_args():
             "default": get_project_name(),
             "help": "project name for report. Default: %(default)s",
     }, {
-            "flags": ["--proof-marker"],
+            "flags": ["--marker-file"],
             "metavar": "FILE",
             "default": "cbmc-proof.txt",
             "help": (
                 "name of file that marks proof directories. Default: "
                 "%(default)s"),
+    }, {
+            "flags": ["--no-memory-profile"],
+            "action": "store_true",
+            "help": "disable memory profiling, even if Litani supports it"
     }, {
             "flags": ["--no-expensive-limit"],
             "action": "store_true",
@@ -151,7 +163,7 @@ def print_counter(counter):
             **counter), end="", file=sys.stderr)
 
 
-def get_proof_dirs(proof_root, proof_list, proof_marker):
+def get_proof_dirs(proof_root, proof_list, marker_file):
     if proof_list is not None:
         proofs_remaining = list(proof_list)
     else:
@@ -163,7 +175,7 @@ def get_proof_dirs(proof_root, proof_list, proof_marker):
             continue
         if proof_list and proof_name in proofs_remaining:
             proofs_remaining.remove(proof_name)
-        if proof_marker in fyles:
+        if marker_file in fyles:
             yield root
 
     if proofs_remaining:
@@ -188,6 +200,7 @@ def run_build(litani, jobs):
 def get_litani_path(proof_root):
     cmd = [
         "make",
+        "--no-print-directory",
         "PROOF_ROOT=%s" % proof_root,
         "-f", "Makefile.common",
         "litani-path",
@@ -236,13 +249,20 @@ def check_uid_uniqueness(proof_dir, proof_uids):
     sys.exit(1)
 
 
+def should_enable_memory_profiling(litani_caps, args):
+    if args.no_memory_profile:
+        return False
+    return "memory_profile" in litani_caps
+
+
 def should_enable_pools(litani_caps, args):
     if args.no_expensive_limit:
         return False
     return "pools" in litani_caps
 
 
-async def configure_proof_dirs(queue, counter, proof_uids, enable_pools):
+async def configure_proof_dirs(
+    queue, counter, proof_uids, enable_pools, enable_memory_profiling):
     while True:
         print_counter(counter)
         path = str(await queue.get())
@@ -250,11 +270,13 @@ async def configure_proof_dirs(queue, counter, proof_uids, enable_pools):
         check_uid_uniqueness(path, proof_uids)
 
         pools = ["ENABLE_POOLS=true"] if enable_pools else []
+        profiling = [
+            "ENABLE_MEMORY_PROFILING=true"] if enable_memory_profiling else []
 
         proc = await asyncio.create_subprocess_exec(
             # Allow interactive tasks to preempt proof configuration
-            "nice", "-n", "15", "make", *pools, "-B", "--quiet", "_report",
-            cwd=path)
+            "nice", "-n", "15", "make", *pools, *profiling, "-B", "--quiet",
+            "_report", cwd=path)
         await proc.wait()
         counter["fail" if proc.returncode else "pass"].append(path)
         counter["complete"] += 1
@@ -267,7 +289,7 @@ async def main():
     args = get_args()
     set_up_logging(args.verbose)
 
-    proof_root = pathlib.Path(__file__).resolve().parent
+    proof_root = pathlib.Path(os.getcwd())
     litani = get_litani_path(proof_root)
 
     litani_caps = get_litani_capabilities(litani)
@@ -277,7 +299,23 @@ async def main():
     ] if enable_pools else []
 
     if not args.no_standalone:
-        cmd = [str(litani), "init", *init_pools, "--project", args.project_name]
+        cmd = [
+            str(litani), "init", *init_pools, "--project", args.project_name,
+            "--no-print-out-dir",
+        ]
+
+        if "output_directory_flags" in litani_caps:
+            out_prefix = proof_root / "output"
+            out_symlink = out_prefix / "latest"
+            out_index = out_symlink / "html" / "index.html"
+            cmd.extend([
+                "--output-prefix", str(out_prefix),
+                "--output-symlink", str(out_symlink),
+            ])
+            print(
+                "\nFor your convenience, the output of this run will be "
+                "symbolically linked to %s\n" % str(out_index))
+
         logging.debug(" ".join(cmd))
         proc = subprocess.run(cmd)
         if proc.returncode:
@@ -285,7 +323,7 @@ async def main():
             sys.exit(1)
 
     proof_dirs = list(get_proof_dirs(
-        proof_root, args.proofs, args.proof_marker))
+        proof_root, args.proofs, args.marker_file))
     if not proof_dirs:
         logging.critical("No proof directories found")
         sys.exit(1)
@@ -305,9 +343,12 @@ async def main():
     proof_uids = {}
     tasks = []
 
+    enable_memory_profiling = should_enable_memory_profiling(litani_caps, args)
+
     for _ in range(task_pool_size()):
         task = asyncio.create_task(configure_proof_dirs(
-            proof_queue, counter, proof_uids, enable_pools))
+            proof_queue, counter, proof_uids, enable_pools,
+            enable_memory_profiling))
         tasks.append(task)
 
     await proof_queue.join()

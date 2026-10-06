@@ -11,7 +11,7 @@ dependencies:
       path: "FreeRTOS/Source"
 
   - name: "FreeRTOS-Plus-TCP"
-    version: "V2.3.3-Patch-1"
+    version: "V2.4.0"
     repository:
       type: "git"
       url: "https://github.com/FreeRTOS/FreeRTOS-Plus-TCP.git"
@@ -23,6 +23,13 @@ dependencies:
       type: "git"
       url: "https://github.com/FreeRTOS/coreJSON.git"
       path: "FreeRTOS-Plus/Source/coreJSON"
+
+  - name: "sigv4"
+    version: "v1.1.0"
+    repository:
+      type: "git"
+      url: "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git"
+      path: "FreeRTOS-Plus/Source/AWS/sigv4"
 
   - name: "coreHTTP"
     version: "v2.1.0"
@@ -46,7 +53,7 @@ dependencies:
       path: "FreeRTOS-Plus/Source/Application-Protocols/coreMQTT-Agent"
 
   - name: "corePKCS11"
-    version: "v3.3.0"
+    version: "v3.4.0"
     repository:
       type: "git"
       url: "https://github.com/FreeRTOS/corePKCS11.git"
@@ -81,7 +88,7 @@ dependencies:
       path: "FreeRTOS-Plus/ThirdParty/wolfSSL"
 
   - name: "mbedtls"
-    version: "v2.26.0"
+    version: "v2.28.0"
     repository:
       type: "git"
       url:  "https://github.com/ARMmbed/mbedtls"
@@ -95,7 +102,7 @@ dependencies:
       path: "FreeRTOS-Plus/Source/Utilities/backoff_algorithm"
 
   - name: "ota"
-    version: "v3.2.0"
+    version: "v3.3.0"
     repository:
       type: "git"
       url: "https://github.com/aws/ota-for-aws-iot-embedded-sdk"
@@ -123,10 +130,24 @@ dependencies:
       path: "FreeRTOS/Demo/ThirdParty/Partner-Supported-Demos"
 
   - name: "FreeRTOS-Cellular-Interface"
-    version: "v1.1.0"
+    version: "v1.2.0"
     repository:
       type: "git"
       url: "https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface.git"
       path: "FreeRTOS-Plus/Source/FreeRTOS-Cellular-Interface"
+
+  - name: "fleet-provisioning"
+    version: "v1.0.1"
+    repository:
+      type: "git"
+      url: "https://github.com/aws/Fleet-Provisioning-for-AWS-IoT-embedded-sdk.git"
+      path: "FreeRTOS-Plus/Source/AWS/fleet-provisioning"
+
+  - name: "tinycbor"
+    version: "v0.6.0"
+    repository:
+      type: "git"
+      url: "https://github.com/intel/tinycbor.git"
+      path: "FreeRTOS-Plus/ThirdParty/tinycbor"
 
 license: "MIT"

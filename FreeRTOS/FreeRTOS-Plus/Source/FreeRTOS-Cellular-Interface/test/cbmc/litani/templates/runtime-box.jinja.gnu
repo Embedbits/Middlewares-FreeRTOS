@@ -15,11 +15,10 @@
 
 $data << EOD
 {% for job in jobs -%}
-0.4 {{ job["duration"] }} {{ job["pipeline"] }}
+0.4 {{ job["duration"] }} {{ job["wrapper_arguments"]["pipeline_name"] }}
 {% endfor %}{# job in jobs #}
 EOD
 
-set output "{{ url }}"
 set terminal svg noenhanced size 400,800
 
 set border 2 linecolor "#263238"

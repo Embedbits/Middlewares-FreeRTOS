@@ -1,6 +1,6 @@
 /*
- * FreeRTOS+TCP V2.3.3-Patch-1
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS+TCP V2.4.0
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -57,6 +57,14 @@
         eCantSendPacket    /* 2 There is no IP address, or an ARP is still in progress, so the packet cannot be sent. */
     } eARPLookupResult_t;
 
+
+/**
+ * Look for an IP-MAC couple in ARP cache and reset the 'age' field. If no match
+ * is found then no action will be taken.
+ */
+    void vARPRefreshCacheEntryAge( const MACAddress_t * pxMACAddress,
+                                   const uint32_t ulIPAddress );
+
 /*
  * If ulIPAddress is already in the ARP cache table then reset the age of the
  * entry back to its maximum value.  If ulIPAddress is not already in the ARP
@@ -82,6 +90,11 @@
         uint32_t ulARPRemoveCacheEntryByMac( const MACAddress_t * pxMACAddress );
 
     #endif /* ipconfigUSE_ARP_REMOVE_ENTRY != 0 */
+
+
+    BaseType_t xIsIPInARPCache( uint32_t ulAddressToLookup );
+
+    BaseType_t xCheckRequiresARPResolution( NetworkBufferDescriptor_t * pxNetworkBuffer );
 
 /*
  * Look for ulIPAddress in the ARP cache.  If the IP address exists, copy the

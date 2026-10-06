@@ -16,8 +16,8 @@ import dataclasses
 import json
 import logging
 import os
-import subprocess
 
+import lib.validation
 
 ################################################################################
 # Decider classes
@@ -39,7 +39,7 @@ class OutcomeTableDecider:
     """
 
     table: dict
-    proc: subprocess.CompletedProcess
+    return_code: int
     timeout_reached: bool
     loaded_from_file: bool
 
@@ -83,7 +83,7 @@ class OutcomeTableDecider:
                 return timeout_outcome
             return self._get_wildcard_outcome()
 
-        rc_outcome = self._get_return_code_outcome(self.proc.returncode)
+        rc_outcome = self._get_return_code_outcome(self.return_code)
         if rc_outcome:
             return rc_outcome
 
@@ -144,38 +144,7 @@ def _get_default_outcome_dict(args):
     return {"outcomes": outcomes}
 
 
-def validate_outcome_table(table):
-    try:
-        import voluptuous
-    except ImportError:
-        logging.debug("Skipping outcome table validation as voluptuous is not installed")
-        return
-
-    actions = voluptuous.Any("success", "fail", "fail_ignored")
-    schema = voluptuous.Schema({
-        # A description of the outcome table as a whole.
-        voluptuous.Optional("comment"): str,
-
-        # We use the first item in this list that matches the job
-        "outcomes": [voluptuous.Any({
-            "type": "return-code",
-            "value": int,
-            "action": actions,
-            voluptuous.Optional("comment"): str,
-        }, {
-            "type": "timeout",
-            "action": actions,
-            voluptuous.Optional("comment"): str,
-        }, {
-            "type": "wildcard",
-            "action": actions,
-            voluptuous.Optional("comment"): str,
-        })]
-    }, required=True)
-    voluptuous.humanize.validate_with_humanized_errors(table, schema)
-
-
-def _get_outcome_table_job_decider(args, proc, timeout_reached):
+def _get_outcome_table_job_decider(args, return_code, timeout_reached):
     if args.outcome_table:
         _, ext = os.path.splitext(args.outcome_table)
         with open(args.outcome_table) as handle:
@@ -192,10 +161,11 @@ def _get_outcome_table_job_decider(args, proc, timeout_reached):
         outcome_table = _get_default_outcome_dict(args)
 
     logging.debug("Using outcome table: %s", json.dumps(outcome_table, indent=2))
-    validate_outcome_table(outcome_table)
+    lib.validation.validate_outcome_table(outcome_table)
 
     return OutcomeTableDecider(
-        outcome_table, proc, timeout_reached, loaded_from_file=loaded_from_file)
+        outcome_table, return_code, timeout_reached,
+        loaded_from_file=loaded_from_file)
 
 
 ################################################################################
@@ -203,7 +173,7 @@ def _get_outcome_table_job_decider(args, proc, timeout_reached):
 ################################################################################
 
 
-def fill_in_result(proc, timeout_reached, job_data, args):
+def fill_in_result(runner, job_data, args):
     """Add fields pertaining to job result to job_data dict
 
     The 'result' of a job can be evaluated in several ways. The most simple
@@ -219,13 +189,15 @@ def fill_in_result(proc, timeout_reached, job_data, args):
     """
 
     job_data["complete"] = True
-    job_data["timeout_reached"] = timeout_reached
-    job_data["command_return_code"] = proc.returncode
+    job_data["timeout_reached"] = runner.reached_timeout()
+    job_data["command_return_code"] = runner.get_return_code()
+    job_data["memory_trace"] = runner.get_memory_trace()
 
     # These get set by the deciders
     job_data["loaded_outcome_dict"] = None
 
-    decider = _get_outcome_table_job_decider(args, proc, timeout_reached)
+    decider = _get_outcome_table_job_decider(
+        args, runner.get_return_code(), runner.reached_timeout())
 
     fields = decider.get_job_fields()
     for k, v in fields.items():

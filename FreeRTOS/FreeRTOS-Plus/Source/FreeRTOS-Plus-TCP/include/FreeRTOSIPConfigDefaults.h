@@ -1,6 +1,6 @@
 /*
- * FreeRTOS+TCP V2.3.3-Patch-1
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS+TCP V2.4.0
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -368,6 +368,21 @@
     #define ipconfigTCP_TIME_TO_LIVE    128
 #endif
 
+#ifndef ipconfigICMP_TIME_TO_LIVE
+    /* Set the default value suggested in RFC 1700. */
+    #define ipconfigICMP_TIME_TO_LIVE    64
+#endif
+
+#ifndef ipconfigTCP_SRTT_MINIMUM_VALUE_MS
+
+/* TCP only: when measuring the Smoothed Round Trip Time (SRTT),
+ * the result will be rounded up to a minimum value.
+ * The default has always been 50, but a value of 1000
+ * is recommended (see RFC6298) because hosts often delay the
+ * sending of ACK packets with 200 ms. */
+    #define ipconfigTCP_SRTT_MINIMUM_VALUE_MS    50U
+#endif
+
 #ifndef ipconfigUDP_MAX_RX_PACKETS
 
 /* Make positive to define the maximum number of packets which will be buffered
@@ -411,10 +426,24 @@
 
 #ifndef ipconfigNETWORK_MTU
     #define ipconfigNETWORK_MTU    1500
+#else
+    #if ipconfigNETWORK_MTU > ( SIZE_MAX >> 1 )
+        #undef ipconfigNETWORK_MTU
+        #define ipconfigNETWORK_MTU    ( SIZE_MAX >> 1 )
+    #endif
 #endif
 
 #ifndef ipconfigTCP_MSS
     #define ipconfigTCP_MSS    ( ipconfigNETWORK_MTU - ( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_TCP_HEADER ) )
+#endif
+
+#ifndef ipconfigETHERNET_MINIMUM_PACKET_BYTES
+
+/* This macro defines the minimum size of an outgoing Ethernet packet.
+ * When zero, there is no minimum.
+ * When non-zero, the packet will be extended to the minimum size.
+ * The extra bytes will be zero'd. */
+    #define ipconfigETHERNET_MINIMUM_PACKET_BYTES    0
 #endif
 
 /* Each TCP socket has circular stream buffers for Rx and Tx, which
@@ -501,6 +530,11 @@
 #endif
 
 #ifndef ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES
+
+/* The macros 'ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES' and
+ * 'ipconfigETHERNET_DRIVER_FILTERS_PACKETS' are too long:
+ * the first 32 bytes are equal, which might cause problems
+ * for some compilers. */
     #define ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES    1
 #endif
 

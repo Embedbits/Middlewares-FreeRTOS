@@ -20,11 +20,9 @@ import json
 import logging
 import os
 import pathlib
-import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import uuid
 
 import jinja2
@@ -32,6 +30,41 @@ import jinja2
 from lib import litani
 import lib.graph
 
+
+
+class Gnuplot:
+    def __init__(self):
+        self._should_render = shutil.which("gnuplot") is not None
+
+
+    def should_render(self):
+        return self._should_render
+
+
+    def render(self, gnu_file, out_file=None):
+        if not self.should_render():
+            raise UserWarning(
+                "Should not call Gnuplot.render() if should_render() is False")
+
+        cmd = ["gnuplot"]
+        with subprocess.Popen(
+                cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL, text=True) as proc:
+            out, _ = proc.communicate(input=gnu_file)
+        if proc.returncode:
+            logging.error("Failed to render gnuplot file:")
+            logging.error(gnu_file)
+            self._should_render = False
+            return
+
+        lines = [
+            l for l in out.splitlines()
+            if "<?xml version" not in l
+        ]
+        if out_file:
+            with litani.atomic_write(out_file) as handle:
+                print("\n".join(lines), file=handle)
+        return lines
 
 
 # ______________________________________________________________________________
@@ -43,30 +76,70 @@ import lib.graph
 # ______________________________________________________________________________
 
 
-@dataclasses.dataclass
 class PipelineDepgraphRenderer:
-    pipe: dict
+    def __init__(self, should_render=True):
+        is_graphviz_installed = shutil.which("dot") is not None
+        if not is_graphviz_installed:
+            logging.info(
+                "Graphviz is not installed; pipeline dependency "
+                "graph cannot be rendered")
+        self.should_render = should_render and is_graphviz_installed
 
 
-    def render_to_file(self, out_file):
-        dot_graph = lib.graph.SinglePipelineGraph.render(self.pipe)
+    def render_to_file(self, out_file, pipe):
+        dot_graph = lib.graph.SinglePipelineGraph.render(pipe)
         out_file.parent.mkdir(exist_ok=True, parents=True)
         with open(out_file, "w") as handle:
-            proc = subprocess.Popen(
-                ["dot", "-Tsvg"], text=True, stdin=subprocess.PIPE,
-                stdout=handle)
-            proc.communicate(input=dot_graph)
-        return False if proc.returncode else True
+            with subprocess.Popen(
+                    ["dot", "-Tsvg"], text=True, stdin=subprocess.PIPE,
+                    stdout=handle) as proc:
+                proc.communicate(input=dot_graph)
+            if proc.returncode:
+                logging.error("Failed to run dot. Graph: ")
+                logging.error(dot_graph)
+                sys.exit(1)
+        return True
+
+
+    def render(self, render_root, pipe_url, pipe):
+        if not self.should_render:
+            return
+        out_rel = pipe_url / "dependencies.svg"
+        out_file = render_root / out_rel
+        success = self.render_to_file(out_file=out_file, pipe=pipe)
+        if success:
+            pipe["dependencies_url"] = "dependencies.svg"
+
+
+
+@dataclasses.dataclass
+class MemoryTraceRenderer:
+    jinja_env: jinja2.Environment
+    gnuplot: Gnuplot
 
 
     @staticmethod
-    def render(render_root, pipe_url, pipe):
-        pdr = PipelineDepgraphRenderer(pipe)
-        out_rel = pipe_url / f"dependencies.svg"
-        out_file = render_root / out_rel
-        success = pdr.render_to_file(out_file=out_file)
-        if success:
-            pipe[f"dependencies_url"] = "dependencies.svg"
+    def should_render(job):
+        return job.get("memory_trace") \
+            and job["memory_trace"].get("trace") \
+            and len(job["memory_trace"]["trace"]) > 2
+
+
+    def render_preview(self, job):
+        job["memory_trace_preview"] = []
+        if not self.gnuplot.should_render():
+            return
+
+        templ = self.jinja_env.get_template("memory-trace.jinja.gnu")
+        gnu_file = templ.render(job=job)
+        lines = self.gnuplot.render(gnu_file)
+        job["memory_trace_preview"] = lines
+
+
+    @staticmethod
+    def render(_, jinja_env, job, gnuplot):
+        mtr = MemoryTraceRenderer(jinja_env=jinja_env, gnuplot=gnuplot)
+        mtr.render_preview(job)
 
 
 
@@ -101,11 +174,126 @@ class JobOutcomeTableRenderer:
 
 
     @staticmethod
+    def should_render(job):
+        return job["complete"] and job["loaded_outcome_dict"]
+
+
+    @staticmethod
     def render(out_dir, jinja_env, job):
         otr = JobOutcomeTableRenderer(out_dir=out_dir, jinja_env=jinja_env)
         otr.render_table(table=job["loaded_outcome_dict"])
         job["outcome_table_html_url"] = str(otr.get_html_url())
         job["outcome_table_json_url"] = str(otr.get_json_url())
+
+
+
+@dataclasses.dataclass
+class ParallelismGraphRenderer:
+    """Renders parallelism of run over time"""
+    run: dict
+    env: jinja2.Environment
+    gnuplot: Gnuplot
+
+
+    # The parallelism trace includes timestamps with microsecond precision, but
+    # gnuplot can't deal with fractional seconds. So just for the purposes of
+    # the graph, return the maximum parallelism encountered at each second.  We
+    # still leave the microsecond stamps in the JSON file for those who need it.
+    @staticmethod
+    def process_trace(trace):
+
+        def overwrite(field, op, d1, d2):
+            d1[field] = op(d1[field], d2[field])
+
+        tmp = {}
+        for item in trace:
+            ms_precision = datetime.datetime.strptime(
+                item["time"], lib.litani.TIME_FORMAT_MS)
+            s_precision = ms_precision.strftime(lib.litani.TIME_FORMAT_R)
+            try:
+                tmp[s_precision]
+            except KeyError:
+                tmp[s_precision] = dict(item)
+                tmp[s_precision].pop("time")
+            else:
+                overwrite("finished", min, tmp[s_precision], item)
+                overwrite("running", max, tmp[s_precision], item)
+                overwrite("total", max, tmp[s_precision], item)
+        return sorted(
+            [{"time": time, **item} for time, item in tmp.items()],
+            key=lambda x: x["time"])
+
+
+    def render(self, template_name):
+        if not all((
+                self.gnuplot.should_render(),
+                self.run["parallelism"].get("trace")
+        )):
+            return []
+
+        gnu_templ = self.env.get_template(template_name)
+        gnu_file = gnu_templ.render(
+            n_proc=self.run["parallelism"].get("n_proc"),
+            max_parallelism=self.run["parallelism"].get("max_parallelism"),
+            trace=self.process_trace(self.run["parallelism"]["trace"]))
+
+        return [self.gnuplot.render(gnu_file)]
+
+
+
+@dataclasses.dataclass
+class StatsGroupRenderer:
+    """Renders graphs for jobs that are part of a 'stats group'."""
+    run: dict
+    env: jinja2.Environment
+    gnuplot: Gnuplot
+
+
+    def get_stats_groups(self, job_filter):
+        ret = {}
+        for job in jobs_of(self.run):
+            if "tags" not in job["wrapper_arguments"]:
+                continue
+            if not job["wrapper_arguments"]["tags"]:
+                continue
+            stats_group = None
+            for tag in job["wrapper_arguments"]["tags"]:
+                kv = tag.split(":")
+                if kv[0] != "stats-group":
+                    continue
+                if len(kv) != 2:
+                    logging.warning(
+                        "No value for stats-group in job '%s'",
+                        job["wrapper_arguments"]["description"])
+                    continue
+                stats_group = kv[1]
+                break
+
+            if not (stats_group and job_filter(job)):
+                continue
+
+            try:
+                ret[stats_group].append(job)
+            except KeyError:
+                ret[stats_group] = [job]
+
+        return sorted((k, v) for k, v in ret.items())
+
+
+    def render(self, job_filter, template_name):
+        if not self.gnuplot.should_render():
+            return []
+        stats_groups = self.get_stats_groups(job_filter)
+        svgs = []
+        gnu_templ = self.env.get_template(template_name)
+        for group_name, jobs in stats_groups:
+            if len(jobs) < 2:
+                continue
+            gnu_file = gnu_templ.render(
+                group_name=group_name, jobs=jobs)
+            svg_lines = self.gnuplot.render(gnu_file)
+            svgs.append(svg_lines)
+        return svgs
 
 
 
@@ -198,7 +386,7 @@ def add_stage_stats(stage, stage_name, pipeline_name):
         try:
             if not job["complete"]:
                 continue
-            elif job["outcome"] == "fail":
+            if job["outcome"] == "fail":
                 status = StageStatus.FAIL
             elif job["outcome"] == "fail_ignored" and status == StageStatus.SUCCESS:
                 status = StageStatus.FAIL_IGNORED
@@ -261,7 +449,7 @@ def sort_run(run):
     js = functools.cmp_to_key(job_sorter)
     for pipe in run["pipelines"].values():
         stages = []
-        for stage in litani.CI_STAGES:
+        for stage in run["stages"]:
             try:
                 pipeline_stage = pipe["ci_stages"][stage]
             except KeyError:
@@ -297,71 +485,27 @@ def s_to_hhmmss(s):
     return "{s:02d}s".format(s=s)
 
 
-def get_stats_groups(run):
-    ret = {}
+def jobs_of(run):
     for pipe in run["pipelines"]:
         for stage in pipe["ci_stages"]:
             for job in stage["jobs"]:
-                if "tags" not in job["wrapper_arguments"]:
-                    continue
-                if not job["wrapper_arguments"]["tags"]:
-                    continue
-                stats_group = None
-                for tag in job["wrapper_arguments"]["tags"]:
-                    kv = tag.split(":")
-                    if kv[0] != "stats-group":
-                        continue
-                    stats_group = kv[1]
-                if not stats_group:
-                    continue
-
-                if "duration" not in job:
-                    continue
-                record = {
-                    "pipeline": job["wrapper_arguments"]["pipeline_name"],
-                    "duration": job["duration"]
-                }
-                try:
-                    ret[stats_group].append(record)
-                except KeyError:
-                    ret[stats_group] = [record]
-    return sorted([(k, v) for k, v in ret.items()])
+                yield job
 
 
-def to_id(string):
-    allowed = re.compile(r"[-a-zA-Z0-9\.]")
-    return "".join([c if allowed.match(c) else "_" for c in string])
+def get_dashboard_svgs(run, env, gnuplot):
+    stats_renderer = StatsGroupRenderer(run, env, gnuplot)
+    p_renderer = ParallelismGraphRenderer(run, env, gnuplot)
 
-
-def render_runtimes(run, env, report_dir):
-    stats_groups = get_stats_groups(run)
-    svgs = []
-    gnu_templ = env.get_template("runtime-box.jinja.gnu")
-    img_dir = report_dir / "runtimes"
-    img_dir.mkdir(exist_ok=True, parents=True)
-    for group_name, jobs in stats_groups:
-        if len(jobs) < 2:
-            continue
-        group_id = to_id(group_name)
-        url = img_dir / ("%s.svg" % group_id)
-        tmp_url = "%s~" % str(url)
-        gnu_file = gnu_templ.render(
-            group_name=group_name, jobs=jobs, url=tmp_url)
-        with tempfile.NamedTemporaryFile("w") as tmp:
-            print(gnu_file, file=tmp)
-            tmp.flush()
-            cmd = ["gnuplot", tmp.name]
-            subprocess.run(
-                cmd, check=True, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL)
-        os.rename(tmp_url, url)
-        with open(url) as handle:
-            lines = [
-                l for l in handle.read().splitlines()
-                if "<?xml version" not in l
-            ]
-        svgs.append(lines)
-    return svgs
+    return {
+        "Runtime": stats_renderer.render(
+            lambda j: "duration" in j, "runtime-box.jinja.gnu"),
+        "Memory Usage": stats_renderer.render(
+            lambda j: j.get("memory_trace") and \
+                j["memory_trace"].get("peak") and \
+                j["memory_trace"]["peak"].get("rss"),
+            "memory-peak-box.jinja.gnu"),
+        "Parallelism": p_renderer.render("run-parallelism.jinja.gnu"),
+    }
 
 
 def get_git_hash():
@@ -375,7 +519,20 @@ def get_git_hash():
         return None
 
 
-def render(run, report_dir):
+def get_summary(run):
+    ret = {
+        "in_progress": 0,
+        "success": 0,
+        "total": 0,
+        "fail": 0,
+    }
+    for pipe in run["pipelines"]:
+        ret["total"] += 1
+        ret[pipe["status"]] += 1
+    return ret
+
+
+def render(run, report_dir, pipeline_depgraph_renderer):
     temporary_report_dir = litani.get_report_data_dir() / str(uuid.uuid4())
     temporary_report_dir.mkdir(parents=True)
     old_report_dir_path = litani.get_report_dir().resolve()
@@ -384,12 +541,17 @@ def render(run, report_dir):
     artifact_dir = temporary_report_dir / "artifacts"
     shutil.copytree(litani.get_artifacts_dir(), artifact_dir)
 
-    render_artifact_indexes(artifact_dir)
-
     template_dir = pathlib.Path(__file__).parent.parent / "templates"
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(template_dir)))
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(template_dir)),
+        autoescape=jinja2.select_autoescape(
+            enabled_extensions=('html'),
+            default_for_string=True))
 
-    svgs = render_runtimes(run, env, temporary_report_dir)
+    render_artifact_indexes(artifact_dir, env)
+
+    gnuplot = Gnuplot()
+    svgs = get_dashboard_svgs(run, env, gnuplot)
 
     litani_report_archive_path = os.getenv("LITANI_REPORT_ARCHIVE_PATH")
 
@@ -397,7 +559,8 @@ def render(run, report_dir):
     page = dash_templ.render(
         run=run, svgs=svgs, litani_hash=get_git_hash(),
         litani_version=litani.VERSION,
-        litani_report_archive_path=litani_report_archive_path)
+        litani_report_archive_path=litani_report_archive_path,
+        summary=get_summary(run))
     with litani.atomic_write(temporary_report_dir / "index.html") as handle:
         print(page, file=handle)
 
@@ -406,15 +569,17 @@ def render(run, report_dir):
 
     pipe_templ = env.get_template("pipeline.jinja.html")
     for pipe in run["pipelines"]:
-        PipelineDepgraphRenderer.render(
+        pipeline_depgraph_renderer.render(
             render_root=temporary_report_dir,
             pipe_url=pathlib.Path(pipe["url"]), pipe=pipe)
         for stage in pipe["ci_stages"]:
             for job in stage["jobs"]:
-                if job["complete"] and job["loaded_outcome_dict"]:
+                if JobOutcomeTableRenderer.should_render(job):
                     JobOutcomeTableRenderer.render(
-                        out_dir=temporary_report_dir / pipe["url"],
-                        jinja_env=env, job=job)
+                        temporary_report_dir / pipe["url"], env, job)
+                if MemoryTraceRenderer.should_render(job):
+                    MemoryTraceRenderer.render(
+                        temporary_report_dir / pipe["url"], env, job, gnuplot)
 
         pipe_page = pipe_templ.render(run=run, pipe=pipe)
         with litani.atomic_write(
@@ -435,14 +600,12 @@ def render(run, report_dir):
     litani.unlink_expired()
 
 
-def render_artifact_indexes(artifact_dir):
+def render_artifact_indexes(artifact_dir, env):
     def dirs_needing_indexes():
         for root, dirs, fyles in os.walk(artifact_dir):
             if "index.html" not in fyles:
                 yield pathlib.Path(root), dirs, fyles
 
-    template_dir = pathlib.Path(__file__).parent.parent / "templates"
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(template_dir)))
     index_templ = env.get_template("file-list.jinja.html")
     for dyr, dirs, files in dirs_needing_indexes():
         page = index_templ.render(

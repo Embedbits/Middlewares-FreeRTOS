@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.1.0
+ * FreeRTOS-Cellular-Interface v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -46,7 +46,9 @@
 
 /*-----------------------------------------------------------*/
 
-#define MIN( a, b )    ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
+#ifndef MIN
+    #define MIN( a, b )    ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
+#endif
 
 /* Windows simulator implementation. */
 #if defined( _WIN32 ) || defined( _WIN64 )

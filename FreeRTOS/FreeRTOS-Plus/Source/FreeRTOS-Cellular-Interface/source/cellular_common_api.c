@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -105,8 +107,8 @@ static CellularError_t _socketSetSockOptLevelTransport( CellularSocketOption_t o
         }
         else
         {
-            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the contextID in this state %d or length %d is invalid.",
-                        socketHandle->socketState, optionValueLength ) );
+            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the contextID in this state %d or length %u is invalid.",
+                        socketHandle->socketState, ( unsigned int ) optionValueLength ) );
             cellularStatus = CELLULAR_INTERNAL_FAILURE;
         }
     }
@@ -121,8 +123,8 @@ static CellularError_t _socketSetSockOptLevelTransport( CellularSocketOption_t o
         }
         else
         {
-            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the localPort in this state %d or length %d is invalid.",
-                        socketHandle->socketState, optionValueLength ) );
+            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the localPort in this state %d or length %u is invalid.",
+                        socketHandle->socketState, ( unsigned int ) optionValueLength ) );
             cellularStatus = CELLULAR_INTERNAL_FAILURE;
         }
     }
@@ -144,25 +146,58 @@ CellularError_t Cellular_CommonInit( CellularHandle_t * pCellularHandle,
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t * pContext = NULL;
 
-    /* Init the common library. */
-    cellularStatus = _Cellular_LibInit( pCellularHandle, pCommInterface, pTokenTable );
-
-    /* Init the module. */
-    if( cellularStatus == CELLULAR_SUCCESS )
+    if( pCellularHandle == NULL )
     {
-        pContext = *pCellularHandle;
-        cellularStatus = Cellular_ModuleInit( pContext, &pContext->pModueContext );
+        LogError( ( "Cellular_CommonInit pCellularHandle is NULL." ) );
+        cellularStatus = CELLULAR_INVALID_HANDLE;
     }
-
-    /* Setup UE, URC and query register status. */
-    if( cellularStatus == CELLULAR_SUCCESS )
+    else if( pCommInterface == NULL )
     {
-        cellularStatus = Cellular_ModuleEnableUE( pContext );
+        LogError( ( "Cellular_CommonInit pCommInterface is NULL." ) );
+        cellularStatus = CELLULAR_BAD_PARAMETER;
     }
-
-    if( cellularStatus == CELLULAR_SUCCESS )
+    else if( pTokenTable == NULL )
     {
-        cellularStatus = Cellular_ModuleEnableUrc( pContext );
+        LogError( ( "Cellular_CommonInit pTokenTable is NULL." ) );
+        cellularStatus = CELLULAR_BAD_PARAMETER;
+    }
+    else
+    {
+        /* Init the common library. */
+        cellularStatus = _Cellular_LibInit( pCellularHandle, pCommInterface, pTokenTable );
+
+        if( cellularStatus == CELLULAR_SUCCESS )
+        {
+            pContext = ( CellularContext_t * ) ( *pCellularHandle );
+
+            cellularStatus = Cellular_ModuleInit( pContext, &( pContext->pModuleContext ) );
+
+            if( cellularStatus == CELLULAR_SUCCESS )
+            {
+                cellularStatus = Cellular_ModuleEnableUE( pContext );
+
+                if( cellularStatus == CELLULAR_SUCCESS )
+                {
+                    cellularStatus = Cellular_ModuleEnableUrc( pContext );
+                }
+
+                if( cellularStatus != CELLULAR_SUCCESS )
+                {
+                    /* Clean up the resource allocated by cellular module here if
+                     * Cellular_ModuleEnableUE or Cellular_ModuleEnableUrc returns
+                     * error. */
+                    ( void ) Cellular_ModuleCleanUp( pContext );
+                }
+            }
+
+            if( cellularStatus != CELLULAR_SUCCESS )
+            {
+                /* Clean up the resource in cellular common library if any of the
+                 * module port function returns error. Error returned by _Cellular_LibInit
+                 * is already handled in the implementation. */
+                ( void ) _Cellular_LibCleanup( pContext );
+            }
+        }
     }
 
     return cellularStatus;
@@ -206,10 +241,10 @@ CellularError_t Cellular_CommonRegisterUrcNetworkRegistrationEventCallback( Cell
     }
     else
     {
-        PlatformMutex_Lock( &pContext->PktRespMutex );
+        PlatformMutex_Lock( &( pContext->PktRespMutex ) );
         pContext->cbEvents.networkRegistrationCallback = networkRegistrationCallback;
         pContext->cbEvents.pNetworkRegistrationCallbackContext = pCallbackContext;
-        PlatformMutex_Unlock( &pContext->PktRespMutex );
+        PlatformMutex_Unlock( &( pContext->PktRespMutex ) );
     }
 
     return cellularStatus;
@@ -233,10 +268,10 @@ CellularError_t Cellular_CommonRegisterUrcPdnEventCallback( CellularHandle_t cel
     }
     else
     {
-        PlatformMutex_Lock( &pContext->PktRespMutex );
+        PlatformMutex_Lock( &( pContext->PktRespMutex ) );
         pContext->cbEvents.pdnEventCallback = pdnEventCallback;
         pContext->cbEvents.pPdnEventCallbackContext = pCallbackContext;
-        PlatformMutex_Unlock( &pContext->PktRespMutex );
+        PlatformMutex_Unlock( &( pContext->PktRespMutex ) );
     }
 
     return cellularStatus;
@@ -260,10 +295,10 @@ CellularError_t Cellular_CommonRegisterUrcSignalStrengthChangedCallback( Cellula
     }
     else
     {
-        PlatformMutex_Lock( &pContext->PktRespMutex );
+        PlatformMutex_Lock( &( pContext->PktRespMutex ) );
         pContext->cbEvents.signalStrengthChangedCallback = signalStrengthChangedCallback;
         pContext->cbEvents.pSignalStrengthChangedCallbackContext = pCallbackContext;
-        PlatformMutex_Unlock( &pContext->PktRespMutex );
+        PlatformMutex_Unlock( &( pContext->PktRespMutex ) );
     }
 
     return cellularStatus;
@@ -287,10 +322,10 @@ CellularError_t Cellular_CommonRegisterUrcGenericCallback( CellularHandle_t cell
     }
     else
     {
-        PlatformMutex_Lock( &pContext->PktRespMutex );
+        PlatformMutex_Lock( &( pContext->PktRespMutex ) );
         pContext->cbEvents.genericCallback = genericCallback;
         pContext->cbEvents.pGenericCallbackContext = pCallbackContext;
-        PlatformMutex_Unlock( &pContext->PktRespMutex );
+        PlatformMutex_Unlock( &( pContext->PktRespMutex ) );
     }
 
     return cellularStatus;
@@ -314,10 +349,10 @@ CellularError_t Cellular_CommonRegisterModemEventCallback( CellularHandle_t cell
     }
     else
     {
-        PlatformMutex_Lock( &pContext->PktRespMutex );
+        PlatformMutex_Lock( &( pContext->PktRespMutex ) );
         pContext->cbEvents.modemEventCallback = modemEventCallback;
         pContext->cbEvents.pModemEventCallbackContext = pCallbackContext;
-        PlatformMutex_Unlock( &pContext->PktRespMutex );
+        PlatformMutex_Unlock( &( pContext->PktRespMutex ) );
     }
 
     return cellularStatus;

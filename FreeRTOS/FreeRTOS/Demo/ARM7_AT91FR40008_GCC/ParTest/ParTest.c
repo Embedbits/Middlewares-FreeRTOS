@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -64,7 +64,7 @@ void vParTestInitialise( void )
 {
 	/* This is performed from main() as the io bits are shared with other setup
 	functions.  Ensure the outputs are off to start. */
-	ulLEDReg = partstALL_OUTPUTS_OFF;
+	ulLEDReg = partstALL_OUTPUTS_OFF;  
 
 	/* Enable clock to PIO... */
 	AT91C_BASE_PS->PS_PCER = AT91C_PS_PIO;

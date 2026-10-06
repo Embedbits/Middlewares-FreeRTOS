@@ -1,5 +1,5 @@
 /*
- * backoffAlgorithm v1.3.0
+ * backoffAlgorithm v1.4.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -44,7 +44,7 @@
     #define CATCH_JMPBUF    waypoint_
 #endif
 
-jmp_buf CATCH_JMPBUF;
+static jmp_buf CATCH_JMPBUF;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"

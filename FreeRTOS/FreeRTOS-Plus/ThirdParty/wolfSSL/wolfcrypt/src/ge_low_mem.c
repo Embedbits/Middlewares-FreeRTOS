@@ -1,6 +1,6 @@
 /* ge_low_mem.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -52,11 +52,11 @@ static const byte ed25519_order[F25519_SIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
 };
 
-/*Arithmetic modulo the group order m = 2^252 +
+/*Arithmetic modulo the group order mod = 2^252 +
  27742317777372353535851937790883648493 =
  7237005577332262213973186563042994240857116359379907606001950938285454250989 */
 
-static const word32 m[32] = {
+static const word32 mod[32] = {
     0xED,0xD3,0xF5,0x5C,0x1A,0x63,0x12,0x58,0xD6,0x9C,0xF7,0xA2,0xDE,0xF9,
     0xDE,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
     0x00,0x00,0x00,0x10
@@ -111,7 +111,7 @@ static void reduce_add_sub(word32 *r)
 
   for(i=0;i<32;i++)
   {
-    pb += m[i];
+    pb += mod[i];
     b = lt(r[i],pb);
     t[i] = r[i]-pb+(b<<8);
     pb = b;
@@ -133,7 +133,6 @@ static void barrett_reduce(word32* r, word32 x[64])
   word32 r2[33];
   word32 carry;
   word32 pb = 0;
-  word32 b;
 
   for (i = 0;i < 66;++i) q2[i] = 0;
   for (i = 0;i < 33;++i) r2[i] = 0;
@@ -149,7 +148,7 @@ static void barrett_reduce(word32* r, word32 x[64])
   for(i=0;i<33;i++)r1[i] = x[i];
   for(i=0;i<32;i++)
     for(j=0;j<33;j++)
-      if(i+j < 33) r2[i+j] += m[i]*q3[j];
+      if(i+j < 33) r2[i+j] += mod[i]*q3[j];
 
   for(i=0;i<32;i++)
   {
@@ -160,6 +159,7 @@ static void barrett_reduce(word32* r, word32 x[64])
 
   for(i=0;i<32;i++)
   {
+    word32 b;
     pb += r2[i];
     b = lt(r1[i],pb);
     r[i] = r1[i]-pb+(b<<8);
@@ -176,7 +176,7 @@ static void barrett_reduce(word32* r, word32 x[64])
 }
 
 
-void sc_reduce(unsigned char x[64])
+void sc_reduce(unsigned char *x)
 {
   int i;
   word32 t[64];
@@ -438,28 +438,6 @@ void ed25519_smult(ge_p3 *r_out, const ge_p3 *p, const byte *e)
 void ge_scalarmult_base(ge_p3 *R,const unsigned char *nonce)
 {
     ed25519_smult(R, &ed25519_base, nonce);
-}
-
-
-/* pack the point h into array s */
-void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
-{
-    byte x[F25519_SIZE];
-    byte y[F25519_SIZE];
-    byte z1[F25519_SIZE];
-    byte parity;
-
-    fe_inv__distinct(z1, h->Z);
-    fe_mul__distinct(x, h->X, z1);
-    fe_mul__distinct(y, h->Y, z1);
-
-    fe_normalize(x);
-    fe_normalize(y);
-
-    parity = (x[0] & 1) << 7;
-    lm_copy(s, y);
-    fe_normalize(s);
-    s[31] |= parity;
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * coreMQTT v2.1.0
+ * coreMQTT v2.3.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -28,6 +28,7 @@
  */
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "unity.h"
 
@@ -36,6 +37,14 @@
 
 #include "mock_core_mqtt_serializer.h"
 #include "mock_core_mqtt_state.h"
+
+#include "core_mqtt_config_defaults.h"
+
+/* Set network context to double pointer to buffer (uint8_t**). */
+struct NetworkContext
+{
+    uint8_t ** buffer;
+};
 
 /**
  * @brief MQTT client identifier.
@@ -129,6 +138,36 @@
 #define MQTT_SAMPLE_TOPIC_FILTER_LENGTH        ( sizeof( MQTT_SAMPLE_TOPIC_FILTER ) - 1 )
 
 /**
+ * @brief Sample topic filter to subscribe to.
+ */
+#define MQTT_SAMPLE_TOPIC_FILTER1              "TopicFilter2"
+
+/**
+ * @brief Length of sample topic filter.
+ */
+#define MQTT_SAMPLE_TOPIC_FILTER_LENGTH1       ( sizeof( MQTT_SAMPLE_TOPIC_FILTER1 ) - 1 )
+
+/**
+ * @brief Sample topic filter to subscribe to.
+ */
+#define MQTT_SAMPLE_TOPIC_FILTER2              "SomeTopic"
+
+/**
+ * @brief Length of sample topic filter.
+ */
+#define MQTT_SAMPLE_TOPIC_FILTER_LENGTH2       ( sizeof( MQTT_SAMPLE_TOPIC_FILTER2 ) - 1 )
+
+/**
+ * @brief Sample topic filter to subscribe to.
+ */
+#define MQTT_SAMPLE_TOPIC_FILTER3              "iotTopicFilter"
+
+/**
+ * @brief Length of sample topic filter.
+ */
+#define MQTT_SAMPLE_TOPIC_FILTER_LENGTH3       ( sizeof( MQTT_SAMPLE_TOPIC_FILTER3 ) - 1 )
+
+/**
  * @brief Return values of mocked calls in MQTT_ProcessLoop(). Used by
  * `expectProcessLoopCalls`
  */
@@ -175,6 +214,24 @@ static uint8_t mqttBuffer[ MQTT_TEST_BUFFER_LENGTH ] = { 0 };
  */
 static bool isEventCallbackInvoked = false;
 static bool receiveOnce = false;
+
+static const uint8_t SubscribeHeader[] =
+{
+    MQTT_PACKET_TYPE_SUBSCRIBE,                  /* Subscribe header. */
+    0x10, 0x10,                                  /* Packet Length. */
+    ( MQTT_FIRST_VALID_PACKET_ID >> 8 ),
+    ( ( MQTT_FIRST_VALID_PACKET_ID ) & 0x00ffU ) /* Packet ID. */
+};
+static const size_t SubscribeHeaderLength = 5U;
+
+static const uint8_t UnsubscribeHeader[] =
+{
+    MQTT_PACKET_TYPE_UNSUBSCRIBE,                /* Subscribe header. */
+    0x12, 0x15,                                  /* Packet Length. */
+    ( MQTT_FIRST_VALID_PACKET_ID >> 8 ),
+    ( ( MQTT_FIRST_VALID_PACKET_ID ) & 0x00ffU ) /* Packet ID. */
+};
+static const size_t UnsubscribeHeaderLength = 5U;
 
 /* ============================   UNITY FIXTURES ============================ */
 
@@ -272,6 +329,37 @@ static uint32_t getTime( void )
     return globalEntryTime++;
 }
 
+static int32_t getTimeMockCallLimit = -1;
+
+/**
+ * @brief A mocked timer query function that increments on every call. This
+ * guarantees that only a single iteration runs in the ProcessLoop for ease
+ * of testing. Additionally, this tests whether the number of calls to this
+ * function have exceeded than the set limit and asserts.
+ */
+static uint32_t getTimeMock( void )
+{
+    TEST_ASSERT_GREATER_THAN_INT32( -1, getTimeMockCallLimit-- );
+    return globalEntryTime++;
+}
+
+static int32_t getTimeMockBigTimeStepCallLimit = -1;
+
+/**
+ * @brief A mocked timer query function that increments by MQTT_SEND_TIMEOUT_MS
+ * to simulate the time consumed by a long running high priority task on every
+ * call. Additionally, this tests whether the number of calls to this function
+ * have exceeded than the set limit and asserts.
+ */
+static uint32_t getTimeMockBigTimeStep( void )
+{
+    TEST_ASSERT_GREATER_THAN_INT32( -1, getTimeMockBigTimeStepCallLimit-- );
+
+    globalEntryTime += MQTT_SEND_TIMEOUT_MS;
+    return globalEntryTime;
+}
+
+
 /**
  * @brief A mocked timer function that could be used on a device with no system
  * time.
@@ -303,6 +391,241 @@ static int32_t transportWritevSuccess( NetworkContext_t * pNetworkContext,
     {
         bytesToWrite += pIoVectorIterator->iov_len;
         pIoVectorIterator++;
+    }
+
+    return bytesToWrite;
+}
+
+static void verifyEncodedTopicString( TransportOutVector_t * pIoVectorIterator,
+                                      char * pTopicFilter,
+                                      size_t topicFilterLength,
+                                      MQTTQoS_t topicQos,
+                                      int32_t * pBytesToWrite )
+{
+    /* Encoded topic length. */
+    uint8_t serializedLength[ 2 ];
+    const uint8_t * buffer;
+    size_t length;
+
+    serializedLength[ 0 ] = ( uint8_t ) ( topicFilterLength >> 8 );
+    serializedLength[ 1 ] = ( uint8_t ) ( topicFilterLength & 0x00ffU );
+
+    buffer = pIoVectorIterator[ 0 ].iov_base;
+    length = pIoVectorIterator[ 0 ].iov_len;
+
+    TEST_ASSERT_EQUAL( 2U, length );
+    TEST_ASSERT_EQUAL_UINT8_ARRAY( serializedLength, buffer, 2U );
+    ( *pBytesToWrite ) += length;
+
+    buffer = pIoVectorIterator[ 1 ].iov_base;
+    length = pIoVectorIterator[ 1 ].iov_len;
+
+    /* Encoded topic string. */
+    TEST_ASSERT_EQUAL( topicFilterLength, length );
+    TEST_ASSERT_EQUAL_UINT8_ARRAY( pTopicFilter, buffer, topicFilterLength );
+    ( *pBytesToWrite ) += length;
+
+    buffer = pIoVectorIterator[ 2 ].iov_base;
+    length = pIoVectorIterator[ 2 ].iov_len;
+
+    /* Encoded QoS. */
+    TEST_ASSERT_EQUAL( 1U, length );
+    TEST_ASSERT_EQUAL_UINT8( topicQos, *buffer );
+    ( *pBytesToWrite ) += length;
+}
+
+static void verifyEncodedTopicStringUnsubscribe( TransportOutVector_t * pIoVectorIterator,
+                                                 char * pTopicFilter,
+                                                 size_t topicFilterLength,
+                                                 int32_t * pBytesToWrite )
+{
+    /* Encoded topic length. */
+    uint8_t serializedLength[ 2 ];
+    const uint8_t * buffer;
+    size_t length;
+
+    serializedLength[ 0 ] = ( uint8_t ) ( topicFilterLength >> 8 );
+    serializedLength[ 1 ] = ( uint8_t ) ( topicFilterLength & 0x00ffU );
+
+    buffer = pIoVectorIterator[ 0 ].iov_base;
+    length = pIoVectorIterator[ 0 ].iov_len;
+
+    TEST_ASSERT_EQUAL( 2U, length );
+    TEST_ASSERT_EQUAL_UINT8_ARRAY( serializedLength, buffer, 2U );
+    ( *pBytesToWrite ) += length;
+
+    buffer = pIoVectorIterator[ 1 ].iov_base;
+    length = pIoVectorIterator[ 1 ].iov_len;
+
+    /* Encoded topic string. */
+    TEST_ASSERT_EQUAL( topicFilterLength, length );
+    TEST_ASSERT_EQUAL_UINT8_ARRAY( pTopicFilter, buffer, topicFilterLength );
+    ( *pBytesToWrite ) += length;
+}
+
+/**
+ * @brief Mocked transport writev to verify correct subscription
+ * packet.
+ *
+ * @param[in] tcpSocket TCP socket.
+ * @param[in] pMessage vectors to send
+ * @param[in] bytesToWrite number of vectors
+ *
+ * @return Number of bytes sent; negative value on error;
+ * 0 for timeout or 0 bytes sent.
+ */
+static int32_t transportWritevSubscribeSuccess( NetworkContext_t * pNetworkContext,
+                                                TransportOutVector_t * pIoVectorIterator,
+                                                size_t vectorsToBeSent )
+{
+    TEST_ASSERT_EQUAL( MQTT_SAMPLE_NETWORK_CONTEXT, pNetworkContext );
+    int32_t bytesToWrite = 0;
+    static int writeCount = 0;
+    const uint8_t * buffer;
+    size_t length;
+
+    /* The header. */
+    if( writeCount == 0 )
+    {
+        TEST_ASSERT_EQUAL( 4, vectorsToBeSent );
+
+        buffer = pIoVectorIterator->iov_base;
+        length = pIoVectorIterator->iov_len;
+
+        TEST_ASSERT_EQUAL( length, SubscribeHeaderLength );
+        TEST_ASSERT_EQUAL_UINT8_ARRAY( ( uint8_t * ) SubscribeHeader, buffer, SubscribeHeaderLength );
+
+        bytesToWrite += length;
+        pIoVectorIterator++;
+
+        /* First topic filter. */
+        verifyEncodedTopicString( pIoVectorIterator,
+                                  MQTT_SAMPLE_TOPIC_FILTER,
+                                  MQTT_SAMPLE_TOPIC_FILTER_LENGTH,
+                                  MQTTQoS1,
+                                  &bytesToWrite );
+
+        writeCount++;
+
+        pIoVectorIterator += 4;
+    }
+    else if( writeCount == 1 )
+    {
+        TEST_ASSERT_EQUAL( 6, vectorsToBeSent );
+
+        /* Second topic filter. */
+        verifyEncodedTopicString( pIoVectorIterator,
+                                  MQTT_SAMPLE_TOPIC_FILTER1,
+                                  MQTT_SAMPLE_TOPIC_FILTER_LENGTH1,
+                                  MQTTQoS2,
+                                  &bytesToWrite );
+
+        pIoVectorIterator += 3;
+
+        /* Third topic filter. */
+        verifyEncodedTopicString( pIoVectorIterator,
+                                  MQTT_SAMPLE_TOPIC_FILTER2,
+                                  MQTT_SAMPLE_TOPIC_FILTER_LENGTH2,
+                                  MQTTQoS0,
+                                  &bytesToWrite );
+
+        writeCount++;
+    }
+    else if( writeCount == 2 )
+    {
+        TEST_ASSERT_EQUAL( 3, vectorsToBeSent );
+
+        /* Fourth topic filter. */
+        verifyEncodedTopicString( pIoVectorIterator,
+                                  MQTT_SAMPLE_TOPIC_FILTER3,
+                                  MQTT_SAMPLE_TOPIC_FILTER_LENGTH3,
+                                  MQTTQoS1,
+                                  &bytesToWrite );
+
+        writeCount++;
+    }
+    else
+    {
+        bytesToWrite = -1;
+    }
+
+    return bytesToWrite;
+}
+
+/**
+ * @brief Mocked transport writev to verify correct subscription
+ * packet.
+ *
+ * @param[in] tcpSocket TCP socket.
+ * @param[in] pMessage vectors to send
+ * @param[in] bytesToWrite number of vectors
+ *
+ * @return Number of bytes sent; negative value on error;
+ * 0 for timeout or 0 bytes sent.
+ */
+static int32_t transportWritevUnsubscribeSuccess( NetworkContext_t * pNetworkContext,
+                                                  TransportOutVector_t * pIoVectorIterator,
+                                                  size_t vectorsToBeSent )
+{
+    TEST_ASSERT_EQUAL( MQTT_SAMPLE_NETWORK_CONTEXT, pNetworkContext );
+    int32_t bytesToWrite = 0;
+    static int writeCount = 0;
+    const uint8_t * buffer;
+    size_t length;
+
+    /* The header. */
+    if( writeCount == 0 )
+    {
+        TEST_ASSERT_EQUAL( 5, vectorsToBeSent );
+
+        buffer = pIoVectorIterator->iov_base;
+        length = pIoVectorIterator->iov_len;
+
+        TEST_ASSERT_EQUAL( length, UnsubscribeHeaderLength );
+        TEST_ASSERT_EQUAL_UINT8_ARRAY( ( uint8_t * ) UnsubscribeHeader, buffer, UnsubscribeHeaderLength );
+
+        bytesToWrite += length;
+        pIoVectorIterator++;
+
+        /* First topic filter. */
+        verifyEncodedTopicStringUnsubscribe( pIoVectorIterator,
+                                             MQTT_SAMPLE_TOPIC_FILTER,
+                                             MQTT_SAMPLE_TOPIC_FILTER_LENGTH,
+                                             &bytesToWrite );
+
+        pIoVectorIterator += 2;
+
+        /* Second topic filter. */
+        verifyEncodedTopicStringUnsubscribe( pIoVectorIterator,
+                                             MQTT_SAMPLE_TOPIC_FILTER1,
+                                             MQTT_SAMPLE_TOPIC_FILTER_LENGTH1,
+                                             &bytesToWrite );
+
+        writeCount++;
+    }
+    else if( writeCount == 1 )
+    {
+        TEST_ASSERT_EQUAL( 4, vectorsToBeSent );
+
+        /* Third topic filter. */
+        verifyEncodedTopicStringUnsubscribe( pIoVectorIterator,
+                                             MQTT_SAMPLE_TOPIC_FILTER2,
+                                             MQTT_SAMPLE_TOPIC_FILTER_LENGTH2,
+                                             &bytesToWrite );
+
+        pIoVectorIterator += 2;
+
+        /* Fourth topic filter. */
+        verifyEncodedTopicStringUnsubscribe( pIoVectorIterator,
+                                             MQTT_SAMPLE_TOPIC_FILTER3,
+                                             MQTT_SAMPLE_TOPIC_FILTER_LENGTH3,
+                                             &bytesToWrite );
+
+        writeCount++;
+    }
+    else
+    {
+        bytesToWrite = -1;
     }
 
     return bytesToWrite;
@@ -4191,6 +4514,36 @@ static uint8_t * MQTT_SerializeSubscribedHeader_cb1( size_t remainingLength,
     return pIndex + 5;
 }
 
+static uint8_t * MQTT_SerializeSubscribedHeader_cb2( size_t remainingLength,
+                                                     uint8_t * pIndex,
+                                                     uint16_t packetId,
+                                                     int numcallbacks )
+{
+    ( void ) remainingLength;
+    ( void ) pIndex;
+    ( void ) packetId;
+    ( void ) numcallbacks;
+
+    memcpy( pIndex, SubscribeHeader, SubscribeHeaderLength );
+
+    return pIndex + SubscribeHeaderLength;
+}
+
+static uint8_t * MQTT_SerializeUnsubscribedHeader_cb2( size_t remainingLength,
+                                                       uint8_t * pIndex,
+                                                       uint16_t packetId,
+                                                       int numcallbacks )
+{
+    ( void ) remainingLength;
+    ( void ) pIndex;
+    ( void ) packetId;
+    ( void ) numcallbacks;
+
+    memcpy( pIndex, UnsubscribeHeader, UnsubscribeHeaderLength );
+
+    return pIndex + UnsubscribeHeaderLength;
+}
+
 /**
  * @brief This test case verifies that MQTT_Subscribe returns successfully
  * when valid parameters are passed and all bytes are sent.
@@ -4315,6 +4668,63 @@ void test_MQTT_Subscribe_happy_path2( void )
     TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
 }
 
+void test_MQTT_Subscribe_MultipleSubscriptions( void )
+{
+    MQTTStatus_t mqttStatus;
+    MQTTContext_t context = { 0 };
+    TransportInterface_t transport = { 0 };
+    MQTTFixedBuffer_t networkBuffer = { 0 };
+    MQTTSubscribeInfo_t subscribeInfo[ 5 ];
+    size_t remainingLength = MQTT_SAMPLE_REMAINING_LENGTH;
+    size_t packetSize = MQTT_SAMPLE_REMAINING_LENGTH;
+    MQTTPubAckInfo_t incomingRecords = { 0 };
+    MQTTPubAckInfo_t outgoingRecords = { 0 };
+
+    TEST_ASSERT_EQUAL_MESSAGE( 6U, MQTT_SUB_UNSUB_MAX_VECTORS,
+                               "This test is configured to work with MQTT_SUB_UNSUB_MAX_VECTORS defined as 6." );
+
+    setupTransportInterface( &transport );
+    transport.writev = transportWritevSubscribeSuccess;
+
+    setupNetworkBuffer( &networkBuffer );
+
+    subscribeInfo[ 0 ].qos = MQTTQoS1;
+    subscribeInfo[ 0 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER;
+    subscribeInfo[ 0 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH;
+
+    subscribeInfo[ 1 ].qos = MQTTQoS2;
+    subscribeInfo[ 1 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER1;
+    subscribeInfo[ 1 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH1;
+
+    subscribeInfo[ 2 ].qos = MQTTQoS0;
+    subscribeInfo[ 2 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER2;
+    subscribeInfo[ 2 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH2;
+
+    subscribeInfo[ 3 ].qos = MQTTQoS1;
+    subscribeInfo[ 3 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER3;
+    subscribeInfo[ 3 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH3;
+
+    /* Initialize context. */
+    mqttStatus = MQTT_Init( &context, &transport, getTime, eventCallback, &networkBuffer );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    mqttStatus = MQTT_InitStatefulQoS( &context,
+                                       &outgoingRecords, 4,
+                                       &incomingRecords, 4 );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    /* Verify MQTTSuccess is returned with the following mocks. */
+    MQTT_GetSubscribePacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    MQTT_SerializeSubscribeHeader_Stub( MQTT_SerializeSubscribedHeader_cb2 );
+
+    /* Expect the above calls when running MQTT_Subscribe. */
+    mqttStatus = MQTT_Subscribe( &context, subscribeInfo, 4, MQTT_FIRST_VALID_PACKET_ID );
+
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+}
+
 /**
  * @brief This test case verifies that MQTT_Subscribe returns MQTTSendFailed
  * if transport interface send returns an error.
@@ -4383,6 +4793,92 @@ void test_MQTT_Subscribe_error_paths2( void )
     MQTT_SerializeSubscribeHeader_Stub( MQTT_SerializeSubscribedHeader_cb );
     mqttStatus = MQTT_Subscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
     TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+}
+
+/**
+ * @brief This test case verifies that MQTT_Subscribe returns MQTTSendFailed
+ * if transport interface send fails and timer overflows.
+ */
+void test_MQTT_Subscribe_error_paths_timerOverflowCheck( void )
+{
+    MQTTStatus_t mqttStatus;
+    MQTTContext_t context = { 0 };
+    TransportInterface_t transport = { 0 };
+    MQTTFixedBuffer_t networkBuffer = { 0 };
+    MQTTSubscribeInfo_t subscribeInfo = { 0 };
+    size_t remainingLength = MQTT_SAMPLE_REMAINING_LENGTH;
+    size_t packetSize = MQTT_SAMPLE_REMAINING_LENGTH;
+
+    globalEntryTime = UINT32_MAX - 2U;
+
+    /* The timer function can be called a maximum of these many times
+     * (which is way less than UINT32_MAX). This ensures that if overflow
+     * check is not correct, then the timer mock call will fail and assert. */
+    getTimeMockCallLimit = MQTT_SEND_TIMEOUT_MS + 1;
+
+    /* Verify that an error is propagated when transport interface returns an error. */
+    setupNetworkBuffer( &networkBuffer );
+    setupSubscriptionInfo( &subscribeInfo );
+    subscribeInfo.qos = MQTTQoS0;
+    setupTransportInterface( &transport );
+    transport.writev = NULL;
+    /* Case when there is timeout in sending data through transport send. */
+    transport.send = transportSendNoBytes; /* Use the mock function that returns zero bytes sent. */
+
+    /* Initialize context. */
+    mqttStatus = MQTT_Init( &context, &transport, getTimeMock, eventCallback, &networkBuffer );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    MQTT_GetSubscribePacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    MQTT_SerializeSubscribeHeader_Stub( MQTT_SerializeSubscribedHeader_cb );
+    mqttStatus = MQTT_Subscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
+    TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+    TEST_ASSERT_EQUAL( -1, getTimeMockCallLimit );
+}
+
+/**
+ * @brief This test case verifies that MQTT_Subscribe returns MQTTSendFailed
+ * if transport interface send fails and timer overflows.
+ */
+void test_MQTT_Subscribe_error_paths_timerOverflowCheck1( void )
+{
+    MQTTStatus_t mqttStatus;
+    MQTTContext_t context = { 0 };
+    TransportInterface_t transport = { 0 };
+    MQTTFixedBuffer_t networkBuffer = { 0 };
+    MQTTSubscribeInfo_t subscribeInfo = { 0 };
+    size_t remainingLength = MQTT_SAMPLE_REMAINING_LENGTH;
+    size_t packetSize = MQTT_SAMPLE_REMAINING_LENGTH;
+
+    globalEntryTime = UINT32_MAX - MQTT_SEND_TIMEOUT_MS + 1;
+
+    /* The timer function can be called a exactly 2 times. First when setting
+     * the initial time, next time when checking for timeout.
+     */
+    getTimeMockBigTimeStepCallLimit = 2;
+
+    /* Verify that an error is propagated when transport interface returns an error. */
+    setupNetworkBuffer( &networkBuffer );
+    setupSubscriptionInfo( &subscribeInfo );
+    subscribeInfo.qos = MQTTQoS0;
+    setupTransportInterface( &transport );
+    transport.writev = NULL;
+    /* Case when there is timeout in sending data through transport send. */
+    transport.send = transportSendNoBytes; /* Use the mock function that returns zero bytes sent. */
+
+    /* Initialize context. */
+    mqttStatus = MQTT_Init( &context, &transport, getTimeMockBigTimeStep, eventCallback, &networkBuffer );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    MQTT_GetSubscribePacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    MQTT_SerializeSubscribeHeader_Stub( MQTT_SerializeSubscribedHeader_cb );
+    mqttStatus = MQTT_Subscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
+    TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+    TEST_ASSERT_EQUAL( -1, getTimeMockBigTimeStepCallLimit );
 }
 
 /* ========================================================================== */
@@ -4541,6 +5037,63 @@ void test_MQTT_unsubscribe_happy_path2( void )
 
     /* Expect the above calls when running MQTT_Subscribe. */
     mqttStatus = MQTT_Unsubscribe( &context, subscribeInfo, 3, MQTT_FIRST_VALID_PACKET_ID );
+
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+}
+
+void test_MQTT_Unsubscribe_MultipleSubscriptions( void )
+{
+    MQTTStatus_t mqttStatus;
+    MQTTContext_t context = { 0 };
+    TransportInterface_t transport = { 0 };
+    MQTTFixedBuffer_t networkBuffer = { 0 };
+    MQTTSubscribeInfo_t subscribeInfo[ 5 ];
+    size_t remainingLength = MQTT_SAMPLE_REMAINING_LENGTH;
+    size_t packetSize = MQTT_SAMPLE_REMAINING_LENGTH;
+    MQTTPubAckInfo_t incomingRecords = { 0 };
+    MQTTPubAckInfo_t outgoingRecords = { 0 };
+
+    TEST_ASSERT_EQUAL_MESSAGE( 6U, MQTT_SUB_UNSUB_MAX_VECTORS,
+                               "This test is configured to work with MQTT_SUB_UNSUB_MAX_VECTORS defined as 6." );
+
+    setupTransportInterface( &transport );
+    transport.writev = transportWritevUnsubscribeSuccess;
+
+    setupNetworkBuffer( &networkBuffer );
+
+    subscribeInfo[ 0 ].qos = MQTTQoS1;
+    subscribeInfo[ 0 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER;
+    subscribeInfo[ 0 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH;
+
+    subscribeInfo[ 1 ].qos = MQTTQoS2;
+    subscribeInfo[ 1 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER1;
+    subscribeInfo[ 1 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH1;
+
+    subscribeInfo[ 2 ].qos = MQTTQoS0;
+    subscribeInfo[ 2 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER2;
+    subscribeInfo[ 2 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH2;
+
+    subscribeInfo[ 3 ].qos = MQTTQoS1;
+    subscribeInfo[ 3 ].pTopicFilter = MQTT_SAMPLE_TOPIC_FILTER3;
+    subscribeInfo[ 3 ].topicFilterLength = MQTT_SAMPLE_TOPIC_FILTER_LENGTH3;
+
+    /* Initialize context. */
+    mqttStatus = MQTT_Init( &context, &transport, getTime, eventCallback, &networkBuffer );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    mqttStatus = MQTT_InitStatefulQoS( &context,
+                                       &outgoingRecords, 4,
+                                       &incomingRecords, 4 );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    /* Verify MQTTSuccess is returned with the following mocks. */
+    MQTT_GetUnsubscribePacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetUnsubscribePacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetUnsubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    MQTT_SerializeUnsubscribeHeader_Stub( MQTT_SerializeUnsubscribedHeader_cb2 );
+
+    /* Expect the above calls when running MQTT_Subscribe. */
+    mqttStatus = MQTT_Unsubscribe( &context, subscribeInfo, 4, MQTT_FIRST_VALID_PACKET_ID );
 
     TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
 }
@@ -5298,7 +5851,11 @@ void test_MQTT_Status_strerror( void )
     str = MQTT_Status_strerror( status );
     TEST_ASSERT_EQUAL_STRING( "MQTTKeepAliveTimeout", str );
 
-    status = MQTTKeepAliveTimeout + 1;
+    status = MQTTNeedMoreBytes;
+    str = MQTT_Status_strerror( status );
+    TEST_ASSERT_EQUAL_STRING( "MQTTNeedMoreBytes", str );
+
+    status = MQTTNeedMoreBytes + 1;
     str = MQTT_Status_strerror( status );
     TEST_ASSERT_EQUAL_STRING( "Invalid MQTT Status code", str );
 }

@@ -46,7 +46,7 @@
     \sa wc_ChaCha_*
     \sa wc_Poly1305*
 */
-WOLFSSL_API
+
 int wc_ChaCha20Poly1305_Encrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
@@ -97,7 +97,7 @@ int wc_ChaCha20Poly1305_Encrypt(
     byte plain[sizeof(cipher)];
 
     int ret = wc_ChaCha20Poly1305_Decrypt(key, iv, inAAD, sizeof(inAAD),
-    cipher, sizeof(cipher), plain, authTag);
+    cipher, sizeof(cipher), authTag, plain);
 
     if(ret == MAC_CMP_FAILED_E) {
     	// error during authentication
@@ -110,7 +110,7 @@ int wc_ChaCha20Poly1305_Encrypt(
     \sa wc_ChaCha_*
     \sa wc_Poly1305*
 */
-WOLFSSL_API
+
 int wc_ChaCha20Poly1305_Decrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],

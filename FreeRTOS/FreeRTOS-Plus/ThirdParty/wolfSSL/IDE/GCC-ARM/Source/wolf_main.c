@@ -1,6 +1,6 @@
 /* wolf_main.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -59,12 +59,12 @@ unsigned int LowResTimer(void)
 /* This is used by wolfCrypt benchmark tool only */
 double current_time(int reset)
 {
-    double time;
-	int timeMs = gTimeMs;
+    double timeNow;
+    int timeMs = gTimeMs;
     (void)reset;
-    time = (timeMs / 1000); // sec
-    time += (double)(timeMs % 1000) / 1000; // ms
-    return time;
+    timeNow = (timeMs / 1000); // sec
+    timeNow += (double)(timeMs % 1000) / 1000; // ms
+    return timeNow;
 }
 #endif
 

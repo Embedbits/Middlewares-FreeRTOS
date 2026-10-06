@@ -1,5 +1,5 @@
 /*
- * SigV4 Library v1.2.0
+ * SigV4 Library v1.3.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -50,15 +50,16 @@ SigV4Status_t writeLineToCanonicalRequest( const char * pLine,
                                            size_t lineLen,
                                            CanonicalContext_t * pCanonicalContext );
 
-SigV4Status_t encodeURI( const char * pUri,
-                         size_t uriLen,
-                         char * pCanonicalURI,
-                         size_t * canonicalURILen,
-                         bool encodeSlash,
-                         bool doubleEncodeEquals );
+SigV4Status_t SigV4_EncodeURI( const char * pUri,
+                               size_t uriLen,
+                               char * pCanonicalURI,
+                               size_t * canonicalURILen,
+                               bool encodeSlash,
+                               bool doubleEncodeEquals );
 
 SigV4Status_t generateCanonicalQuery( const char * pQuery,
                                       size_t queryLen,
+                                      const bool doubleEncodeEqualsInParmsValues,
                                       CanonicalContext_t * pCanonicalContext );
 
 SigV4Status_t generateCanonicalAndSignedHeaders( const char * pHeaders,

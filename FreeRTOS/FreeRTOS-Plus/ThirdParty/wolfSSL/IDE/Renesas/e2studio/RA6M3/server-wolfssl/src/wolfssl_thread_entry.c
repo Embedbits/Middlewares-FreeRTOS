@@ -1,6 +1,6 @@
 /* wolfssl_thread_entry.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,6 +30,20 @@
 /* Project Tools */
 #include "common/util.h"
 #include <stdio.h>
+#include "hal_data.h"
+
+/* the function is called just before main() to set up pins */
+/* this needs to be called to setup IO Port */
+void R_BSP_WarmStart (bsp_warm_start_event_t event)
+{
+
+    if (BSP_WARM_START_POST_C == event) {
+        /* C runtime environment and system clocks are setup. */
+        /* Configure pins. */
+        R_IOPORT_Open(&g_ioport_ctrl, g_ioport.p_cfg);
+    }
+}
+
 
 void wolfssl_thread_entry(void *pvParameters) {
     FSP_PARAMETER_NOT_USED(pvParameters);
@@ -96,7 +110,7 @@ void wolfssl_thread_entry(void *pvParameters) {
         configASSERT(xConnectedSocket != FREERTOS_INVALID_SOCKET);
 
         /* Create WOLFSSL_CTX object */
-        ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+        ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex((void *)NULL));
 
         /* Load server certificates into WOLFSSL_CTX */
         if (ctx == NULL) {
@@ -142,7 +156,6 @@ void wolfssl_thread_entry(void *pvParameters) {
         }
         memset(buff, 0, sizeof(buff));
         ret = wolfSSL_read(ssl, buff, sizeof(buff) - 1);
-
         if (ret < 0)
             break;
 
@@ -156,6 +169,8 @@ void wolfssl_thread_entry(void *pvParameters) {
 
         /* Reply back to the client */
         ret = wolfSSL_write(ssl, buff, (int) strlen(buff));
+        if (ret < 0)
+            break;
 
         /* Cleanup after this connection */
         util_Cleanup(xConnectedSocket, ctx, ssl);

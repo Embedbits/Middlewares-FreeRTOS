@@ -1,5 +1,5 @@
 /*
- * coreMQTT v2.1.0
+ * coreMQTT v2.3.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -28,12 +28,6 @@
  */
 #ifndef CORE_MQTT_CONFIG_H_
 #define CORE_MQTT_CONFIG_H_
-
-/* Mock a network context for the CBMC proofs. */
-struct NetworkContext
-{
-    int NetworkContext;
-};
 
 /**
  * @brief Determines the maximum number of MQTT PUBLISH messages, pending

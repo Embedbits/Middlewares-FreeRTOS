@@ -1,5 +1,5 @@
 /*
- * FreeRTOS V202212.01
+ * FreeRTOS V202411.00
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -69,6 +69,9 @@
 #define configUSE_QUEUE_SETS                    1
 #define configTASK_NOTIFICATION_ARRAY_ENTRIES   3
 
+/* Co-routine definitions. */
+#define configUSE_CO_ROUTINES                   0
+#define configMAX_CO_ROUTINE_PRIORITIES         ( 2 )
 
 /* Software timer definitions. */
 #define configUSE_TIMERS                        1

@@ -1,5 +1,5 @@
 /*
- * coreSNTP v1.2.0
+ * coreSNTP v1.3.1
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -263,10 +263,10 @@ typedef enum SntpStatus
  */
 typedef enum SntpLeapSecondInfo
 {
-    NoLeapSecond = 0x00,              /** <@brief There is no upcoming leap second adjustment. */
-    LastMinuteHas61Seconds = 0x01,    /** <@brief A leap second should be inserted in the last minute before midnight. */
-    LastMinuteHas59Seconds = 0x02,    /** <@brief A leap second should be deleted from the last minute before midnight. */
-    AlarmServerNotSynchronized = 0x03 /** <@brief An alarm condition meaning that server's time is not synchronized
+    NoLeapSecond = 0x00,              /**< @brief There is no upcoming leap second adjustment. */
+    LastMinuteHas61Seconds = 0x01,    /**< @brief A leap second should be inserted in the last minute before midnight. */
+    LastMinuteHas59Seconds = 0x02,    /**< @brief A leap second should be deleted from the last minute before midnight. */
+    AlarmServerNotSynchronized = 0x03 /**< @brief An alarm condition meaning that server's time is not synchronized
                                        * to an upstream NTP (or SNTP) server. */
 } SntpLeapSecondInfo_t;
 

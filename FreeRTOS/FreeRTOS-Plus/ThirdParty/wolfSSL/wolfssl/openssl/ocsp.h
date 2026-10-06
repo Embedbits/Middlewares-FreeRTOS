@@ -1,6 +1,6 @@
 /* ocsp.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,10 +30,11 @@
 #define OCSP_REQUEST              OcspRequest
 #define OCSP_RESPONSE             OcspResponse
 #define OCSP_BASICRESP            WOLFSSL_OCSP_BASICRESP
+#define OCSP_SINGLERESP           WOLFSSL_OCSP_SINGLERESP
 #define OCSP_CERTID               WOLFSSL_OCSP_CERTID
 #define OCSP_ONEREQ               WOLFSSL_OCSP_ONEREQ
 
-#define OCSP_REVOKED_STATUS_NOSTATUS     -1
+#define OCSP_REVOKED_STATUS_NOSTATUS     (-1)
 
 
 #define OCSP_RESPONSE_STATUS_SUCCESSFUL  0
@@ -75,6 +76,14 @@
 #define OCSP_CERTID_dup           wolfSSL_OCSP_CERTID_dup
 
 #define i2d_OCSP_REQUEST_bio      wolfSSL_i2d_OCSP_REQUEST_bio
+
+#define i2d_OCSP_CERTID           wolfSSL_i2d_OCSP_CERTID
+#define d2i_OCSP_CERTID           wolfSSL_d2i_OCSP_CERTID
+#define OCSP_SINGLERESP_get0_id   wolfSSL_OCSP_SINGLERESP_get0_id
+#define OCSP_id_cmp               wolfSSL_OCSP_id_cmp
+#define OCSP_single_get0_status   wolfSSL_OCSP_single_get0_status
+#define OCSP_resp_count           wolfSSL_OCSP_resp_count
+#define OCSP_resp_get0            wolfSSL_OCSP_resp_get0
 
 #endif /* HAVE_OCSP */
 

@@ -1,89 +1,160 @@
-cmake_minimum_required ( VERSION 3.13.0 )
-project ( "FreeRTOS-Plus-TCP Build Combination"
-          VERSION 1.0.0
-          LANGUAGES C )
-
-# Allow the project to be organized into folders.
-set_property( GLOBAL PROPERTY USE_FOLDERS ON )
-
-# Use C90.
-set( CMAKE_C_STANDARD 90 )
-set( CMAKE_C_STANDARD_REQUIRED ON )
-
-# Do not allow in-source build.
-if( ${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR} )
-    message( FATAL_ERROR "In-source build is not allowed. Please build in a separate directory, such as ${PROJECT_SOURCE_DIR}/build." )
-endif()
-
-# Set global path variables.
-get_filename_component(__MODULE_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
-set(MODULE_ROOT_DIR ${__MODULE_ROOT_DIR} CACHE INTERNAL "FreeRTOS-Plus-TCP repository root.")
-
-# Configure options to always show in CMake GUI.
-option( BUILD_CLONE_SUBMODULES
-        "Set this to ON to automatically clone any required Git submodules. When OFF, submodules must be manually cloned."
-        ON )
-
-
-option(TEST_CONFIGURATION "Configuration All Enable/Disable or default" ENABLE_ALL)
-
-message( STATUS "Argument: ${TEST_CONFIGURATION}")
-
-# Set output directories.
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
-set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
-set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
-
-
-set( FREERTOS_KERNEL_DIR ${MODULE_ROOT_DIR}/test/FreeRTOS-Kernel )
-set( TEST_DIR ${MODULE_ROOT_DIR}/test/build-combination )
-
-include_directories( ${MODULE_ROOT_DIR}/source/include )
-include_directories( ${MODULE_ROOT_DIR}/source/portable/Compiler/MSVC )
-include_directories( ${FREERTOS_KERNEL_DIR}/include )
-# Add the correct portable directory to include search paths.
-if (WIN32)
-    include_directories( ${FREERTOS_KERNEL_DIR}/portable/MSVC-MingW )
+# Select the appropriate Build Test configuration
+set(FREERTOS_PLUS_TCP_TEST_CONFIGURATION "CUSTOM" CACHE STRING "FreeRTOS Plus TCP Build Test configuration")
+set(FREERTOS_PLUS_TCP_TEST_CONFIGURATION_LIST
+    CUSTOM                  # Custom (external) configuration -eg from a top-level project
+    ENABLE_ALL              # Enable all configuration settings
+    ENABLE_ALL_IPV4         # Enable all configuration settings IPv4 UDP
+    ENABLE_ALL_IPV6         # Enable all configuration settings IPv6 UDP
+    ENABLE_ALL_IPV4_TCP     # Enable all configuration settings IPv4 TCP
+    ENABLE_ALL_IPV6_TCP     # Enable all configuration settings IPv6 TCP
+    ENABLE_ALL_IPV4_IPV6    # Enable all configuration settings IPv4 IPv6 UDP
+    DISABLE_ALL             # Disable all configuration settings
+    HEADER_SELF_CONTAIN     # Enable header self contain test
+    DEFAULT_CONF            # Default (typical) configuration
+)
+if(NOT FREERTOS_PLUS_TCP_TEST_CONFIGURATION IN_LIST FREERTOS_PLUS_TCP_TEST_CONFIGURATION_LIST)
+    message(FATAL_ERROR "Invalid FREERTOS_PLUS_TCP_TEST_CONFIGURATION value '${FREERTOS_PLUS_TCP_TEST_CONFIGURATION}' should be one of: ${FREERTOS_PLUS_TCP_TEST_CONFIGURATION_LIST}")
 else()
-    include_directories( ${FREERTOS_KERNEL_DIR}/portable/ThirdParty/GCC/Posix )
+    message(STATUS "Using FreeRTOS-Plus-TCP Test Configuration : ${FREERTOS_PLUS_TCP_TEST_CONFIGURATION}")
+    if (NOT FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "CUSTOM")
+        message(WARNING "FreeRTOS-Kernel configuration settings are configured by FreeRTOS-Plus-TCP")
+    endif()
 endif()
-include_directories( ${TEST_DIR}/Common )
 
-if( ${TEST_CONFIGURATION} STREQUAL "ENABLE_ALL" )
-    include_directories( ${TEST_DIR}/AllEnable )
-elseif( ${TEST_CONFIGURATION} STREQUAL "DISABLE_ALL" )
-    include_directories( ${TEST_DIR}/AllDisable )
+add_library( freertos_plus_tcp_config_common INTERFACE )
+target_include_directories(freertos_plus_tcp_config_common INTERFACE Common )
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_disable INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_disable INTERFACE AllDisable)
+target_link_libraries(freertos_plus_tcp_config_all_disable INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_enable INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_enable INTERFACE AllEnable)
+target_link_libraries(freertos_plus_tcp_config_all_enable INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_enable_ipv4 INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_enable_ipv4 INTERFACE Enable_IPv4)
+target_link_libraries(freertos_plus_tcp_config_all_enable_ipv4 INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_enable_ipv6 INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_enable_ipv6 INTERFACE Enable_IPv6)
+target_link_libraries(freertos_plus_tcp_config_all_enable_ipv6 INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_enable_ipv4_ipv6 INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_enable_ipv4_ipv6 INTERFACE Enable_IPv4_IPv6)
+target_link_libraries(freertos_plus_tcp_config_all_enable_ipv4_ipv6 INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_enable_ipv4_tcp INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_enable_ipv4_tcp INTERFACE Enable_IPv4_TCP)
+target_link_libraries(freertos_plus_tcp_config_all_enable_ipv4_tcp INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_all_enable_ipv6_tcp INTERFACE)
+target_include_directories(freertos_plus_tcp_config_all_enable_ipv6_tcp INTERFACE Enable_IPv6_TCP)
+target_link_libraries(freertos_plus_tcp_config_all_enable_ipv6_tcp INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_header_self_contain INTERFACE)
+target_include_directories(freertos_plus_tcp_config_header_self_contain INTERFACE Header_Self_Contain)
+target_link_libraries(freertos_plus_tcp_config_header_self_contain INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+add_library( freertos_plus_tcp_config_default INTERFACE)
+target_include_directories(freertos_plus_tcp_config_default INTERFACE DefaultConf)
+target_link_libraries(freertos_plus_tcp_config_default INTERFACE freertos_plus_tcp_config_common)
+
+# -------------------------------------------------------------------
+# Configuration for FreeRTOS-Kernel
+if(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "CUSTOM" )
+    # Check Config target is available. And then do nothing.
+    if(NOT TARGET freertos_config )
+        message(FATAL_ERROR "FREERTOS_PLUS_TCP_TEST_CONFIGURATION = CUSTOM, but no freertos_config target defined.")
+    endif()
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "DISABLE_ALL" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_disable)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "ENABLE_ALL" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_enable)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "ENABLE_ALL_IPV4" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_enable_ipv4)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "ENABLE_ALL_IPV6" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_enable_ipv6)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "ENABLE_ALL_IPV4_TCP" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_enable_ipv4_tcp)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "ENABLE_ALL_IPV6_TCP" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_enable_ipv6_tcp)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "ENABLE_ALL_IPV4_IPV6" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_all_enable_ipv4_ipv6)
+elseif(FREERTOS_PLUS_TCP_TEST_CONFIGURATION STREQUAL "HEADER_SELF_CONTAIN" )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_header_self_contain)
+    include( Header_Self_Contain/headerSelfContain.cmake )
 else()
-    include_directories( ${TEST_DIR}/DefaultConf )
+    add_library( freertos_config ALIAS freertos_plus_tcp_config_default)
 endif()
 
-# Pick the correct kernel port files for the platform.
-if (WIN32)
-    file(GLOB KERNEL_SOURCES "${MODULE_ROOT_DIR}/test/FreeRTOS-Kernel/*.c"
-                             "${MODULE_ROOT_DIR}/test/FreeRTOS-Kernel/portable/MSVC-MingW/*.c")
-else()
-    file(GLOB KERNEL_SOURCES "${MODULE_ROOT_DIR}/test/FreeRTOS-Kernel/*.c"
-                             "${MODULE_ROOT_DIR}/test/FreeRTOS-Kernel/portable/ThirdParty/GCC/Posix/*.c"
-                             "${MODULE_ROOT_DIR}/test/FreeRTOS-Kernel/portable/ThirdParty/GCC/Posix/utils/*.c")
-endif()
+# FreeRTOS-Plus-TCP compilation options configuration
+set_property(TARGET freertos_plus_tcp PROPERTY C_STANDARD 90)
+target_compile_options(freertos_plus_tcp
+    PRIVATE
 
-file(GLOB TCP_SOURCES "${MODULE_ROOT_DIR}/source/*.c" )
+    ### Gnu/Clang C Options
+    $<$<COMPILE_LANG_AND_ID:C,GNU>:-fdiagnostics-color=always>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-fcolor-diagnostics>
 
-message(STATUS "${KERNEL_SOURCES}")
-message(STATUS "${TCP_SOURCES}")
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wall>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wextra>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Werror>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wpedantic>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wconversion>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wunused-variable>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Weverything>
 
-add_executable(project ${KERNEL_SOURCES}
-               ${TCP_SOURCES}
-               ${FREERTOS_KERNEL_DIR}/portable/MemMang/heap_4.c
-               ${MODULE_ROOT_DIR}/source/portable/BufferManagement/BufferAllocation_2.c
-               ${TEST_DIR}/Common/main.c )
+    # Suppressions required to build clean with clang.
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-unused-macros>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-cast-qual>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-switch-enum>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-declaration-after-statement>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-padded>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-missing-variable-declarations>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-covered-switch-default>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-extra-semi-stmt>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-missing-noreturn>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-cast-align>
+)
 
-if (WIN32)
-    # Add preprocessor definitions to suppress warnings.
-    target_compile_definitions( project PRIVATE
-                                        _CRT_SECURE_NO_WARNINGS )
-else()
-    # Link pthread which is needed for POSIX port.
-    find_package( Threads REQUIRED )
-    target_link_libraries( project Threads::Threads )
-endif()
+# Common build combination test.
+add_executable(freertos_plus_tcp_build_test EXCLUDE_FROM_ALL)
+
+target_sources(freertos_plus_tcp_build_test
+PRIVATE
+    Common/main.c
+)
+
+target_compile_options(freertos_plus_tcp_build_test
+    PRIVATE
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-cast-qual>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-format-nonliteral>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-implicit-function-declaration>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-missing-noreturn>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-missing-prototypes>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-missing-variable-declarations>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-reserved-identifier>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-shorten-64-to-32>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-sign-conversion>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wno-unused-parameter>
+    $<$<COMPILE_LANG_AND_ID:C,Clang>:-Wno-unused-macros>
+    $<$<COMPILE_LANG_AND_ID:C,Clang,GNU>:-Wno-unused-variable>
+)
+
+set( FREERTOS_HEAP "4" CACHE STRING "" FORCE)
+
+target_link_libraries(freertos_plus_tcp_build_test
+    PRIVATE
+    freertos_plus_tcp
+    freertos_kernel
+)

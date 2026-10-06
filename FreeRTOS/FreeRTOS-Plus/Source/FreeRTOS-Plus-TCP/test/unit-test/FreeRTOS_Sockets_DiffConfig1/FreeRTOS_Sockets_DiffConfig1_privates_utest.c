@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -34,113 +34,77 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "mock_task.h"
 #include "mock_list.h"
 
 /* This must come after list.h is included (in this case, indirectly
  * by mock_list.h). */
 #include "mock_Sockets_DiffConfig1_list_macros.h"
-#include "mock_queue.h"
-#include "mock_event_groups.h"
-#include "mock_portable.h"
-
-#include "FreeRTOSIPConfig.h"
-
-#include "mock_FreeRTOS_IP.h"
-#include "mock_FreeRTOS_ARP.h"
-#include "mock_NetworkBufferManagement.h"
-#include "mock_NetworkInterface.h"
-#include "mock_FreeRTOS_DHCP.h"
-#include "mock_FreeRTOS_DNS.h"
-#include "mock_FreeRTOS_Stream_Buffer.h"
-#include "mock_FreeRTOS_TCP_WIN.h"
+#include "mock_FreeRTOS_IP_Private.h"
 
 #include "FreeRTOS_Sockets.h"
-#include "FreeRTOS_IP_Private.h"
 
 #include "catch_assert.h"
 
-extern List_t xBoundUDPSocketsList;
-extern List_t xBoundTCPSocketsList;
+#include "FreeRTOSIPConfig.h"
 
-BaseType_t prvValidSocket( const FreeRTOS_Socket_t * pxSocket,
-                           BaseType_t xProtocol,
-                           BaseType_t xIsBound );
+/* =========================== EXTERN VARIABLES =========================== */
 
-uint8_t ucASCIIToHex( char cChar );
+BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
+                                   BaseType_t xType,
+                                   BaseType_t xProtocol,
+                                   size_t * pxSocketSize );
 
-BaseType_t bMayConnect( FreeRTOS_Socket_t const * pxSocket );
+BaseType_t xTCPWindowLoggingLevel = 0;
 
-static uint32_t xRandomNumberToReturn;
-static BaseType_t xRNGStatus;
-static UBaseType_t uxGlobalCallbackCount;
-static BaseType_t xLocalReceiveCallback_Return;
-static uint8_t xLocalReceiveCallback_Called = 0;
+/* ============================== Test Cases ============================== */
 
-static FreeRTOS_Socket_t xGlobalSocket;
-
-static void vUserCallbackLocal( FreeRTOS_Socket_t * xSocket )
+/**
+ * @brief Happy path with TCP socket size being determined.
+ */
+void test_prvDetermineSocketSize_TCPSocket( void )
 {
-    uxGlobalCallbackCount++;
-}
+    BaseType_t xReturn;
+    BaseType_t xDomain = FREERTOS_AF_INET, xType = FREERTOS_SOCK_STREAM, xProtocol = FREERTOS_IPPROTO_TCP;
+    size_t xSocketSize;
+    FreeRTOS_Socket_t const * pxSocket = NULL;
 
-static BaseType_t xStubApplicationGetRandomNumber( uint32_t * xRndNumber,
-                                                   int count )
-{
-    ( void ) count;
-    *xRndNumber = xRandomNumberToReturn;
-    return xRNGStatus;
-}
-
-static void vpxListFindListItemWithValue_NotFound( void )
-{
-    xIPIsNetworkTaskReady_ExpectAndReturn( pdFALSE );
-}
-
-static void vpxListFindListItemWithValue_Found( const List_t * pxList,
-                                                TickType_t xWantedItemValue,
-                                                const ListItem_t * pxReturn )
-{
     xIPIsNetworkTaskReady_ExpectAndReturn( pdTRUE );
 
-    listGET_NEXT_ExpectAndReturn( &( pxList->xListEnd ), pxReturn );
+    listLIST_IS_INITIALISED_ExpectAndReturn( &xBoundUDPSocketsList, pdTRUE );
+    listLIST_IS_INITIALISED_ExpectAndReturn( &xBoundTCPSocketsList, pdTRUE );
 
-    listGET_LIST_ITEM_VALUE_ExpectAndReturn( pxReturn, xWantedItemValue );
+    xReturn = prvDetermineSocketSize( xDomain, xType, xProtocol, &xSocketSize );
+
+    TEST_ASSERT_EQUAL( pdTRUE, xReturn );
+    TEST_ASSERT_EQUAL( ( sizeof( *pxSocket ) - sizeof( pxSocket->u ) ) + sizeof( pxSocket->u.xTCP ), xSocketSize );
 }
 
-static BaseType_t xStubForEventGroupWaitBits( EventGroupHandle_t xEventGroup,
-                                              const EventBits_t uxBitsToWaitFor,
-                                              const BaseType_t xClearOnExit,
-                                              const BaseType_t xWaitForAllBits,
-                                              TickType_t xTicksToWait,
-                                              int CallbackCount )
-{
-    xGlobalSocket.u.xTCP.eTCPState = eESTABLISHED;
-}
-
-static BaseType_t xLocalReceiveCallback( Socket_t xSocket,
-                                         void * pvData,
-                                         size_t xLength )
-{
-    xLocalReceiveCallback_Called++;
-    return xLocalReceiveCallback_Return;
-}
-
-/*
- * @brief Binding successful.
+/**
+ * @brief Happy path with TCPv6 socket size being determined.
+ * But IPv6 is disabled.
  */
-void test_vSocketBind_TCP( void )
+void test_prvDetermineSocketSize_TCPv6Socket( void )
+{
+    BaseType_t xDomain = FREERTOS_AF_INET6, xType = FREERTOS_SOCK_STREAM, xProtocol = FREERTOS_IPPROTO_TCP;
+    size_t xSocketSize;
+    FreeRTOS_Socket_t const * pxSocket = NULL;
+
+    xIPIsNetworkTaskReady_ExpectAndReturn( pdTRUE );
+
+    catch_assert( prvDetermineSocketSize( xDomain, xType, xProtocol, &xSocketSize ) );
+}
+
+/**
+ * @brief Trying to bind an NULL bind address.
+ */
+void test_vSocketBind_CatchAssert( void )
 {
     BaseType_t xReturn;
     FreeRTOS_Socket_t xSocket;
-    struct freertos_sockaddr xBindAddress;
     size_t uxAddressLength;
-    BaseType_t xInternal = pdFALSE;
+    BaseType_t xInternal;
 
-    memset( &xBindAddress, 0xFC, sizeof( xBindAddress ) );
     memset( &xSocket, 0, sizeof( xSocket ) );
-
-    xSocket.ucProtocol = ( uint8_t ) FREERTOS_IPPROTO_TCP;
 
     catch_assert( vSocketBind( &xSocket, NULL, uxAddressLength, xInternal ) );
 }

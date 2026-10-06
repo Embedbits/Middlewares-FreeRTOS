@@ -13,6 +13,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
 
   before do
     create_mocks :config
+    @test_name = 'test_file.h'
     @config.expect :strippables, ["STRIPPABLE"]
     @config.expect :attributes, ['__ramfunc', 'funky_attrib', 'SQLITE_API']
     @config.expect :c_calling_conventions, ['__stdcall']
@@ -28,20 +29,13 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
     @config.expect :array_size_name, 'size|len'
 
     @parser = CMockHeaderParser.new(@config)
-
-    @test_project = {
-      :module_name => 'test_file.h',
-      :typedefs => [],
-      :functions => [],
-      :normalized_source => nil
-    }
   end
 
   after do
   end
 
   it "create and initialize variables to defaults appropriately" do
-    assert_equal(nil, @parser.funcs)
+    assert_equal([], @parser.funcs)
     assert_equal(['const', '__ramfunc', 'funky_attrib', 'SQLITE_API'], @parser.c_attributes)
     assert_equal(['void','MY_FUNKY_VOID'], @parser.treat_as_void)
   end
@@ -58,7 +52,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "who"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove block comments" do
@@ -91,7 +85,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "shown_because_line_above_ended_comment_this_time"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove strippables from the beginning or end of function declarations" do
@@ -111,7 +105,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "void universal_handler()"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project))
+    assert_equal(expected, @parser.import_source(source))
   end
 
   it "remove gcc's function __attribute__'s" do
@@ -131,7 +125,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "void universal_handler()"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project))
+    assert_equal(expected, @parser.import_source(source))
   end
 
   it "remove preprocessor directives" do
@@ -142,7 +136,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
 
     expected = []
 
-    assert_equal(expected, @parser.import_source(source, @test_project))
+    assert_equal(expected, @parser.import_source(source))
   end
 
 
@@ -157,7 +151,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
 
     expected = ["foo"]
 
-    assert_equal(expected, @parser.import_source(source, @test_project))
+    assert_equal(expected, @parser.import_source(source))
   end
 
 
@@ -171,7 +165,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "hoo hah when"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -184,7 +178,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
 
     expected = ["but I'm here"]
 
-    assert_equal(expected, @parser.import_source(source, @test_project))
+    assert_equal(expected, @parser.import_source(source))
   end
 
 
@@ -218,7 +212,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "this should remain!"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -236,7 +230,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "} Thinger;\n" +
       "or me!!\n"
 
-    assert_equal(["don't delete me!! or me!!"], @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(["don't delete me!! or me!!"], @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -254,7 +248,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "} Whatever;\n" +
       "me too!!\n"
 
-    assert_equal(["I want to live!! me too!!"], @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(["I want to live!! me too!!"], @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -277,7 +271,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "I want to live!!\n"
 
     assert_equal(["void foo(void)", "struct THINGER foo(void)", "I want to live!!"],
-                 @parser.import_source(source, @test_project).map!{|s|s.strip})
+                 @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove externed and inline functions" do
@@ -296,7 +290,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "uint32 funcinline(unsigned int)"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove function definitions but keep function declarations" do
@@ -318,7 +312,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "uint32 func_with_decl_b",                 #okay. it's not going to be interpretted as another function
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove function definitions with nested braces but keep function declarations" do
@@ -360,7 +354,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "uint32 func_with_decl_c",                 #okay. it's not going to be interpretted as another function
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove a fully defined inline function" do
@@ -377,7 +371,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       @parser.parse("module", source)
     end
 
-    assert_equal(nil, @parser.funcs)
+    assert_equal([], @parser.funcs)
 
     # verify exception message
     begin
@@ -401,7 +395,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       @parser.parse("module", source)
     end
 
-    assert_equal(nil, @parser.funcs)
+    assert_equal([], @parser.funcs)
 
     # verify exception message
     begin
@@ -429,7 +423,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       @parser.parse("module", source)
     end
 
-    assert_equal(nil, @parser.funcs)
+    assert_equal([], @parser.funcs)
 
     # verify exception message
     begin
@@ -458,7 +452,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
     ]
 
     @parser.treat_externs = :include
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "leave inline functions if inline to be included" do
@@ -484,7 +478,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
     ]
 
     @parser.treat_inlines = :include
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "leave inline and extern functions if inline and extern to be included" do
@@ -513,7 +507,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
 
     @parser.treat_externs = :include
     @parser.treat_inlines = :include
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "Include inline functions that contain user defined inline function formats" do
@@ -544,7 +538,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
 
     @parser.treat_inlines = :include
     @parser.inline_function_patterns = ['static __inline__ __attribute__ \(\(always_inline\)\)', 'static __inline__', '\binline\b']
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
   it "remove defines" do
@@ -560,7 +554,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "void hello(void)",
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -573,7 +567,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "const int TheMatrix(int Trinity, unsigned int * Neo)",
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -599,7 +593,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                  :args=>[{:type=>"int", :name=>"a", :ptr? => false, :const? => false, :const_ptr? => false}],
                  :args_string=>"int a",
                  :args_call=>"a"}
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "handle odd case of typedef'd void as arg" do
@@ -622,7 +616,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                  :args=>[],
                  :args_string=>"void",
                  :args_call=>"" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "handle odd case of typedef'd void as arg pointer" do
@@ -645,7 +639,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                  :args=>[{:type=>"MY_FUNKY_VOID*", :name=>"bluh", :ptr? => true, :const? => false, :const_ptr? => false}],
                  :args_string=>"MY_FUNKY_VOID* bluh",
                  :args_call=>"bluh" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
 
@@ -658,7 +652,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "void Foo(int a, float b, char c, char* e)"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project).map!{|s|s.strip})
+    assert_equal(expected, @parser.import_source(source).map!{|s|s.strip})
   end
 
 
@@ -670,7 +664,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       @parser.parse("module", source)
     end
 
-    assert_equal(nil, @parser.funcs)
+    assert_equal([], @parser.funcs)
 
     # verify exception message
     begin
@@ -699,7 +693,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       @parser.parse("module", source)
     end
 
-    assert_equal(nil, @parser.funcs)
+    assert_equal([], @parser.funcs)
 
     # verify exception message
     begin
@@ -749,7 +743,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                         ],
                  :args_string=>"int a, unsigned int b",
                  :args_call=>"a, b" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "extract and return function declarations with no retval" do
@@ -776,7 +770,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                         ],
                  :args_string=>"uint la, int     de, bool da",
                  :args_call=>"la, de, da" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "extract and return function declarations with implied voids" do
@@ -800,7 +794,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                  :args=>[ ],
                  :args_string=>"void",
                  :args_call=>"" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "extract modifiers properly" do
@@ -826,7 +820,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                         ],
                  :args_string=>"int Trinity, unsigned int* Neo",
                  :args_call=>"Trinity, Neo" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "extract c calling conventions properly" do
@@ -853,7 +847,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                         ],
                  :args_string=>"int Trinity, unsigned int* Neo",
                  :args_call=>"Trinity, Neo" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source))
+    assert_equal(expected, @parser.parse_declaration(source))
   end
 
   it "extract and return function declarations inside namespace and class" do
@@ -878,7 +872,7 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
                         ],
                  :args_string=>"int a, unsigned int b",
                  :args_call=>"a, b" }
-    assert_equal(expected, @parser.parse_declaration(@test_project, source, ["ns1", "ns2"], "Bar"))
+    assert_equal(expected, @parser.parse_declaration(source, ["ns1", "ns2"], "Bar"))
   end
 
   it "fully parse multiple prototypes" do
@@ -2393,8 +2387,8 @@ describe CMockHeaderParser, "Verify CMockHeaderParser Module" do
       "} }"
     ]
 
-    assert_equal(expected, @parser.import_source(source, @test_project, cpp=true))
-    refute_equal(expected, @parser.import_source(source, @test_project))
+    assert_equal(expected, @parser.import_source(source, cpp=true))
+    refute_equal(expected, @parser.import_source(source))
   end
 
   # only so parse_functions does not raise an error

@@ -1,6 +1,6 @@
 /* app_entry.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,6 +18,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+
 
 #include "app.h"
 #include "stdio.h"
@@ -39,10 +41,10 @@ extern void initialise_monitor_handles(void);
 #define TLS_PORT 11111
 #define TCP_PORT 11112
 
-static double miliseconds = 0;
+static double milliseconds = 0;
 void  timer_callback(timer_callback_args_t * args)
 {
-    miliseconds++;
+    milliseconds++;
     (void)args;
 }
 
@@ -125,7 +127,7 @@ static void benchmark_TLS(int version, char* suites, int group)
 
     printf("Trying to connect to 0x%lX on port %d\n", TEST_IP, TEST_PORT);
 
-    miliseconds = 0;
+    milliseconds = 0;
     g_timer0.p_api->open(g_timer0.p_ctrl, g_timer0.p_cfg);
     g_timer0.p_api->start(g_timer0.p_ctrl);
 
@@ -193,7 +195,7 @@ static void benchmark_TLS(int version, char* suites, int group)
     g_timer0.p_api->close(g_timer0.p_ctrl);
 
     printf("%d TLS connections took %f seconds and %f tx_time ticks\n",
-            CONNECTION_TIMES, (miliseconds / 10), start);
+            CONNECTION_TIMES, (milliseconds / 10), start);
     wolfSSL_CTX_free(ctx);
 }
 

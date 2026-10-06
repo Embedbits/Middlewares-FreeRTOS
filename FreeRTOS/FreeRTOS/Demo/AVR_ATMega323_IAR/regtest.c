@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -46,7 +46,7 @@ portBASE_TYPE xRegTestError = pdFALSE;
 void vStartRegTestTasks( void )
 {
 	xTaskCreate( prvRegisterCheck1, "Reg1", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL );
-	xTaskCreate( prvRegisterCheck2, "Reg2", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL );
+	xTaskCreate( prvRegisterCheck2, "Reg2", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL );		
 }
 /*-----------------------------------------------------------*/
 
@@ -64,7 +64,7 @@ portBASE_TYPE xReturn;
 	{
 		xReturn = pdFALSE;
 	}
-
+	
 	return xReturn;
 }
 /*-----------------------------------------------------------*/
@@ -75,7 +75,7 @@ static void prvRegisterCheck1( void *pvParameters )
 
 	for( ;; )
 	{
-		asm(	"LDI	r31,	5"		);
+		asm(	"LDI	r31,	5"		);		
 		asm( 	"MOV	r0,		r31"	);
 		asm(	"LDI	r31,	6"		);
 		asm( 	"MOV	r1,		r31"	);
@@ -218,7 +218,7 @@ static void prvRegisterCheck2( void *pvParameters )
 
 	for( ;; )
 	{
-		asm(	"LDI	r31,	1"		);
+		asm(	"LDI	r31,	1"		);		
 		asm( 	"MOV	r0,		r31"	);
 		asm(	"LDI	r31,	2"		);
 		asm( 	"MOV	r1,		r31"	);

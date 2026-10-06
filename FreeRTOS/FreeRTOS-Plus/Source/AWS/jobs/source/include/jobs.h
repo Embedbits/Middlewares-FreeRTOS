@@ -1,5 +1,5 @@
 /*
- * AWS IoT Jobs v1.3.0
+ * AWS IoT Jobs v1.5.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -32,6 +32,7 @@
 #ifndef JOBS_H_
 #define JOBS_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -40,6 +41,24 @@
     extern "C" {
 #endif
 /* *INDENT-ON* */
+
+/**
+ * @ingroup jobs_constants
+ * @brief  Size of Topic Buffer
+ */
+#define TOPIC_BUFFER_SIZE            256U
+
+/**
+ * @ingroup jobs_constants
+ * @brief Size of Jobs Start Next Message Buffer
+ */
+#define START_JOB_MSG_LENGTH         147U
+
+/**
+ * @ingroup jobs_constants
+ * @brief Size of Jobs Update Message Buffer
+ */
+#define UPDATE_JOB_MSG_LENGTH        48U
 
 /**
  * @ingroup jobs_constants
@@ -58,7 +77,7 @@
 /**
  * @brief User defined maximum length of a thing name for the application.
  *
- * <br><b>Default value</b>: @ref JOBS_THINGNAME_MAX_LENGTH
+ * <br><b>Default value</b>: @ref JOBS_THINGNAME_MAX_LENGTH "JOBS_THINGNAME_MAX_LENGTH"
  */
     #define THINGNAME_MAX_LENGTH    JOBS_THINGNAME_MAX_LENGTH
 #endif
@@ -68,7 +87,7 @@
 /**
  * @brief User defined maximum length of a job ID for the application.
  *
- * <br><b>Default value</b>: @ref JOBS_JOBID_MAX_LENGTH
+ * <br><b>Default value</b>: @ref JOBS_JOBID_MAX_LENGTH "JOBS_JOBID_MAX_LENGTH"
  */
     #define JOBID_MAX_LENGTH    JOBS_JOBID_MAX_LENGTH
 #endif
@@ -86,41 +105,50 @@
  * Doxygen should ignore these macros as they are private.
  */
 
-#define JOBS_API_PREFIX                   "$aws/things/"
-#define JOBS_API_PREFIX_LENGTH            ( sizeof( JOBS_API_PREFIX ) - 1U )
+#define JOBS_API_PREFIX                     "$aws/things/"
+#define JOBS_API_PREFIX_LENGTH              ( sizeof( JOBS_API_PREFIX ) - 1U )
 
-#define JOBS_API_BRIDGE                   "/jobs/"
-#define JOBS_API_BRIDGE_LENGTH            ( sizeof( JOBS_API_BRIDGE ) - 1U )
+#define JOBS_API_BRIDGE                     "/jobs/"
+#define JOBS_API_BRIDGE_LENGTH              ( sizeof( JOBS_API_BRIDGE ) - 1U )
 
-#define JOBS_API_SUCCESS                  "/accepted"
-#define JOBS_API_SUCCESS_LENGTH           ( sizeof( JOBS_API_SUCCESS ) - 1U )
+#define JOBS_API_SUCCESS                    "/accepted"
+#define JOBS_API_SUCCESS_LENGTH             ( sizeof( JOBS_API_SUCCESS ) - 1U )
 
-#define JOBS_API_FAILURE                  "/rejected"
-#define JOBS_API_FAILURE_LENGTH           ( sizeof( JOBS_API_FAILURE ) - 1U )
+#define JOBS_API_FAILURE                    "/rejected"
+#define JOBS_API_FAILURE_LENGTH             ( sizeof( JOBS_API_FAILURE ) - 1U )
 
-#define JOBS_API_JOBSCHANGED              "notify"
-#define JOBS_API_JOBSCHANGED_LENGTH       ( sizeof( JOBS_API_JOBSCHANGED ) - 1U )
+#define JOBS_API_JOBSCHANGED                "notify"
+#define JOBS_API_JOBSCHANGED_LENGTH         ( sizeof( JOBS_API_JOBSCHANGED ) - 1U )
 
-#define JOBS_API_NEXTJOBCHANGED           "notify-next"
-#define JOBS_API_NEXTJOBCHANGED_LENGTH    ( sizeof( JOBS_API_NEXTJOBCHANGED ) - 1U )
+#define JOBS_API_NEXTJOBCHANGED             "notify-next"
+#define JOBS_API_NEXTJOBCHANGED_LENGTH      ( sizeof( JOBS_API_NEXTJOBCHANGED ) - 1U )
 
-#define JOBS_API_GETPENDING               "get"
-#define JOBS_API_GETPENDING_LENGTH        ( sizeof( JOBS_API_GETPENDING ) - 1U )
+#define JOBS_API_GETPENDING                 "get"
+#define JOBS_API_GETPENDING_LENGTH          ( sizeof( JOBS_API_GETPENDING ) - 1U )
 
-#define JOBS_API_STARTNEXT                "start-next"
-#define JOBS_API_STARTNEXT_LENGTH         ( sizeof( JOBS_API_STARTNEXT ) - 1U )
+#define JOBS_API_STARTNEXT                  "start-next"
+#define JOBS_API_STARTNEXT_LENGTH           ( sizeof( JOBS_API_STARTNEXT ) - 1U )
 
-#define JOBS_API_DESCRIBE                 "get"
-#define JOBS_API_DESCRIBE_LENGTH          ( sizeof( JOBS_API_DESCRIBE ) - 1U )
+#define JOBS_API_DESCRIBE                   "get"
+#define JOBS_API_DESCRIBE_LENGTH            ( sizeof( JOBS_API_DESCRIBE ) - 1U )
 
-#define JOBS_API_UPDATE                   "update"
-#define JOBS_API_UPDATE_LENGTH            ( sizeof( JOBS_API_UPDATE ) - 1U )
+#define JOBS_API_UPDATE                     "update"
+#define JOBS_API_UPDATE_LENGTH              ( sizeof( JOBS_API_UPDATE ) - 1U )
 
-#define JOBS_API_JOBID_NEXT               "$next"
-#define JOBS_API_JOBID_NEXT_LENGTH        ( sizeof( JOBS_API_JOBID_NEXT ) - 1U )
+#define JOBS_API_JOBID_NEXT                 "$next"
+#define JOBS_API_JOBID_NEXT_LENGTH          ( sizeof( JOBS_API_JOBID_NEXT ) - 1U )
 
-#define JOBS_API_JOBID_NULL               ""
-#define JOBS_API_LEVEL_SEPARATOR          "/"
+#define JOBS_API_JOBID_NULL                 ""
+#define JOBS_API_LEVEL_SEPARATOR            "/"
+
+#define JOBS_API_CLIENTTOKEN                "{\"clientToken\":\""
+#define JOBS_API_CLIENTTOKEN_LENGTH         ( sizeof( JOBS_API_CLIENTTOKEN ) - 1U )
+
+#define JOBS_API_STATUS                     "{\"status\":\""
+#define JOBS_API_STATUS_LENGTH              ( sizeof( JOBS_API_STATUS ) - 1U )
+
+#define JOBS_API_EXPECTED_VERSION           "\",\"expectedVersion\":\""
+#define JOBS_API_EXPECTED_VERSION_LENGTH    ( sizeof( JOBS_API_EXPECTED_VERSION ) - 1U )
 
 #define JOBS_API_COMMON_LENGTH( thingNameLength ) \
     ( JOBS_API_PREFIX_LENGTH + ( thingNameLength ) + JOBS_API_BRIDGE_LENGTH )
@@ -231,6 +259,27 @@ typedef enum
     JobsBadParameter,  /**< @brief A function parameter was NULL or has an illegal value. */
     JobsBufferTooSmall /**< @brief The buffer write was truncated. */
 } JobsStatus_t;
+
+/**
+ * @brief Status codes for jobs
+ */
+typedef enum
+{
+    Queued,
+    InProgress,
+    Failed,
+    Succeeded,
+    Rejected
+} JobCurrentStatus_t;
+
+/**
+ * @brief Status codes for job update status
+ */
+typedef enum
+{
+    JobUpdateStatus_Accepted,
+    JobUpdateStatus_Rejected
+} JobUpdateStatus_t;
 
 /**
  * @ingroup jobs_enum_types
@@ -586,6 +635,50 @@ JobsStatus_t Jobs_StartNext( char * buffer,
 /* @[declare_jobs_startnext] */
 
 /**
+ * @brief Populate a message string for a StartNextPendingJobExecution request.
+ *
+ * @param clientToken The device's token
+ * @param clientTokenLength The expected length of the clientToken
+ * @param buffer The buffer to be written to
+ * @param bufferSize The size of the buffer
+ *
+ * @return 0 if write to buffer fails
+ * @return The message length if the write is successful
+ *
+ * <b>Example</b>
+ * @code{c}
+ *
+ *
+ * // The Following Example shows usage of the Jobs_StartNextMsg API
+ * // to generate a message string for a StartNextPendingJobExecution request.
+ *
+ * const char * clientToken = "test";
+ * size_t clientTokenLength = ( sizeof( clientToken ) - 1U );
+ * char messageBuffer[ START_JOB_MSG_LENGTH ] = {0};
+ * size_t messageLength = 0U;
+ *
+ * messageLength = Jobs_StartNextMsg( clientToken,
+ *                                    clientTokenLength,
+ *                                    messageBuffer,
+ *                                    START_JOB_MSG_LENGTH );
+ *
+ * if ( messageLength > 0 )
+ * {
+ *     // The message string of the clientToken has been generated in
+ *     // the buffer, messageBuffer, for the StartNextPendingJobExecution request
+ *     // Publish to the topic string generated by Jobs_StartNext() using an
+ *     // MQTT client of your choice.
+ * }
+ * @endcode
+ */
+/* @[declare_jobs_startnextmsg] */
+size_t Jobs_StartNextMsg( const char * clientToken,
+                          size_t clientTokenLength,
+                          char * buffer,
+                          size_t bufferSize );
+/* @[declare_jobs_startnextmsg] */
+
+/**
  * @brief Populate a topic string for a DescribeJobExecution request.
  *
  * @param[in] buffer  The buffer to contain the topic string.
@@ -741,6 +834,170 @@ JobsStatus_t Jobs_Update( char * buffer,
                           uint16_t jobIdLength,
                           size_t * outLength );
 /* @[declare_jobs_update] */
+
+/**
+ * @brief Populate a message string for an UpdateJobExecution request.
+ *
+ * @param status Current status of the job
+ * @param expectedVersion The version that is expected
+ * @param expectedVersionLength The length of the expectedVersion string
+ * @param buffer The buffer to be written to
+ * @param bufferSize the size of the buffer
+ *
+ * @return 0 if write to buffer fails
+ * @return messageLength if the write is successful
+ *
+ * <b>Example</b>
+ * @code{c}
+ *
+ * // The Following Example shows usage of the Jobs_UpdateMsg API to
+ * // generate a message string for the UpdateJobExecution API
+ * // of the AWS IoT Jobs Service
+ * const char * expectedVersion = "2";
+ * size_t expectedVersionLength = ( sizeof(expectedVersion ) - 1U );
+ * JobCurrentStatus_t status = Succeeded;
+ * char messageBuffer[ UPDATE_JOB_MSG_LENGTH ]  = {0};
+ * size_t messageLength = 0U;
+ *
+ * messageLength = Jobs_UpdateMsg( status,
+ *                                 expectedVersion,
+ *                                 expectedVersionLength,
+ *                                 messageBuffer,
+ *                                 UPDATE_JOB_MSG_LENGTH );
+ *
+ * if (messageBufferLength > 0 )
+ * {
+ *     // The message string of length, messageLength, has been
+ *     // generated in the buffer, messageBuffer, for the UpdateJobExecution API
+ *     // Publish this message to the topic generated by Jobs_Update using an
+ *     // MQTT client of your choice.
+ * }
+ * @endcode
+ */
+/* @[declare_jobs_updatemsg] */
+size_t Jobs_UpdateMsg( JobCurrentStatus_t status,
+                       const char * expectedVersion,
+                       size_t expectedVersionLength,
+                       char * buffer,
+                       size_t bufferSize );
+/* @[declare_jobs_updatemsg] */
+
+/**
+ * @brief Retrieves the job ID from a given message (if applicable)
+ *
+ * @param message [In] A JSON formatted message
+ * @param messageLength [In] The length of the message
+ * @param jobId [Out] The job ID
+ * @return size_t The job ID length
+ *
+ * <b>Example</b>
+ * @code{c}
+ *
+ * // The following example shows the usage of the Jobs_GetJobId API to
+ * // extract the jobId and its length from a message, if present.
+ *
+ * const char * message;    // A JSON formatted message from the IoT core
+ * size_t messageLength;    // Length of the JSON formatted message
+ * const char * jobId;      // variable to hold jobId
+ * size_t jobIdLength = 0U; // Holds length of the jobId
+ *
+ * jobIdLength = Jobs_GetJobId( message,
+ *                              messageLength,
+ *                              &jobId);
+ *
+ * if ( jobIdLength > 0 )
+ * {
+ *     // Job ID was successfully extracted from the message
+ *     // Store the Job ID so that it can be used as needed by other functions.
+ *     // For example, as an input to Jobs_Update.
+ * }
+ * @endcode
+ */
+/* @[declare_jobs_getjobid] */
+size_t Jobs_GetJobId( const char * message,
+                      size_t messageLength,
+                      const char ** jobId );
+/* @[declare_jobs_getjobid] */
+
+/**
+ * @brief Retrieves the job document from a given message (if applicable)
+ *
+ * @param message [In] A JSON formatted message which
+ * @param messageLength [In] The length of the message
+ * @param jobDoc [Out] The job document
+ * @return size_t The length of the job document
+ *
+ * <b>Example</b>
+ * @code{c}
+ *
+ * // The following example shows the usage of the Jobs_GetJobId API to
+ * // extract the jobId and its length from a message, if present.
+ *
+ * const char * message;     // A JSON formatted message from the IoT core
+ * size_t messageLength;     // Length of the JSON formatted message
+ * const char * jobDoc;      // variable to hold the job doc
+ * size_t jobDocLength = 0U; // Holds length of the job doc
+ *
+ * jobDocLength = Jobs_GetJobDocument( message,
+ *                                     messageLength,
+ *                                     &jobDoc);
+ *
+ * if ( jobDocLength > 0 )
+ * {
+ *     // JobDoc was successfully extracted from the message.
+ *     // Pass JobDoc as input to otaParser_parseJobDocFile to
+ *     // extract the fields from the job document and store them
+ *     // in a AfrOtaJobDocumentFields_t stuct.
+ * }
+ * @endcode
+ */
+/* @[declare_jobs_getjobdocument] */
+size_t Jobs_GetJobDocument( const char * message,
+                            size_t messageLength,
+                            const char ** jobDoc );
+/* @[declare_jobs_getjobdocument] */
+
+/**
+ * @brief Checks if a message comes from the start-next/accepted reserved topic
+ *
+ * @param topic The topic to check against
+ * @param topicLength The expected topic length
+ * @param thingName The device's thingName as registered with AWS IoT.
+ * @param thingNameLength The length of the thingName.
+ * @return true If the topic is the start-next/accepted topic
+ * @return false If the topic is not the start-next/accepted topic
+ *
+ */
+/* @[declare_jobs_isstartnextaccepted] */
+bool Jobs_IsStartNextAccepted( const char * topic,
+                               const size_t topicLength,
+                               const char * thingName,
+                               const size_t thingNameLength );
+/* @[declare_jobs_isstartnextaccepted] */
+
+/**
+ * @brief Checks if a message comes from the update/accepted reserved topic
+ *
+ * @param topic The topic to check against
+ * @param topicLength The expected topic length
+ * @param jobId Corresponding Job ID which the update was accepted for
+ * @param jobIdLength The Job ID length
+ * @param thingName The device's thingName as registered with AWS IoT.
+ * @param thingNameLength The length of the thingName.
+ * @param expectedStatus The job update status reported by AWS IoT Jobs
+ * @return true If the topic is the update/\<expectedStatus\> topic
+ * @return false If the topic is not the update/\<expectedStatus\> topic
+ */
+/* @[declare_jobs_isjobupdatestatus] */
+bool Jobs_IsJobUpdateStatus( const char * topic,
+                             const size_t topicLength,
+                             const char * jobId,
+                             const size_t jobIdLength,
+                             const char * thingName,
+                             const size_t thingNameLength,
+                             JobUpdateStatus_t expectedStatus );
+/* @[declare_jobs_isjobupdatestatus] */
+
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

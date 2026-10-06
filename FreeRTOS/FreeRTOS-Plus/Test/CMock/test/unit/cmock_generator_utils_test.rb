@@ -20,17 +20,19 @@ describe CMockGeneratorUtils, "Verify CMockGeneratorUtils Module" do
     @config.expect :plugins, []
     @config.expect :plugins, []
     @config.expect :plugins, []
+    @config.expect :plugins, []
     @config.expect :treat_as, {'int' => 'INT','short' => 'INT16','long' => 'INT','char' => 'INT8','const char*' => 'STRING'}
     @cmock_generator_utils_simple = CMockGeneratorUtils.new(@config, {:unity_helper => @unity_helper})
 
     @config.expect :when_ptr, :smart
     @config.expect :enforce_strict_ordering, true
-    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore]
-    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore]
-    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore]
-    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore]
-    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore]
-    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
+    @config.expect :plugins, [:array, :cexception, :return_thru_ptr, :ignore_arg, :ignore, :ignore_stateless]
     @config.expect :treat_as, {'int' => 'INT','short' => 'INT16','long' => 'INT','char' => 'INT8','uint32_t' => 'HEX32','const char*' => 'STRING'}
     @cmock_generator_utils_complex = CMockGeneratorUtils.new(@config, {:unity_helper => @unity_helper, :A=>1, :B=>2})
   end
@@ -153,7 +155,8 @@ describe CMockGeneratorUtils, "Verify CMockGeneratorUtils Module" do
                  :args_string => "stuff",
                  :args => [test_arg[:int_ptr], test_arg[:mytype], test_arg[:string]]
     }
-    expected = "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, stuff)\n{\n" +
+    expected = "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, stuff);\n" +
+               "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, stuff)\n{\n" +
                "  cmock_call_instance->Expected_MyIntPtr = MyIntPtr;\n" +
                "  memcpy((void*)(&cmock_call_instance->Expected_MyMyType), (void*)(&MyMyType),\n" +
                "         sizeof(MY_TYPE[sizeof(MyMyType) == sizeof(MY_TYPE) ? 1 : -1])); /* add MY_TYPE to :treat_as_array if this causes an error */\n" +
@@ -167,7 +170,8 @@ describe CMockGeneratorUtils, "Verify CMockGeneratorUtils Module" do
                  :args_string => "stuff",
                  :args => [test_arg[:int_ptr], test_arg[:mytype], test_arg[:string]]
     }
-    expected = "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, int* MyIntPtr, int MyIntPtr_Depth, const MY_TYPE MyMyType, const char* MyStr)\n{\n" +
+    expected = "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, int* MyIntPtr, int MyIntPtr_Depth, const MY_TYPE MyMyType, const char* MyStr);\n" +
+               "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, int* MyIntPtr, int MyIntPtr_Depth, const MY_TYPE MyMyType, const char* MyStr)\n{\n" +
                "  cmock_call_instance->Expected_MyIntPtr = MyIntPtr;\n" +
                "  cmock_call_instance->Expected_MyIntPtr_Depth = MyIntPtr_Depth;\n" +
                "  cmock_call_instance->IgnoreArg_MyIntPtr = 0;\n" +
@@ -186,7 +190,8 @@ describe CMockGeneratorUtils, "Verify CMockGeneratorUtils Module" do
                  :args_string => "stuff",
                  :args => [test_arg[:const_ptr], test_arg[:double_ptr]]
     }
-    expected = "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, int* const MyConstPtr, int MyConstPtr_Depth, int const** MyDoublePtr, int MyDoublePtr_Depth)\n{\n" +
+    expected = "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, int* const MyConstPtr, int MyConstPtr_Depth, int const** MyDoublePtr, int MyDoublePtr_Depth);\n" +
+               "void CMockExpectParameters_Melon(CMOCK_Melon_CALL_INSTANCE* cmock_call_instance, int* const MyConstPtr, int MyConstPtr_Depth, int const** MyDoublePtr, int MyDoublePtr_Depth)\n{\n" +
                "  cmock_call_instance->Expected_MyConstPtr = MyConstPtr;\n" +
                "  cmock_call_instance->Expected_MyConstPtr_Depth = MyConstPtr_Depth;\n" +
                "  cmock_call_instance->IgnoreArg_MyConstPtr = 0;\n" +

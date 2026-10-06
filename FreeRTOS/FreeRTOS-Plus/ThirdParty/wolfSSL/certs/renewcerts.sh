@@ -24,7 +24,12 @@
 #                       test/digsigku.pem
 #                       ecc-privOnlyCert.pem
 #                       client-uri-cert.pem
+#                       client-absolute-uri.pem
 #                       client-relative-uri.pem
+#                       client-crl-dist.pem
+#                       entity-no-ca-bool-cert.pem
+#                       fpki-cert.der
+#                       rid-cert.der
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -34,38 +39,29 @@
 #
 #                       pkcs7:
 #                       test-degenerate.p7b
-# if HAVE_NTRU
-#                       ntru-cert.pem
-#                       ntru-key.raw
 ###############################################################################
 ######################## FUNCTIONS SECTION ####################################
 ###############################################################################
 
-#function for restoring a previous configure state
-restore_config(){
-    mv tmp.status config.status
-    mv tmp.options.h wolfssl/options.h
-    make clean
-    make -j 8
-}
-
 check_result(){
     if [ $1 -ne 0 ]; then
         echo "Failed at \"$2\", Abort"
-        if [ "$2" = "configure for ntru" ] || \
-           [ "$2" = "make check with ntru" ]; then
-            restore_config
-        fi
         exit 1
     else
-        echo "Step Succeeded!"
+        echo "$2 Succeeded!"
     fi
 }
 
 #the function that will be called when we are ready to renew the certs.
 run_renewcerts(){
+
+    #call update for some ecc certs
+    ./certs/ecc/genecc.sh
+    check_result $? "Step 0"
+
     cd certs/ || { echo "Couldn't cd to certs directory"; exit 1; }
     echo ""
+
     #move the custom cnf into our working directory
     cp renewcerts/wolfssl.cnf wolfssl.cnf || exit 1
 
@@ -90,6 +86,45 @@ run_renewcerts(){
     mv tmp.pem client-uri-cert.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
+
+    ############################################################
+    # Public Versions of client-key.pem
+    ############################################################
+    openssl rsa -inform pem -in client-key.pem -outform der -out client-keyPub.der -pubout
+    openssl rsa -inform pem -in client-key.pem -outform pem -out client-keyPub.pem -pubout
+
+    ############################################################
+    # Public Versions of server-key.pem
+    ############################################################
+    #openssl rsa -inform pem -in server-key.pem -outform der -out server-keyPub.der -pubout
+    openssl rsa -inform pem -in server-key.pem -outform pem -out server-keyPub.pem -pubout
+
+    ############################################################
+    # Public Versions of ecc-key.pem
+    ############################################################
+    #openssl ec -inform pem -in ecc-key.pem -outform der -out ecc-keyPub.der -pubout
+    openssl ec -inform pem -in ecc-key.pem -outform pem -out ecc-keyPub.pem -pubout
+
+    ############################################################
+    #### update the self-signed (2048-bit) client-absolute-urn.pem
+    ############################################################
+    echo "Updating 2048-bit client-absolute-urn.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nABSOLUTE_URN\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions absolute_urn -signkey client-key.pem -out client-absolute-urn.pem
+    check_result $? "Step 2"
+    rm client-cert.csr
+
+    openssl x509 -in client-absolute-urn.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem client-absolute-urn.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
     ############################################################
     #### update the self-signed (2048-bit) client-relative-uri.pem
     ############################################################
@@ -107,6 +142,48 @@ run_renewcerts(){
     openssl x509 -in client-relative-uri.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem client-relative-uri.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    #### update the self-signed (2048-bit) client-cert-ext.pem
+    ############################################################
+    echo "Updating 2048-bit client-cert-ext.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nProgramming-2048\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions client_cert_ext -signkey client-key.pem -out client-cert-ext.pem
+    check_result $? "Step 2"
+    rm client-cert.csr
+
+    openssl x509 -in client-cert-ext.pem -outform DER -out client-cert-ext.der
+    check_result $? "Step 3"
+    openssl x509 -in client-cert-ext.pem -text > tmp.pem
+    check_result $? "Step 4"
+    mv tmp.pem client-cert-ext.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    #### update the self-signed (2048-bit) client-crl-dist.pem
+    ############################################################
+    echo "Updating 2048-bit client-crl-dist.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nCRL_DIST\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions crl_dist_points -signkey client-key.pem -out client-crl-dist.pem
+    check_result $? "Step 2"
+    rm client-cert.csr
+
+    openssl x509 -in client-crl-dist.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem client-crl-dist.pem
+
+    openssl x509 -in client-crl-dist.pem -outform der -out client-crl-dist.der
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -214,6 +291,20 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    ########## update the self-signed ca-cert-chain.der ########
+    ############################################################
+    echo "Updating ca-cert-chain.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\\nMontana\\nBozeman\\nSawtooth\\nConsulting\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key 1024/ca-key.pem -config ./wolfssl.cnf -nodes -out ca-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey 1024/ca-key.pem -outform DER -out ca-cert-chain.der
+    check_result $? "Step 2"
+    rm ca-cert.csr
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ########## update the self-signed ca-ecc-cert.pem ##########
     ############################################################
     echo "Updating ca-ecc-cert.pem"
@@ -265,6 +356,34 @@ run_renewcerts(){
     openssl x509 -in ./1024/ca-cert.pem -text > ./1024/tmp.pem
     check_result $? "Step 3"
     mv ./1024/tmp.pem ./1024/ca-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign fpki-cert.der ################
+    ###########################################################
+    echo "Updating fpki-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nFPKI\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > fpki-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in fpki-req.pem -extfile wolfssl.cnf -extensions fpki_ext -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 -out fpki-cert.der -outform DER
+    check_result $? "Step 2"
+    rm fpki-req.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign rid-cert.der ################
+    ###########################################################
+    echo "Updating rid-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nRID\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > rid-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in rid-req.pem -extfile wolfssl.cnf -extensions rid_ext -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 7 -out rid-cert.der -outform DER
+    check_result $? "Step 2"
+    rm rid-req.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ###########################################################
@@ -397,7 +516,7 @@ run_renewcerts(){
     echo "Updating server-ecc.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\\nWashington\\nSeattle\\nEliptic\\nECC\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -out server-ecc.csr
+    echo -e "US\\nWashington\\nSeattle\\nElliptic\\nECC\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -out server-ecc.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions server_ecc -CA ca-ecc-cert.pem -CAkey ca-ecc-key.pem -set_serial 03 -out server-ecc.pem
@@ -468,6 +587,31 @@ run_renewcerts(){
     mv digsigku.pem test/digsigku.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
+
+
+    ###########################################################
+    #### update and sign entity-no-ca-bool-cert.pem ###########
+    ###########################################################
+    echo "Updating entity-no-ca-bool-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nNoCaBool\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key entity-no-ca-bool-key.pem -config ./wolfssl.cnf  -nodes > entity-no-ca-bool-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in entity-no-ca-bool-req.pem -extfile ./wolfssl.cnf -extensions "entity_no_CA_BOOL" -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > entity-no-ca-bool-cert.pem
+    check_result $? "Step 2"
+
+    rm entity-no-ca-bool-req.pem
+
+    openssl x509 -in ca-cert.pem -text > ca_tmp.pem
+    check_result $? "Step 3"
+    openssl x509 -in entity-no-ca-bool-cert.pem -text > entity_tmp.pem
+    check_result $? "Step 4"
+    mv entity_tmp.pem entity-no-ca-bool-cert.pem
+    cat ca_tmp.pem >> entity-no-ca-bool-cert.pem
+    rm ca_tmp.pem
+    echo "End of section"
+
     ############################################################
     ########## make .der files from .pem files #################
     ############################################################
@@ -504,7 +648,27 @@ run_renewcerts(){
     echo "---------------------------------------------------------------------"
 
     ############################################################
-    ########## generate PKCS7 bundles ##########################
+    ########## generate RSA-PSS certificates ###################
+    ############################################################
+    echo "Renewing RSA-PSS certificates"
+    cd rsapss
+    ./renew-rsapss-certs.sh
+    cd ..
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## generate Ed25519 certificates ###################
+    ############################################################
+    echo "Renewing Ed25519 certificates"
+    cd ed25519
+    ./gen-ed25519-certs.sh
+    cd ..
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## generate Ed448 certificates #####################
     ############################################################
     echo "Renewing Ed448 certificates"
     cd ed448
@@ -513,6 +677,38 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
+    ############################################################
+    ########## generate P-521 certificates #####################
+    ############################################################
+    echo "Renewing Ed448 certificates"
+    cd p521
+    ./gen-p521-certs.sh
+    cd ..
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## update Raw Public Key certificates ##############
+    ############################################################
+    echo "Updating  certificates"
+    echo "Updating client-cert-rpk.der"
+    cp client-keyPub.der ./rpk/client-cert-rpk.der
+    check_result $? "Step 1"
+
+    echo "Updating client-ecc-cert-rpk.der"
+    cp ecc-client-keyPub.der ./rpk/ecc-client-cert-rpk.der
+    check_result $? "Step 2"
+
+    echo "Updating server-cert-rpk.der"
+    openssl rsa -inform pem -in server-key.pem -outform der -out ./rpk/server-cert-rpk.der -pubout
+    check_result $? "Step 3"
+
+    echo "Updating server-ecc-cert-rpk.der"
+    openssl ec -inform pem -in ecc-key.pem -outform der -out ./rpk/server-ecc-cert-rpk.der -pubout
+    check_result $? "Step 4"
+
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
     ############################################################
     ###### update the ecc-rsa-server.p12 file ##################
     ############################################################
@@ -528,6 +724,15 @@ run_renewcerts(){
     echo "Updating test-servercert.p12 (password is \"wolfSSL test\")"
     echo ""
     echo "wolfSSL test" | openssl pkcs12 -des3 -descert -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert.p12 -password stdin
+    check_result $? "Step 1"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ###### update the test-servercert-rc2.p12 file #############
+    ############################################################
+    echo "Updating test-servercert-rc2.p12 (password is \"wolfSSL test\")"
+    echo ""
+    echo "wolfSSL test" | openssl pkcs12 -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert-rc2.p12 -password stdin
     check_result $? "Step 1"
     echo "End of section"
     echo "---------------------------------------------------------------------"
@@ -550,6 +755,28 @@ run_renewcerts(){
     cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
     ./gen-badsig.sh
     check_result $? "gen-badsig.sh"
+    cd ../ || exit 1
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ###### calling gen-testcerts.sh           ##################
+    ############################################################
+    echo "Calling gen-testcerts.sh"
+    echo ""
+    cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
+    ./gen-testcerts.sh
+    check_result $? "gen-testcerts.sh"
+    cd ../ || exit 1
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ###### generate cms bundles in test directory ##############
+    ############################################################
+    echo "Generating CMS bundle"
+    echo ""
+    cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
+    echo "test" | openssl cms -encrypt -binary -keyid -out ktri-keyid-cms.msg -outform der -recip ../client-cert.pem -nocerts
+    check_result $? "generate ktri-keyid-cms.msg"
     cd ../ || exit 1
     echo "End of section"
     echo "---------------------------------------------------------------------"
@@ -638,173 +865,27 @@ run_renewcerts(){
     echo "---------------------------------------------------------------------"
 }
 
-#function for copy and pasting ntru updates
-move_ntru(){
-    cp ntru-cert.pem certs/ntru-cert.pem || exit 1
-    cp ntru-key.raw certs/ntru-key.raw || exit 1
-    cp ntru-cert.der certs/ntru-cert.der || exit 1
-}
-
 ###############################################################################
 ##################### THE EXECUTABLE BODY #####################################
 ###############################################################################
 
 #start in root.
 cd ../ || exit 1
-#if HAVE_NTRU already defined && there is no argument
-if grep HAVE_NTRU "wolfssl/options.h" && [ -z "$1" ]
-then
 
-    #run the function to renew the certs
-    run_renewcerts
-    # run_renewcerts will end in the wolfssl/certs/crl dir, backup to root.
-    cd ../ || exit 1
-    CURRDIR=${PWD##*/}
-    if [ "$CURRDIR" = "certs" ]; then
-        cd ../ || exit 1
-    else
-        echo "We are not in the right directory! Abort."
-        exit 1
-    fi
-    echo "changed directory to wolfssl root directory."
-    echo ""
+if [ ! -z "$1" ]; then
+    echo "No arguments expected"
+    exit 1
+fi
 
-    echo ""
-    echo "Enter directory to ed25519 certificate generation example."
-    echo "Can be found at https://github.com/wolfSSL/wolfssl-examples"
-    read -r ED25519_DIR
-    if [ -d "${ED25519_DIR}" ]; then
-        pushd ./certs/ed25519 || { echo "Failed to push certs/ed25519";
-                                   exit 1; }
-        ./gen-ed25519.sh "${ED25519_DIR}"
-        check_result $? "./gen-ed25519.sh"
-        popd || exit 1
-    else
-        echo "Unable to find directory ${ED25519_DIR}"
-        exit 1
-    fi
+echo "Running make clean"
+echo ""
+make clean
+check_result $? "make clean"
 
-    ############################################################
-    ########## update ntru if already installed ################
-    ############################################################
+touch certs/.rnd || exit 1
 
-    # We cannot assume that user has certgen and keygen enabled
-    CFLAG_TMP="-DWOLFSSL_STATIC_RSA"
-    export CFLAGS=${CFLAG_TMP}
-    ./configure --with-ntru --enable-certgen --enable-keygen
-    check_result $? "configure for ntru"
-    make check
-    check_result $? "make check with ntru"
-    export CFLAGS=""
-
-    #copy/paste ntru-certs and key to certs/
-    move_ntru
-
-#else if there was an argument given, check it for validity or print out error
-elif [ ! -z "$1" ]; then
-    #valid argument then renew certs without ntru
-    if [ "$1" == "--override-ntru" ]; then
-        echo "overriding ntru, update all certs except ntru."
-        run_renewcerts
-    #valid argument create ed25519 certificates
-    elif [ "$1" == "--ed25519" ] || [ "$2" == "--ed25519" ]; then
-        echo ""
-        echo "Enter directory to ed25519 certificate generation example."
-        echo "Can be found at https://github.com/wolfSSL/wolfssl-examples"
-        read -r ED25519_DIR
-        pushd ./certs/ed25519 || { echo "failed to push ./certs/ed25519";
-                                   exit 1; }
-        ./gen-ed25519.sh "${ED25519_DIR}"
-        check_result $? "./gen-ed25519.sh"
-        popd || exit 1
-    #valid argument print out other valid arguments
-    elif [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
-        echo ""
-        echo "\"no argument\"        will attempt to update all certificates"
-        echo "--override-ntru      updates all certificates except ntru"
-        echo "--ed25519            updates all ed25519 certificates"
-        echo "-h or -help          display this menu"
-        echo ""
-        echo ""
-    #else the argument was invalid, tell user to use -h or -help
-    else
-        echo ""
-        echo "That is not a valid option."
-        echo ""
-        echo "use -h or -help for a list of available options."
-        echo ""
-    fi
-#else HAVE_NTRU not already defined
-else
-    echo "Saving the configure state"
-    echo ""
-    cp config.status tmp.status || exit 1
-    cp wolfssl/options.h tmp.options.h || exit 1
-
-    echo "Running make clean"
-    echo ""
-    make clean
-    check_result $? "make clean"
-
-    #attempt to define ntru by configuring with ntru
-    echo "Configuring with ntru, enabling certgen and keygen"
-    echo ""
-    CFLAG_TMP="-DWOLFSSL_STATIC_RSA"
-    export CFLAGS=${CFLAG_TMP}
-    ./configure --with-ntru --enable-certgen --enable-keygen
-    check_result $? "configure for ntru"
-    make check
-    check_result $? "make check with ntru"
-    export CFLAGS=""
-
-    # check options.h a second time, if the user had
-    # ntru installed on their system and in the default
-    # path location, then it will now be defined, if the
-    # user does not have ntru on their system this will fail
-    # again and we will not update any certs until user installs
-    # ntru in the default location
-
-    # if now defined
-    if grep HAVE_NTRU "wolfssl/options.h"; then
-        run_renewcerts
-        #run_renewcerts leaves us in wolfssl/certs/crl, backup to root
-        cd ../ || exit 1
-        CURRDIR=${PWD##*/}
-        if [ "$CURRDIR" = "certs" ]; then
-            cd ../ || exit 1
-        else
-            echo "We are not in the right directory! Abort."
-            exit 1
-        fi
-        echo "changed directory to wolfssl root directory."
-        echo ""
-
-        move_ntru
-
-        echo "ntru-certs, and ntru-key.raw have been updated"
-        echo ""
-
-        # restore previous configure state
-        restore_config
-        check_result $? "restoring old configuration"
-    else
-
-        # restore previous configure state
-        restore_config
-        check_result $? "restoring old configuration"
-
-        echo ""
-        echo "ntru is not installed at the default location,"
-        echo "or ntru not installed, none of the certs were updated."
-        echo ""
-        echo "clone the ntru repository into your \"cd ~\" directory then,"
-        echo "\"cd NTRUEncrypt\" and run \"make\" then \"make install\""
-        echo "once complete run this script again to update all the certs."
-        echo ""
-        echo "To update all certs except ntru use \"./renewcerts.sh --override-ntru\""
-        echo ""
-
-    fi #END now defined
-fi #END already defined
+run_renewcerts
+cd ../ || exit 1
+rm ./certs/wolfssl.cnf
 
 exit 0

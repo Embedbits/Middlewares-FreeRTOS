@@ -1,5 +1,5 @@
 /*
- * SigV4 Library v1.2.0
+ * SigV4 Library v1.3.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -99,27 +99,27 @@ void addToDate( const char formatChar,
     switch( formatChar )
     {
         case 'Y':
-            pDateElements->tm_year = result;
+            pDateElements->year = result;
             break;
 
         case 'M':
-            pDateElements->tm_mon = result;
+            pDateElements->mon = result;
             break;
 
         case 'D':
-            pDateElements->tm_mday = result;
+            pDateElements->mday = result;
             break;
 
         case 'h':
-            pDateElements->tm_hour = result;
+            pDateElements->hour = result;
             break;
 
         case 'm':
-            pDateElements->tm_min = result;
+            pDateElements->min = result;
             break;
 
         case 's':
-            pDateElements->tm_sec = result;
+            pDateElements->sec = result;
             break;
 
         default:
@@ -136,23 +136,23 @@ SigV4Status_t writeLineToCanonicalRequest( const char * pLine,
 {
     SigV4Status_t ret = SigV4InsufficientMemory;
 
-    assert( ( pCanonicalContext != NULL ) && ( pCanonicalContext->pBufCur != NULL ) );
+    assert( pCanonicalContext != NULL );
 
     if( pCanonicalContext->bufRemaining >= ( lineLen + 1U ) )
     {
-        assert( __CPROVER_w_ok( pCanonicalContext->pBufCur, ( lineLen + 1U ) ) );
+        assert( __CPROVER_w_ok( &( pCanonicalContext->pBufProcessing[ pCanonicalContext->uxCursorIndex ] ), ( lineLen + 1U ) ) );
         ret = SigV4Success;
     }
 
     return ret;
 }
 
-SigV4Status_t encodeURI( const char * pUri,
-                         size_t uriLen,
-                         char * pCanonicalURI,
-                         size_t * canonicalURILen,
-                         bool encodeSlash,
-                         bool doubleEncodeEquals )
+SigV4Status_t SigV4_EncodeURI( const char * pUri,
+                               size_t uriLen,
+                               char * pCanonicalURI,
+                               size_t * canonicalURILen,
+                               bool encodeSlash,
+                               bool doubleEncodeEquals )
 {
     SigV4Status_t returnStatus = SigV4Success;
 
@@ -174,11 +174,12 @@ SigV4Status_t encodeURI( const char * pUri,
 
 SigV4Status_t generateCanonicalQuery( const char * pQuery,
                                       size_t queryLen,
+                                      const bool doubleEncodeEqualsInParmsValues,
                                       CanonicalContext_t * pCanonicalContext )
 {
     SigV4Status_t returnStatus = SigV4InsufficientMemory;
 
-    assert( ( pCanonicalContext != NULL ) && ( pCanonicalContext->pBufCur != NULL ) );
+    assert( pCanonicalContext != NULL );
 
     if( nondet_bool() )
     {
@@ -204,7 +205,6 @@ SigV4Status_t generateCanonicalAndSignedHeaders( const char * pHeaders,
 
     assert( pHeaders != NULL );
     assert( pCanonicalContext != NULL );
-    assert( pCanonicalContext->pBufCur != NULL );
     assert( pSignedHeaders != NULL );
     assert( pSignedHeadersLen != NULL );
 
@@ -247,7 +247,6 @@ SigV4Status_t copyHeaderStringToCanonicalBuffer( const char * pData,
 
     assert( ( pData != NULL ) && ( dataLen > 0 ) );
     assert( canonicalRequest != NULL );
-    assert( canonicalRequest->pBufCur != NULL );
 
     buffRemaining = canonicalRequest->bufRemaining;
 

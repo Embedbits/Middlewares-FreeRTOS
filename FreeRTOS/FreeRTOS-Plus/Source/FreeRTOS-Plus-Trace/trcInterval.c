@@ -1,6 +1,6 @@
 /*
-* Trace Recorder for Tracealyzer v4.6.0
-* Copyright 2021 Percepio AB
+* Trace Recorder for Tracealyzer v4.8.0.hotfix1
+* Copyright 2023 Percepio AB
 * www.percepio.com
 *
 * SPDX-License-Identifier: Apache-2.0
@@ -14,68 +14,76 @@
 
 #if (TRC_CFG_RECORDER_MODE == TRC_RECORDER_MODE_STREAMING)
 
-#define TRC_INTERVAL_STATE_INDEX 0
-
-traceResult xTraceIntervalCreate(const char *szName, TraceIntervalHandle_t *pxIntervalHandle)
+/*cstat !MISRAC2004-6.3 !MISRAC2012-Dir-4.6_a Suppress basic char type usage*/
+traceResult xTraceIntervalChannelSetCreate(const char* szName, TraceIntervalChannelSetHandle_t* pxIntervalChannelSetHandle)
 {
 	TraceObjectHandle_t xObjectHandle;
 
 	/* This should never fail */
-	TRC_ASSERT(pxIntervalHandle != 0);
+	TRC_ASSERT(pxIntervalChannelSetHandle != (void*)0);
 
 	/* We need to check this */
-	if (xTraceObjectRegister(PSF_EVENT_INTERVAL_CREATE, 0, szName, 0, &xObjectHandle) == TRC_FAIL)
+	if (xTraceObjectRegister(PSF_EVENT_INTERVAL_CHANNEL_SET_CREATE, (void*)0, szName, 0u, &xObjectHandle) == TRC_FAIL)
 	{
 		return TRC_FAIL;
 	}
 
 	/* This should never fail */
-	TRC_ASSERT_ALWAYS_EVALUATE(xTraceEntrySetOptions((TraceEntryHandle_t)xObjectHandle, TRC_ENTRY_OPTION_INTERVAL) == TRC_SUCCESS);
+	TRC_ASSERT_ALWAYS_EVALUATE(xTraceEntrySetOptions((TraceEntryHandle_t)xObjectHandle, TRC_ENTRY_OPTION_INTERVAL_CHANNEL_SET) == TRC_SUCCESS);
 
-	*pxIntervalHandle = (TraceIntervalHandle_t)xObjectHandle;
-	
+	*pxIntervalChannelSetHandle = (TraceIntervalChannelSetHandle_t)xObjectHandle;
+
 	return TRC_SUCCESS;
 }
 
-traceResult xTraceIntervalStart(TraceIntervalHandle_t xIntervalHandle)
+/*cstat !MISRAC2004-6.3 !MISRAC2012-Dir-4.6_a Suppress basic char type usage*/
+traceResult xTraceIntervalChannelCreate(const char *szName, TraceIntervalChannelSetHandle_t xIntervalChannelSetHandle, TraceIntervalChannelHandle_t *pxIntervalChannelHandle)
 {
-	TraceEventHandle_t xEventHandle = 0;
-	
+	TraceObjectHandle_t xObjectHandle;
+
 	/* This should never fail */
-	TRC_ASSERT_ALWAYS_EVALUATE(xTraceEntrySetState((TraceEntryHandle_t)xIntervalHandle, TRC_INTERVAL_STATE_INDEX, 1) == TRC_SUCCESS);
+	TRC_ASSERT(pxIntervalChannelHandle != (void*)0);
+
+	/* This should never fail */
+	TRC_ASSERT(xIntervalChannelSetHandle != 0);
 
 	/* We need to check this */
-	if (xTraceEventBegin(PSF_EVENT_INTERVAL_STATECHANGE, sizeof(void*) + sizeof(uint32_t), &xEventHandle) == TRC_SUCCESS)
+	if (xTraceObjectRegister(PSF_EVENT_INTERVAL_CHANNEL_CREATE, (void*)0, szName, (TraceUnsignedBaseType_t)xIntervalChannelSetHandle, &xObjectHandle) == TRC_FAIL) /*cstat !MISRAC2004-11.3 !MISRAC2012-Rule-11.4 Suppress conversion from pointer to integer check*/
 	{
-		xTraceEventAddPointer(xEventHandle, (void*)xIntervalHandle);
-		xTraceEventAdd32(xEventHandle, 1);
-		xTraceEventEnd(xEventHandle);
+		return TRC_FAIL;
 	}
 
-	return TRC_SUCCESS;
-}
-
-traceResult xTraceIntervalStop(TraceIntervalHandle_t xIntervalHandle)
-{
-	TraceEventHandle_t xEventHandle = 0;
-	
 	/* This should never fail */
-	TRC_ASSERT_ALWAYS_EVALUATE(xTraceEntrySetState((TraceEntryHandle_t)xIntervalHandle, TRC_INTERVAL_STATE_INDEX, 0) == TRC_SUCCESS);
+	TRC_ASSERT_ALWAYS_EVALUATE(xTraceEntrySetOptions((TraceEntryHandle_t)xObjectHandle, TRC_ENTRY_OPTION_INTERVAL_CHANNEL) == TRC_SUCCESS);
 
-	/* We need to check this */
-	if (xTraceEventBegin(PSF_EVENT_INTERVAL_STATECHANGE, sizeof(void*) + sizeof(uint32_t), &xEventHandle) == TRC_SUCCESS)
-	{
-		xTraceEventAddPointer(xEventHandle, (void*)xIntervalHandle);
-		xTraceEventAdd32(xEventHandle, 0);
-		xTraceEventEnd(xEventHandle);
-	}
+	*pxIntervalChannelHandle = (TraceIntervalChannelHandle_t)xObjectHandle;
 	
 	return TRC_SUCCESS;
 }
 
-traceResult xTraceIntervalGetState(TraceIntervalHandle_t xIntervalHandle, TraceUnsignedBaseType_t *puxState)
+traceResult xTraceIntervalStart(TraceIntervalChannelHandle_t xIntervalChannelHandle, TraceUnsignedBaseType_t uxValue, TraceIntervalInstanceHandle_t *pxIntervalInstanceHandle)
 {
-	return xTraceEntryGetState((TraceEntryHandle_t)xIntervalHandle, TRC_INTERVAL_STATE_INDEX, puxState);
+	TRC_ASSERT(xIntervalChannelHandle != 0);
+	
+	TRC_ASSERT(pxIntervalInstanceHandle != (void*)0);
+	
+	/* We null all of it first in case it's 64-bit and we only write 32-bit */
+	*pxIntervalInstanceHandle = 0;
+
+	TRC_ASSERT_ALWAYS_EVALUATE(xTraceTimestampGet((uint32_t*)pxIntervalInstanceHandle) == TRC_SUCCESS); /*cstat !MISRAC2004-11.4 !MISRAC2012-Rule-11.3 Suppress conversion between pointer types checks*/
+
+	(void)xTraceEventCreate3(PSF_EVENT_INTERVAL_START, (TraceUnsignedBaseType_t)xIntervalChannelHandle, (TraceUnsignedBaseType_t)*pxIntervalInstanceHandle, uxValue); /*cstat !MISRAC2004-11.3 !MISRAC2012-Rule-11.4 Suppress conversion from pointer to integer check*/
+	
+	return TRC_SUCCESS;
+}
+
+traceResult xTraceIntervalStop(TraceIntervalChannelHandle_t xIntervalChannelHandle, TraceIntervalInstanceHandle_t xIntervalInstanceHandle)
+{
+	TRC_ASSERT(xIntervalChannelHandle != 0);
+
+	(void)xTraceEventCreate2(PSF_EVENT_INTERVAL_STOP, (TraceUnsignedBaseType_t)xIntervalChannelHandle, (TraceUnsignedBaseType_t)xIntervalInstanceHandle); /*cstat !MISRAC2004-11.3 !MISRAC2012-Rule-11.4 Suppress conversion from pointer to integer check*/
+
+	return TRC_SUCCESS;
 }
 
 #endif /* (TRC_CFG_RECORDER_MODE == TRC_RECORDER_MODE_STREAMING) */

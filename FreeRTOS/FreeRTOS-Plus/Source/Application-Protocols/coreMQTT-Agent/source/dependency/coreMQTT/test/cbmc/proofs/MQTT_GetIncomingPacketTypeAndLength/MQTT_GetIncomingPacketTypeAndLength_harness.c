@@ -1,5 +1,5 @@
 /*
- * coreMQTT v2.1.0
+ * coreMQTT v2.3.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -29,6 +29,11 @@
 #include "core_mqtt.h"
 #include "network_interface_stubs.h"
 #include "mqtt_cbmc_state.h"
+
+struct NetworkContext
+{
+    int NetworkContext;
+};
 
 void harness()
 {

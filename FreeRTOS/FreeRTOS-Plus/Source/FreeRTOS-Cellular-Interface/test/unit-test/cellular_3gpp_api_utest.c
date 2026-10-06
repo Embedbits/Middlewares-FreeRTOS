@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -87,7 +89,7 @@ typedef enum parseTimeConditionState
 {
     PARSE_TIME_FIRST_CALL_FAILURE_CONDITION = 6,
     PARSE_TIME_SECOND_CALL_FAILURE_CONDITION = 7,
-    PARSE_TIME_THRID_CALL_FAILURE_CONDITION = 8,
+    PARSE_TIME_THIRD_CALL_FAILURE_CONDITION = 8,
     PARSE_TIME_FOURTH_CALL_FAILURE_CONDITION = 9,
     PARSE_TIME_FIFTH_CALL_FAILURE_CONDITION = 10,
     PARSE_TIME_SIXTH_CALL_FAILURE_CONDITION = 11
@@ -101,8 +103,10 @@ static int cpsms_pos_mode_error = 0;
 static int recvFuncGetHplmnCase = 0;
 static int parseHplmn_test = 0;
 static int simLockStateTestCase = 0;
-static int psmSettingsTimerIndex = 0;
+static int psmSettingsCheckTimerValue = 0;
+static int psmSettingsTimerIndex = -1;
 static int psmSettingsTimerError = 0;
+static int psmSettingsActiveTimerValue = 0;
 static int parseEidrxTokenOutOfRange = 0;
 static int mallocAllocFail = 0;
 static int nullTokenFirst = 0;
@@ -124,8 +128,10 @@ void setUp()
     recvFuncGetHplmnCase = 0;
     parseHplmn_test = 0;
     simLockStateTestCase = 0;
-    psmSettingsTimerIndex = 0;
+    psmSettingsCheckTimerValue = 0;
+    psmSettingsTimerIndex = -1;
     psmSettingsTimerError = 0;
+    psmSettingsActiveTimerValue = 0;
     parseEidrxTokenOutOfRange = 0;
     mallocAllocFail = 0;
     nullTokenFirst = 0;
@@ -188,11 +194,24 @@ CellularPktStatus_t Mock_AtcmdRequestWithCallback( CellularContext_t * pContext,
                                                    CellularAtReq_t atReq,
                                                    int cmock_num_calls )
 {
-    cellularOperatorInfo_t * pOperatorInfo = ( cellularOperatorInfo_t * ) atReq.pData;
+    cellularOperatorInfo_t * pOperatorInfo;
 
     ( void ) pContext;
-    ( void ) cmock_num_calls;
-    pOperatorInfo->rat = CELLULAR_RAT_INVALID;
+
+    if( cmock_num_calls == 0 )
+    {
+        /* AT+COPS=3,2 call. */
+    }
+    else if( cmock_num_calls == 1 )
+    {
+        /* AT+COPS? call. */
+        pOperatorInfo = ( cellularOperatorInfo_t * ) atReq.pData;
+        pOperatorInfo->rat = CELLULAR_RAT_INVALID;
+    }
+    else
+    {
+        TEST_FAIL_MESSAGE( "Unexpected Mock_AtcmdRequestWithCallback call" );
+    }
 
     return CELLULAR_PKT_STATUS_OK;
 }
@@ -390,7 +409,7 @@ CellularATError_t Mock_Cellular_ATStrtoi( const char * pStr,
                 *pResult = atoi( pStr );
             }
         }
-        else if( cbCondition == PARSE_TIME_THRID_CALL_FAILURE_CONDITION )
+        else if( cbCondition == PARSE_TIME_THIRD_CALL_FAILURE_CONDITION )
         {
             if( cmock_num_calls == 3 )
             {
@@ -637,34 +656,45 @@ CellularPktStatus_t Mock_AtcmdRequestWithCallback__Cellular_RecvFuncUpdateMccMnc
     CellularATCommandResponse_t atResp;
     cellularOperatorInfo_t cellularOperatorInfo;
 
-    ( void ) cmock_num_calls;
     memset( &atResp, 0, sizeof( CellularATCommandResponse_t ) );
     memset( &cellularOperatorInfo, 0, sizeof( cellularOperatorInfo_t ) );
 
-    if( cbCondition < 3 )
+    if( cmock_num_calls == 0 )
     {
-        pktStatus = handleCommonCallback( pContext, atReq );
+        /* AT+COPS=3,2 call. */
     }
-    else if( cbCondition == 3 )
+    else if( cmock_num_calls == 1 )
     {
-        char pLine[] = CELLULAR_SAMPLE_PREFIX_STRING_INPUT;
+        /* AT+COPS? call. */
+        if( cbCondition < 3 )
+        {
+            pktStatus = handleCommonCallback( pContext, atReq );
+        }
+        else if( cbCondition == 3 )
+        {
+            char pLine[] = CELLULAR_SAMPLE_PREFIX_STRING_INPUT;
 
-        _saveData( pLine, &atResp, strlen( pLine ) + 1 );
+            _saveData( pLine, &atResp, strlen( pLine ) + 1 );
 
-        if( parseNetworkNameFailureCase == 2 )
-        {
-            cellularOperatorInfo.operatorNameFormat = OPERATOR_NAME_FORMAT_LONG;
-            pktStatus = atReq.respCallback( pContext, &atResp, &cellularOperatorInfo, sizeof( cellularOperatorInfo_t ) );
+            if( parseNetworkNameFailureCase == 2 )
+            {
+                cellularOperatorInfo.operatorNameFormat = OPERATOR_NAME_FORMAT_LONG;
+                pktStatus = atReq.respCallback( pContext, &atResp, &cellularOperatorInfo, sizeof( cellularOperatorInfo_t ) );
+            }
+            else if( parseNetworkNameFailureCase == 3 )
+            {
+                cellularOperatorInfo.operatorNameFormat = OPERATOR_NAME_FORMAT_NUMERIC;
+                pktStatus = atReq.respCallback( pContext, &atResp, &cellularOperatorInfo, sizeof( cellularOperatorInfo_t ) );
+            }
+            else
+            {
+                pktStatus = atReq.respCallback( pContext, &atResp, &cellularOperatorInfo, sizeof( cellularOperatorInfo_t ) );
+            }
         }
-        else if( parseNetworkNameFailureCase == 3 )
-        {
-            cellularOperatorInfo.operatorNameFormat = OPERATOR_NAME_FORMAT_NUMERIC;
-            pktStatus = atReq.respCallback( pContext, &atResp, &cellularOperatorInfo, sizeof( cellularOperatorInfo_t ) );
-        }
-        else
-        {
-            pktStatus = atReq.respCallback( pContext, &atResp, &cellularOperatorInfo, sizeof( cellularOperatorInfo_t ) );
-        }
+    }
+    else
+    {
+        TEST_FAIL_MESSAGE( "Unexpected Mock_AtcmdRequestWithCallback call" );
     }
 
     return pktStatus;
@@ -726,7 +756,36 @@ CellularPktStatus_t Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettin
         char pLine[] = CELLULAR_SAMPLE_PREFIX_STRING_INPUT;
 
         _saveData( pLine, &atResp, strlen( pLine ) + 1 );
+        memset( &cellularPsmSettings, 0, sizeof( CellularPsmSettings_t ) );
         pktStatus = atReq.respCallback( pContext, &atResp, &cellularPsmSettings, sizeof( CellularPsmSettings_t ) );
+
+        if( psmSettingsCheckTimerValue == 1 )
+        {
+            uint32_t ulTimeValueSeconds = 0U;
+
+            if( psmSettingsTimerIndex == 0 )
+            {
+                ulTimeValueSeconds = psmSettingsActiveTimerValue * 2U;
+            }
+            else if( psmSettingsTimerIndex == 1 )
+            {
+                ulTimeValueSeconds = psmSettingsActiveTimerValue * 60U;
+            }
+            else if( psmSettingsTimerIndex == 2 )
+            {
+                ulTimeValueSeconds = psmSettingsActiveTimerValue * 6 * 60U;
+            }
+            else if( psmSettingsTimerIndex == 7 )
+            {
+                ulTimeValueSeconds = 0xFFFFFFFFU;
+            }
+            else
+            {
+                ulTimeValueSeconds = 0U;
+            }
+
+            TEST_ASSERT_EQUAL_INT( ulTimeValueSeconds, cellularPsmSettings.activeTimeValue );
+        }
     }
     else if( cbCondition == 4 )
     {
@@ -1356,7 +1415,7 @@ CellularATError_t Mock_Cellular_ATGetNextTok_Calback( char ** ppString,
     {
         if( cmock_num_calls == 3 )
         {
-            if( psmSettingsTimerIndex > 0 )
+            if( psmSettingsTimerIndex >= 0 )
             {
                 int t3412TimerInx = ( psmSettingsTimerIndex << 5U );
 
@@ -1376,7 +1435,7 @@ CellularATError_t Mock_Cellular_ATGetNextTok_Calback( char ** ppString,
         }
         else
         {
-            if( ( cmock_num_calls == 4 ) && ( psmSettingsTimerIndex > 0 ) )
+            if( ( cmock_num_calls == 4 ) && ( psmSettingsTimerIndex >= 0 ) )
             {
                 int t3324TimerInx = ( psmSettingsTimerIndex << 5U );
 
@@ -1386,7 +1445,7 @@ CellularATError_t Mock_Cellular_ATGetNextTok_Calback( char ** ppString,
                 }
 
                 *ppTokOutput = malloc( len );
-                snprintf( *ppTokOutput, len, "%d", t3324TimerInx );
+                snprintf( *ppTokOutput, len, "%d", t3324TimerInx | psmSettingsActiveTimerValue );
             }
             else
             {
@@ -1862,13 +1921,13 @@ void test_Cellular_CommonSetEidrxSettings_Happy_Path( void )
     CellularHandle_t cellularHandle = &context;
     CellularEidrxSettings_t eidrxSettings;
 
-    eidrxSettings.requestedEdrxVaue = 0xF;
+    eidrxSettings.requestedEdrxValue = 0xF;
     _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
     _Cellular_AtcmdRequestWithCallback_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     cellularStatus = Cellular_CommonSetEidrxSettings( cellularHandle, &eidrxSettings );
     TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
 
-    eidrxSettings.requestedEdrxVaue = 0x0;
+    eidrxSettings.requestedEdrxValue = 0x0;
     _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
     _Cellular_AtcmdRequestWithCallback_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     cellularStatus = Cellular_CommonSetEidrxSettings( cellularHandle, &eidrxSettings );
@@ -1979,6 +2038,44 @@ void test_Cellular_CommonGetRegisteredNetwork_No_Memory( void )
     _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
     cellularStatus = Cellular_CommonGetRegisteredNetwork( cellularHandle, &networkInfo );
     TEST_ASSERT_EQUAL( CELLULAR_NO_MEMORY, cellularStatus );
+}
+
+/**
+ * @brief Test that set to numeric format failed.
+ *
+ * <b>Coverage</b>
+ * @code{c}
+ * static CellularError_t atcmdUpdateMccMnc( CellularContext_t * pContext,
+ *                                           cellularOperatorInfo_t * pOperatorInfo )
+ * {
+ *     ...
+ *     atCopsRequest.pAtCmd = "AT+COPS=3,2",
+ *     atCopsRequest.atCmdType = CELLULAR_AT_NO_RESULT,
+ *     pktStatus =  _Cellular_AtcmdRequestWithCallback( pContext, atCopsRequest );
+ *
+ *     if( pktStatus == CELLULAR_PKT_STATUS_OK )
+ *     {
+ *         ...
+ *     }
+ * }
+ * @endcode
+ * ( pktStatus == CELLULAR_PKT_STATUS_OK ) is false.
+ */
+void test_Cellular_CommonGetRegisteredNetwork_Set_Numeric_Format_Fail( void )
+{
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
+    CellularContext_t context;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+    CellularHandle_t cellularHandle = &context;
+    CellularPlmnInfo_t networkInfo;
+
+    _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
+    _Cellular_AtcmdRequestWithCallback_IgnoreAndReturn( CELLULAR_PKT_STATUS_FAILURE );
+    _Cellular_TranslatePktStatus_ExpectAndReturn( CELLULAR_PKT_STATUS_FAILURE, CELLULAR_INTERNAL_FAILURE );
+
+    cellularStatus = Cellular_CommonGetRegisteredNetwork( cellularHandle, &networkInfo );
+    TEST_ASSERT_EQUAL( CELLULAR_INTERNAL_FAILURE, cellularStatus );
 }
 
 /**
@@ -3326,7 +3423,7 @@ void test_Cellular_CommonGetNetworkTime_Bad_Parameter( void )
 }
 
 /**
- * @brief Test that retrieve networ time failure case Cellular_CommonGetNetworkTime to return CELLULAR_SUCCESS.
+ * @brief Test that retrieve network time failure case Cellular_CommonGetNetworkTime to return CELLULAR_SUCCESS.
  */
 void test_Cellular_CommonGetNetworkTime_Retrieve_Network_Time_Failure( void )
 {
@@ -3663,7 +3760,7 @@ void test_Cellular_CommonGetNetworkTime_RecvFuncCallback_Parse_TimeZone_InCCLKRe
 /**
  * @brief Test that _parseTimeZoneInCCLKResponse negative case in _Cellular_RecvFuncGetNetworkTime to return CELLULAR_INTERNAL_FAILURE.
  */
-void test_Cellular_CommonGetNetworkTime_RecvFuncCallback_Parse_TimeZone_InCCLKResp_Nagetive( void )
+void test_Cellular_CommonGetNetworkTime_RecvFuncCallback_Parse_TimeZone_InCCLKResp_Negative( void )
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t context;
@@ -4044,7 +4141,7 @@ void test_Cellular_CommonGetNetworkTime_RecvFuncCallback_Parse_YearMonthDAy_CCLK
 
     _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
     /* parse time failure case condition. */
-    cbCondition = PARSE_TIME_THRID_CALL_FAILURE_CONDITION;
+    cbCondition = PARSE_TIME_THIRD_CALL_FAILURE_CONDITION;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetNetworkTime );
 
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
@@ -4081,7 +4178,7 @@ void test_Cellular_CommonGetNetworkTime_RecvFuncCallback_Parse_YearMonthDAy_CCLK
 
     _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
     /* parse time failure case condition. */
-    cbCondition = PARSE_TIME_THRID_CALL_FAILURE_CONDITION;
+    cbCondition = PARSE_TIME_THIRD_CALL_FAILURE_CONDITION;
     negativeNumberCase = 1;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetNetworkTime );
 
@@ -6543,7 +6640,7 @@ void test_Cellular_CommonGetSimCardLockStatus_Cb_Cellular_RecvFuncGetSimLockStat
 }
 
 /**
- * @brief Test that SimLockState Uknown case in callback function _Cellular_RecvFuncGetSimLockStatus
+ * @brief Test that SimLockState Unknown case in callback function _Cellular_RecvFuncGetSimLockStatus
  * for Cellular_CommonGetSimCardLockStatus to return CELLULAR_INTERNAL_FAILURE.
  */
 void test_Cellular_CommonGetSimCardLockStatus_Cb_Cellular_RecvFuncGetSimLockStatus_SimLockState_Unknown( void )
@@ -7970,7 +8067,7 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_AtCmd
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8001,7 +8098,7 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Null_
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8063,7 +8160,7 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_CPSMS
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8094,7 +8191,7 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_CPSMS
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8105,7 +8202,7 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_CPSMS
  * @brief Test that happy path case in callback function _Cellular_RecvFuncGetPsmSettings
  * for Cellular_CommonGetPsmSettings to return CELLULAR_SUCCESS.
  */
-void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy_Path( void )
+void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy_Path_Idx_0( void )
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t context;
@@ -8118,13 +8215,47 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
-    psmSettingsTimerIndex = 1;
+    psmSettingsCheckTimerValue = 1;
+    psmSettingsTimerIndex = 0;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
+    _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
+
+    cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
+    TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
+}
+
+/**
+ * @brief Test that happy path case in callback function _Cellular_RecvFuncGetPsmSettings
+ * for Cellular_CommonGetPsmSettings to return CELLULAR_SUCCESS.
+ */
+void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy_Path_Idx_1( void )
+{
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
+    CellularContext_t context;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+    CellularHandle_t cellularHandle = &context;
+    CellularPsmSettings_t psmSettings;
+
+    _Cellular_CheckLibraryStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
+    _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
+    cbCondition = 3;
+    _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
+    psmSettingsTimerIndex = 1;
+    psmSettingsActiveTimerValue = 2;
+    Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
+    Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
+
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8148,13 +8279,15 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
     psmSettingsTimerIndex = 2;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8178,13 +8311,15 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
     psmSettingsTimerIndex = 3;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8208,13 +8343,15 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
     psmSettingsTimerIndex = 4;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8238,13 +8375,15 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
     psmSettingsTimerIndex = 5;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8268,13 +8407,15 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
     psmSettingsTimerIndex = 6;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8298,13 +8439,15 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Happy
     _Cellular_IsValidPdn_IgnoreAndReturn( CELLULAR_SUCCESS );
     cbCondition = 3;
     _Cellular_AtcmdRequestWithCallback_StubWithCallback( Mock_AtcmdRequestWithCallback__Cellular_RecvFuncGetPsmSettings );
+    psmSettingsCheckTimerValue = 1;
     psmSettingsTimerIndex = 7;
+    psmSettingsActiveTimerValue = 2;
     Cellular_ATRemovePrefix_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATRemoveAllDoubleQuote_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );
@@ -8335,7 +8478,7 @@ void test_Cellular_CommonGetPsmSettings_Cb_Cellular_RecvFuncGetPsmSettings_Timer
     Cellular_ATGetNextTok_StubWithCallback( Mock_Cellular_ATGetNextTok_Calback );
     Cellular_ATStrtoi_StubWithCallback( Mock_Cellular_ATStrtoi );
 
-    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_AT_SUCCESS );
+    _Cellular_TranslateAtCoreStatus_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
     _Cellular_TranslatePktStatus_IgnoreAndReturn( CELLULAR_SUCCESS );
 
     cellularStatus = Cellular_CommonGetPsmSettings( cellularHandle, &psmSettings );

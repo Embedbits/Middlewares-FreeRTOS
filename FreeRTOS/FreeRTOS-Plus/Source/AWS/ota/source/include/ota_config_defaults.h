@@ -66,7 +66,7 @@
  * The configuration parameter specifies the size of the stack that will be allocated
  * to the task being created (the size is specified in words, not bytes!). The amount
  * of stack required is dependent on the application specific parameters,
- * for more information [Link](https://www.freertos.org/FAQMem.html#StackSize)
+ * for more information [Link](https://www.freertos.org/Why-FreeRTOS/FAQs/Memory-usage-boot-times-context#how-big-should-the-stack-be)
  *
  * <b>Possible values:</b> Any positive 32 bit integer. <br>
  * <b>Default value:</b> Varies by platform
@@ -96,6 +96,16 @@
  */
 #ifndef otaconfigLOG2_FILE_BLOCK_SIZE
     #define otaconfigLOG2_FILE_BLOCK_SIZE    12UL
+#endif
+
+/**
+ * @brief number of blocks to statically track in an OTA.
+ *
+ * <b>Possible values:</b> Any unsigned integer. <br>
+ * <b>Default value:</b> '128'
+ */
+#ifndef otaconfigMAX_BLOCK_BITMAP_SIZE
+    #define otaconfigMAX_BLOCK_BITMAP_SIZE    128U
 #endif
 
 /**
@@ -133,11 +143,15 @@
  * agent uses this size to allocate static storage for the Thing name used in
  * all OTA base topics. Namely $aws/things/thingName
  *
- * <b>Possible values:</b> Any unsigned 32 integer. <br>
- * <b>Default value:</b> '64'
+ * AWS IoT Core limits the ThingName length to 128 characters maximum. For more,
+ * see the AWS IoT Core Quotas here -
+ * https://console.aws.amazon.com/servicequotas/home/services/iotcore/quotas/L-83BC2FA9
+ *
+ * <b>Possible values:</b> Any unsigned 32 integer - though practical limit is 128 <br>
+ * <b>Default value:</b> '128'
  */
 #ifndef otaconfigMAX_THINGNAME_LEN
-    #define otaconfigMAX_THINGNAME_LEN    64U
+    #define otaconfigMAX_THINGNAME_LEN    128U
 #endif
 
 /**
@@ -302,6 +316,21 @@
  */
 #ifndef configOTA_POLLING_EVENTS_TIMEOUT_MS
     #define configOTA_POLLING_EVENTS_TIMEOUT_MS    ( 1000U )
+#endif
+
+/**
+ * @brief Whether to use const qualifier for the appFirmwareVersion variable.
+ *
+ * @note In some cases the appFirmwareVersion variable cannot be declared as const
+ * because the version is read out during runtime.
+ *
+ * <b>Possible values:</b><br>
+ * appFirmwareVersion is const - ( 0 ) <br>
+ * appFirmwareVersion is non-const - ( 1 ) <br>
+ * <b>Default value:</b>  '0'
+ */
+#ifndef OTA_USE_NONCONST_APPVERSION
+    #define OTA_USE_NONCONST_APPVERSION    ( 0U )
 #endif
 
 /**

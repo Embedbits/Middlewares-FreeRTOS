@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -38,15 +38,20 @@
 
 /* Standard includes. */
 #include <stdint.h>
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    extern "C" {
+#endif
+/* *INDENT-ON* */
+
 #if ( ipconfigUSE_DNS != 0 )
 
 /** @brief Flag DNS parsing errors in situations where an IPv4 address is the return
  * type. */
 
     #if ( ipconfigUSE_DNS_CACHE == 1 ) || ( ipconfigDNS_USE_CALLBACKS == 1 )
-        size_t DNS_ReadNameField( const uint8_t * pucByte,
-                                  size_t uxRemainingBytes,
-                                  char * pcName,
+        size_t DNS_ReadNameField( ParseSet_t * pxSet,
                                   size_t uxDestLen );
     #endif /* ipconfigUSE_DNS_CACHE || ipconfigDNS_USE_CALLBACKS */
 
@@ -64,12 +69,14 @@
  */
     uint32_t DNS_ParseDNSReply( uint8_t * pucUDPPayloadBuffer,
                                 size_t uxBufferLength,
-                                BaseType_t xExpected );
+                                struct freertos_addrinfo ** ppxAddressInfo,
+                                BaseType_t xExpected,
+                                uint16_t usPort );
 
 /*
  * The NBNS and the LLMNR protocol share this reply function.
  */
-    #if ( ( ipconfigUSE_NBNS == 1 ) || ( ipconfigUSE_LLMNR == 1 ) )
+    #if ( ( ipconfigUSE_MDNS == 1 ) || ( ipconfigUSE_LLMNR == 1 ) || ( ipconfigUSE_NBNS == 1 ) )
         void prepareReplyDNSMessage( NetworkBufferDescriptor_t * pxNetworkBuffer,
                                      BaseType_t lNetLength );
     #endif
@@ -79,15 +86,19 @@
                             uint32_t ulIPAddress );
     #endif
 
-    uint32_t parseDNSAnswer( const DNSMessage_t * pxDNSMessageHeader,
-                             uint8_t * pucByte,
-                             size_t uxSourceBytesRemaining,
-                             size_t * uxBytesRead
-    #if ( ipconfigUSE_DNS_CACHE == 1 ) || ( ipconfigDNS_USE_CALLBACKS == 1 )
-                                 ,
-                                 const char * pcName,
-                                 BaseType_t xDoStore
-    #endif
-                             );
+/**
+ * Parse the DNS answer/response.
+ */
+    uint32_t parseDNSAnswer( ParseSet_t * pxSet,
+                             struct freertos_addrinfo ** ppxAddressInfo,
+                             size_t * uxBytesRead );
+
 #endif /* if ( ipconfigUSE_DNS != 0 ) */
-#endif /* ifndef FREERTOS_DNS_PARSER_H */
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+/* *INDENT-ON* */
+
+#endif /* FREERTOS_DNS_PARSER_H */

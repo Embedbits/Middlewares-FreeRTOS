@@ -1,5 +1,5 @@
 /*
- * coreMQTT v2.1.0
+ * coreMQTT v2.3.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -69,12 +69,8 @@
  */
 #define MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT    ( 2U )
 
-/* Set network context to double pointer to buffer (uint8_t**). */
-struct NetworkContext
-{
-    uint8_t ** buffer;
-};
+#define MQTT_SUB_UNSUB_MAX_VECTORS              ( 6U )
 
-#define MQTT_SUB_UNSUB_MAX_VECTORS    ( 8U )
+#define MQTT_SEND_TIMEOUT_MS                    ( 20U )
 
 #endif /* ifndef CORE_MQTT_CONFIG_H_ */

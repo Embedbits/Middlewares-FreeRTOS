@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -51,6 +51,11 @@
 
 /*-----------------------------------------------------------*/
 
+extern void vPlatformInitLogging( void );
+extern void vPlatformStopLoggingThreadAndFlush( void );
+
+/*-----------------------------------------------------------*/
+
 static void prvPKCS11DemoTask( void * pvParameters )
 {
     configPRINTF( ( "---------STARTING DEMO---------\r\n" ) );
@@ -68,6 +73,7 @@ static void prvPKCS11DemoTask( void * pvParameters )
     #endif
     configPRINTF( ( "---------Finished DEMO---------\r\n" ) );
 
+    vPlatformStopLoggingThreadAndFlush();
     exit( 0 );
 }
 
@@ -79,11 +85,11 @@ int main( void )
 
     /* Create the SNTP client task that is responsible for synchronizing system time with the time servers
      * periodically. This is created as a high priority task to keep the SNTP client operation unhindered. */
-    xTaskCreate( prvPKCS11DemoTask,             /* Function that implements the task. */
-                 "PKCS11 Demo",                 /* Text name for the task - only used for debugging. */
-                 configPKCS11_DEMO_STACK_SIZE,  /* Size of stack (in words, not bytes) to allocate for the task. */
-                 NULL,                          /* Task parameter - not used in this case. */
-                 configMAX_PRIORITIES - 1,      /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
+    xTaskCreate( prvPKCS11DemoTask,            /* Function that implements the task. */
+                 "PKCS11 Demo",                /* Text name for the task - only used for debugging. */
+                 configPKCS11_DEMO_STACK_SIZE, /* Size of stack (in words, not bytes) to allocate for the task. */
+                 NULL,                         /* Task parameter - not used in this case. */
+                 configMAX_PRIORITIES - 1,     /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
                  NULL );
 
     /* Start the RTOS scheduler. */

@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -34,7 +34,21 @@
 #endif
 /* *INDENT-ON* */
 
+/**
+ * @brief Process the received TCP packet.
+ *
+ */
 BaseType_t xProcessReceivedTCPPacket( NetworkBufferDescriptor_t * pxDescriptor );
+
+/**
+ * @brief Process the received TCP packet.
+ */
+BaseType_t xProcessReceivedTCPPacket_IPV4( NetworkBufferDescriptor_t * pxDescriptor );
+
+/**
+ * @brief Process the received TCP packet.
+ */
+BaseType_t xProcessReceivedTCPPacket_IPV6( NetworkBufferDescriptor_t * pxDescriptor );
 
 typedef enum eTCP_STATE
 {
@@ -59,7 +73,7 @@ typedef enum eTCP_STATE
     eLAST_ACK,     /*10 (server + client) waiting for an acknowledgement of the connection termination request
                     * previously sent to the remote TCP
                     * (which includes an acknowledgement of its connection termination request). */
-    eTIME_WAIT,    /*11 (either server or client) waiting for enough time to pass to be sure the remote TCP received the
+    eTIME_WAIT     /*11 (either server or client) waiting for enough time to pass to be sure the remote TCP received the
                     * acknowledgement of its connection termination request. [According to RFC 793 a connection can
                     * stay in TIME-WAIT for a maximum of four minutes known as a MSL (maximum segment lifetime).] */
 } eIPTCPState_t;
@@ -161,9 +175,19 @@ typedef enum eTCP_STATE
     #define tcpMAXIMUM_TCP_WAKEUP_TIME_MS    20000U
 #endif
 
-/* Two macro's that were introduced to work with both IPv4 and IPv6. */
-#define xIPHeaderSize( pxNetworkBuffer )    ( ipSIZE_OF_IPv4_HEADER )          /**< Size of IP Header. */
-#define uxIPHeaderSizeSocket( pxSocket )    ( ipSIZE_OF_IPv4_HEADER )          /**< Size of IP Header socket. */
+struct xSOCKET;
+
+/*
+ * For anti-hang protection and TCP keep-alive messages.  Called in two places:
+ * after receiving a packet and after a state change.  The socket's alive timer
+ * may be reset.
+ */
+void prvTCPTouchSocket( struct xSOCKET * pxSocket );
+
+/*
+ * Calculate when this socket needs to be checked to do (re-)transmissions.
+ */
+TickType_t prvTCPNextTimeout( struct xSOCKET * pxSocket );
 
 
 /* *INDENT-OFF* */

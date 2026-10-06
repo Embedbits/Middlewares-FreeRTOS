@@ -1,5 +1,5 @@
 /*
- * SigV4 Library v1.2.0
+ * SigV4 Library v1.3.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -155,12 +155,12 @@
  */
 typedef struct SigV4DateTime
 {
-    int32_t tm_year; /**< Year (1900 or later) */
-    int32_t tm_mon;  /**< Month (1 to 12) */
-    int32_t tm_mday; /**< Day of Month (1 to 28/29/30/31) */
-    int32_t tm_hour; /**< Hour (0 to 23) */
-    int32_t tm_min;  /**< Minutes (0 to 59) */
-    int32_t tm_sec;  /**< Seconds (0 to 60) */
+    int32_t year; /**< Year (1900 or later) */
+    int32_t mon;  /**< Month (1 to 12) */
+    int32_t mday; /**< Day of Month (1 to 28/29/30/31) */
+    int32_t hour; /**< Hour (0 to 23) */
+    int32_t min;  /**< Minutes (0 to 59) */
+    int32_t sec;  /**< Seconds (0 to 60) */
 } SigV4DateTime_t;
 
 /**
@@ -206,7 +206,7 @@ typedef struct CanonicalContext
     SigV4KeyValuePair_t pHeadersLoc[ SIGV4_MAX_HTTP_HEADER_COUNT ]; /**< Header pointers used during sorting. */
 
     uint8_t pBufProcessing[ SIGV4_PROCESSING_BUFFER_LENGTH ];       /**< Internal calculation buffer used during canonicalization. */
-    char * pBufCur;                                                 /**< pBufProcessing cursor. */
+    size_t uxCursorIndex;                                           /**< pBufProcessing cursor. */
     size_t bufRemaining;                                            /**< pBufProcessing value used during internal calculation. */
     const char * pHashPayloadLoc;                                   /**< Pointer used to store the location of hashed HTTP request payload. */
     size_t hashPayloadLen;                                          /**< Length of hashed HTTP request payload. */

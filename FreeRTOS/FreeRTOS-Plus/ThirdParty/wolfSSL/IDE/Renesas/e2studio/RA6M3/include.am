@@ -27,7 +27,9 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/test-wolfcrypt/.project
 
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/wolfssl/.cproject
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/wolfssl/.project
-EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/wolfssl/configuration.xml
 
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/README.md
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3G/README.md
+
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/README_APRA6M_en.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M3/README_APRA6M_jp.md

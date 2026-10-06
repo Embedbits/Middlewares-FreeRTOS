@@ -1,6 +1,6 @@
 /* hash.c has unit tests
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -130,7 +130,8 @@ int HashTest(void)
 #endif
 
 #ifndef NO_HMAC
-    #ifndef NO_MD5
+    #if !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) \
+                              && (HAVE_FIPS_VERSION >= 5))
         if ( (ret = hmac_md5_test()) ) {
             printf( "   HMAC-MD5 test failed!\n");
             return ret;
@@ -139,30 +140,34 @@ int HashTest(void)
     #endif
 
     #ifndef NO_SHA
-    if ( (ret = hmac_sha_test()) )
+    if ( (ret = hmac_sha_test()) ) {
         printf( "   HMAC-SHA test failed!\n");
-    else
+        return ret;
+    } else
         printf( "   HMAC-SHA test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA224
-        if ( (ret = hmac_sha224_test()) )
+        if ( (ret = hmac_sha224_test()) ) {
             printf( "   HMAC-SHA224 test failed!\n");
-        else
+            return ret;
+        } else
             printf( "   HMAC-SHA224 test passed!\n");
     #endif
 
     #ifndef NO_SHA256
-        if ( (ret = hmac_sha256_test()) )
+        if ( (ret = hmac_sha256_test()) ) {
             printf( "   HMAC-SHA256 test failed!\n");
-        else
+            return ret;
+        } else
             printf( "   HMAC-SHA256 test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA384
-        if ( (ret = hmac_sha384_test()) )
+        if ( (ret = hmac_sha384_test()) ) {
             printf( "   HMAC-SHA384 test failed!\n");
-        else
+            return ret;
+        } else
             printf( "   HMAC-SHA384 test passed!\n");
     #endif
 #endif
@@ -320,6 +325,7 @@ int md5_test(void)
         if (XMEMCMP(hash, test_md5[i].output, WC_MD5_DIGEST_SIZE) != 0)
             return -5 - i;
     }
+    wc_Md5Free(&md5);
 
     return 0;
 }
@@ -380,6 +386,7 @@ int sha_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_ShaFree(&sha);
 
     return 0;
 }
@@ -426,6 +433,7 @@ int sha224_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA224_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha224Free(&sha);
 
     return 0;
 }
@@ -475,6 +483,7 @@ int sha256_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha256Free(&sha);
 
     return 0;
 }
@@ -529,6 +538,7 @@ int sha512_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha512Free(&sha);
 
     return 0;
 }
@@ -581,6 +591,7 @@ int sha384_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha384Free(&sha);
 
     return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -26,8 +26,8 @@
  */
 
 /*
- * tcp_mem_stats.c
- * Used to create a CSV file with detailed information about the memory usage of FreeRTOS+TCP.
+ * @file tcp_mem_stats.c
+ * @brief To create a CSV file with detailed information about the memory usage of FreeRTOS+TCP.
  * See tools/tcp_mem_stats.md for further description.
  */
 
@@ -50,18 +50,6 @@
 #include "tcp_mem_stats.h"
 
 #if ( ipconfigUSE_TCP_MEM_STATS != 0 )
-
-    #ifndef ipconfigTCP_MEM_STATS_MAX_ALLOCATION
-
-/* Define the maximum number of objects ( memory allocations by
- * the IP-stack ) that will be recorded. */
-        #define ipconfigTCP_MEM_STATS_MAX_ALLOCATION    128u
-
-/* If you don't want to see this pragma message, you can either
- * remove it or define 'ipconfigTCP_MEM_STATS_MAX_ALLOCATION' in
- * your freeRTOSIPConfig.h. */
-        #pragma message ("ipconfigTCP_MEM_STATS_MAX_ALLOCATION undefined?")
-    #endif
 
 /* When a streambuffer is allocated, 4 extra bytes will be reserved. */
 
@@ -113,21 +101,21 @@
                 {
                     /* Already added, strange. */
                     FreeRTOS_printf( ( "vAddAllocation: Pointer %p already added\n", pxObject ) );
-                    break;
+                    return;
                 }
             }
 
-            /* If the object has not been found,
-             * and if there is still space, add the object. */
-            if( ( uxIndex == uxAllocationCount ) &&
-                ( uxAllocationCount < ipconfigTCP_MEM_STATS_MAX_ALLOCATION ) )
+            if( uxAllocationCount >= ipconfigTCP_MEM_STATS_MAX_ALLOCATION )
             {
-                xAllocations[ uxIndex ].pxObject = pxObject;
-                xAllocations[ uxIndex ].xMemType = xMemType;
-                xAllocations[ uxIndex ].uxSize = uxSize;
-                xAllocations[ uxIndex ].uxNumber = uxNextObjectNumber++;
-                uxAllocationCount++;
+                /* The table is full. */
+                return;
             }
+
+            xAllocations[ uxIndex ].pxObject = pxObject;
+            xAllocations[ uxIndex ].xMemType = xMemType;
+            xAllocations[ uxIndex ].uxSize = uxSize;
+            xAllocations[ uxIndex ].uxNumber = uxNextObjectNumber++;
+            uxAllocationCount++;
         }
         xTaskResumeAll();
     }
@@ -273,14 +261,14 @@
 
         {
             #if ( ipconfigUSE_TCP_WIN != 0 )
-                {
-                    STATS_PRINTF( ( "TCPMemStat,TCP_WIN_SEG_COUNT,%u,%u,=B%d*C%d\n",
-                                    ipconfigTCP_WIN_SEG_COUNT, sizeof( TCPSegment_t ), xCurrentLine, xCurrentLine ) );
-                }
+            {
+                STATS_PRINTF( ( "TCPMemStat,TCP_WIN_SEG_COUNT,%u,%u,=B%d*C%d\n",
+                                ipconfigTCP_WIN_SEG_COUNT, sizeof( TCPSegment_t ), xCurrentLine, xCurrentLine ) );
+            }
             #else
-                {
-                    STATS_PRINTF( ( "TCPMemStat,TCP_WIN_SEG_COUNT,%u,%u\n", 0, 0 ) );
-                }
+            {
+                STATS_PRINTF( ( "TCPMemStat,TCP_WIN_SEG_COUNT,%u,%u\n", 0, 0 ) );
+            }
             #endif
         }
         {
@@ -312,14 +300,14 @@
             uxStaticSize += uxBytes;
 
             #if ( ipconfigUSE_DNS_CACHE == 1 )
-                {
-                    uxEntrySize = 3u * sizeof( uint32_t ) + ( ( ipconfigDNS_CACHE_NAME_LENGTH + 3 ) & ~0x3u );
-                    STATS_PRINTF( ( "TCPMemStat,DNS_CACHE_ENTRIES,%u,%u,=B%d*C%d\n",
-                                    ipconfigDNS_CACHE_ENTRIES,
-                                    uxEntrySize,
-                                    xCurrentLine,
-                                    xCurrentLine ) );
-                }
+            {
+                uxEntrySize = 3u * sizeof( uint32_t ) + ( ( ipconfigDNS_CACHE_NAME_LENGTH + 3 ) & ~0x3u );
+                STATS_PRINTF( ( "TCPMemStat,DNS_CACHE_ENTRIES,%u,%u,=B%d*C%d\n",
+                                ipconfigDNS_CACHE_ENTRIES,
+                                uxEntrySize,
+                                xCurrentLine,
+                                xCurrentLine ) );
+            }
             #endif
         }
 

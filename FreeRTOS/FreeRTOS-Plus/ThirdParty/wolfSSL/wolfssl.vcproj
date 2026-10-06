@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="./;./IDE/WIN"
-				PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS"
+				PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -107,7 +107,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				AdditionalIncludeDirectories="./;./IDE/WIN"
-				PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS"
+				PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -153,6 +153,14 @@
 			>
 			<File
 				RelativePath=".\src\crl.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\dtls13.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\dtls.c"
 				>
 			</File>
 			<File
@@ -264,10 +272,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\hc128.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\hmac.c"
 				>
 			</File>
@@ -312,11 +316,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\rabbit.c"
+				RelativePath=".\wolfcrypt\src\random.c"
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\random.c"
+				RelativePath=".\wolfcrypt\src\rc2.c"
 				>
 			</File>
 			<File
@@ -353,6 +357,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\sp_x86_64.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\sp_x86_64_asm.asm"
 				>
 			</File>
 			<File

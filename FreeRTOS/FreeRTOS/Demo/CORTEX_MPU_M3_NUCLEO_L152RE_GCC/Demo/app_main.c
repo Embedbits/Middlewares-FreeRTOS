@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -32,11 +32,15 @@
 
 /* Demo includes. */
 #include "mpu_demo.h"
+#include "reg_tests.h"
 
 void app_main( void )
 {
 	/* Start the MPU demo. */
 	vStartMPUDemo();
+
+	/* Start register tests. */
+	vStartRegTests();
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();

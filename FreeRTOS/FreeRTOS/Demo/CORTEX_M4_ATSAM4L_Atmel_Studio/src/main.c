@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -106,10 +106,10 @@ static void prvButtonISR( void )
 {
 	/* The button doesn't do anything other than providing a means for brining
 	the MCU out of sleep mode early. */
-	if( eic_line_interrupt_is_pending( EIC, GPIO_PUSH_BUTTON_EIC_LINE ) )
+	if( eic_line_interrupt_is_pending( EIC, GPIO_PUSH_BUTTON_EIC_LINE ) ) 
 	{
 		eic_line_clear_interrupt( EIC, GPIO_PUSH_BUTTON_EIC_LINE );
-	}
+	}		
 }
 /*-----------------------------------------------------------*/
 

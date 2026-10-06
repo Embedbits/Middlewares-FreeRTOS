@@ -3,6 +3,7 @@ SUFFIXES =
 TESTS =
 CLEANFILES =
 DISTCLEANFILES =
+MAINTAINERCLEANFILES =
 bin_PROGRAMS =
 noinst_HEADERS =
 lib_LTLIBRARIES =
@@ -19,12 +20,25 @@ dist_doc_DATA=
 dist_noinst_SCRIPTS =
 noinst_SCRIPTS =
 check_SCRIPTS =
+noinst_DATA =
+ignore_files =
+SUBDIRS_OPT =
+DIST_SUBDIRS_OPT =
+
+# allow supplementary or override flags to be passed at make time:
+AM_CPPFLAGS += $(EXTRA_CPPFLAGS)
+AM_CFLAGS += $(EXTRA_CFLAGS)
+AM_CCASFLAGS += $(EXTRA_CCASFLAGS)
+AM_LDFLAGS += $(EXTRA_LDFLAGS)
 
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
-DISTCLEANFILES+= aminclude.am
+DISTCLEANFILES+= aminclude.am \
+             .build_params
 
-CLEANFILES+= cert.der \
+CLEANFILES+= ecc-key.der \
+             ecc-public-key.der \
+             cert.der \
              cert.pem \
              certecc.der \
              certecc.pem \
@@ -32,10 +46,7 @@ CLEANFILES+= cert.der \
              certreq.pem \
              key.der \
              key.pem \
-             ntru-cert.der \
              ecc-key-pkcs8.der \
-             ntru-cert.pem \
-             ntru-key.raw \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
@@ -119,7 +130,8 @@ CLEANFILES+= cert.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der \
-             tests/test-log-dump-to-file.txt
+             tests/test-log-dump-to-file.txt \
+             MyKeyLog.txt
 
 exampledir = $(docdir)/example
 dist_example_DATA=
@@ -128,11 +140,8 @@ ACLOCAL_AMFLAGS= -I m4
 
 EXTRA_DIST+= lib/dummy
 
-EXTRA_DIST+= wolfssl-ntru.vcproj
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
-EXTRA_DIST+= wolfssl-ntru.sln
-EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= valgrind-bash.supp
@@ -148,13 +157,14 @@ EXTRA_DIST+= LPCExpresso.cproject
 EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
 EXTRA_DIST+= CMakeLists.txt
+EXTRA_DIST+= m4/ax_atomic.m4
 
+include cmake/include.am
 include wrapper/include.am
-include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
 include doc/include.am
-include swig/include.am
+include Docker/include.am
 
 include src/include.am
 include support/include.am
@@ -166,7 +176,11 @@ include examples/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
+include debian/include.am
 include rpm/include.am
+include linuxkm/include.am
+include zephyr/include.am
+include RTOS/nuttx/include.am
 
 # Exclude references to non-DFSG sources from build files
 if !BUILD_DISTRO
@@ -189,6 +203,34 @@ include IDE/include.am
 endif
 include scripts/include.am
 
+if BUILD_LINUXKM
+    # rather than setting $SUBDIRS here directly, we set an auxiliary variable.
+    # autotools sees the SUBDIRS assignment here even if BUILD_LINUXKM is false,
+    # at least for purposes of recursing for "make distdir", which we don't want to happen.
+    SUBDIRS_OPT += linuxkm
+    DIST_SUBDIRS_OPT += linuxkm
+
+    export KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS \
+        EXTRA_CFLAGS EXTRA_CPPFLAGS EXTRA_CCASFLAGS EXTRA_LDFLAGS \
+	AM_CPPFLAGS CPPFLAGS AM_CFLAGS CFLAGS \
+        AM_CCASFLAGS CCASFLAGS \
+        src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS ENABLED_LINUXKM_PIE ENABLED_ASM \
+        CFLAGS_FPU_DISABLE CFLAGS_FPU_ENABLE CFLAGS_SIMD_DISABLE CFLAGS_SIMD_ENABLE \
+        CFLAGS_AUTO_VECTORIZE_DISABLE CFLAGS_AUTO_VECTORIZE_ENABLE \
+        ASFLAGS_FPU_DISABLE_SIMD_ENABLE ASFLAGS_FPU_ENABLE_SIMD_DISABLE \
+        ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE ENABLED_LINUXKM_BENCHMARKS
+
+module:
+	+$(MAKE) -C linuxkm libwolfssl.ko
+
+clean_module:
+	+$(MAKE) -C linuxkm clean
+
+install_module modules_install:
+	+$(MAKE) -C linuxkm modules_install
+
+endif
+
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
 endif
@@ -201,9 +243,18 @@ TESTS += $(check_SCRIPTS)
 
 test: check
 tests/unit.log: testsuite/testsuite.log
+scripts/unit.log: testsuite/testsuite.log
 
-DISTCLEANFILES+= cyassl-config
 DISTCLEANFILES+= wolfssl-config
+
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/async.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/fips.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/port/intel/quickassist.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/port/intel/quickassist_mem.h
+
+SUBDIRS=$(SUBDIRS_OPT)
+DIST_SUBDIRS=$(DIST_SUBDIRS_OPT)
 
 maintainer-clean-local:
 	-rm Makefile.in
@@ -215,7 +266,6 @@ maintainer-clean-local:
 	-rm build-aux/install-sh
 	-rm build-aux/ltmain.sh
 	-rm build-aux/missing
-	-rm cyassl-config
 	-rmdir build-aux
 	-rm configure
 	-rm config.log

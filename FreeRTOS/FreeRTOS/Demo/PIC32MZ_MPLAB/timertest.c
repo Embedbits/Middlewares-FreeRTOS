@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -53,7 +53,7 @@ void vSetupTimerTest( unsigned short usFrequencyHz )
 	/* Remember the frequency so it can be used from the ISR. */
 	ulFrequencyHz = ( unsigned long ) usFrequencyHz;
 
-	/* T2 is used to generate interrupts above the kernel and max syscall
+	/* T2 is used to generate interrupts above the kernel and max syscall 
 	interrupt priority. */
 	T2CON = 0;
 	TMR2 = 0;

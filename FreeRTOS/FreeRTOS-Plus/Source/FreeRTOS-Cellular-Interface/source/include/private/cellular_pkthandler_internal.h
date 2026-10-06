@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -51,7 +53,7 @@
 /**
  * @brief Create the packet request mutex.
  *
- * Create the mutex for packet rquest in cellular context.
+ * Create the mutex for packet request in cellular context.
  *
  * @param[in] pContext The opaque cellular context pointer created by Cellular_Init.
  */
@@ -60,7 +62,7 @@ bool _Cellular_CreatePktRequestMutex( CellularContext_t * pContext );
 /**
  * @brief Destroy the packet request mutex.
  *
- * Destroy the mutex for packet rquest in cellular context.
+ * Destroy the mutex for packet request in cellular context.
  *
  * @param[in] pContext The opaque cellular context pointer created by Cellular_Init.
  */
@@ -99,7 +101,7 @@ CellularPktStatus_t _Cellular_PktHandlerInit( CellularContext_t * pContext );
 /**
  * @brief Packet handler cleanup function.
  *
- * This function cleanup the pakcet handler in FreeRTOS Cellular Library common.
+ * This function cleanup the packet handler in FreeRTOS Cellular Library common.
  *
  * @param[in] pContext The opaque cellular context pointer created by Cellular_Init.
  */

@@ -1,6 +1,6 @@
 /* pkcs7.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,6 +41,7 @@
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
+#include <wolfssl/wolfcrypt/wc_encrypt.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -48,7 +49,11 @@
 
 /* Max number of certificates that PKCS7 structure can parse */
 #ifndef MAX_PKCS7_CERTS
+#ifdef OPENSSL_ALL
+    #define MAX_PKCS7_CERTS 15
+#else
     #define MAX_PKCS7_CERTS 4
+#endif
 #endif
 
 #ifndef MAX_ORI_TYPE_SZ
@@ -69,6 +74,12 @@
 #ifndef MAX_UNAUTH_ATTRIBS_SZ
     #define MAX_UNAUTH_ATTRIBS_SZ 7
 #endif
+
+/* bitmap flag for attributes */
+#define WOLFSSL_NO_ATTRIBUTES 0x1
+#define WOLFSSL_CONTENT_TYPE_ATTRIBUTE 0x2
+#define WOLFSSL_SIGNING_TIME_ATTRIBUTE 0x4
+#define WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE 0x8
 
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
@@ -136,7 +147,7 @@ enum PKCS7_STATE {
     WC_PKCS7_DECRYPT_PWRI,
     WC_PKCS7_DECRYPT_ORI,
 
-    WC_PKCS7_DECRYPT_DONE,
+    WC_PKCS7_DECRYPT_DONE
 
 };
 
@@ -151,22 +162,14 @@ enum Pkcs7_Misc {
     MAX_CONTENT_BLOCK_LEN = DES_BLOCK_SIZE,
 #endif
     MAX_RECIP_SZ          = MAX_VERSION_SZ +
-                            MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
+                            MAX_SEQ_SZ + WC_ASN_NAME_MAX + MAX_SN_SZ +
                             MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ,
-#if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-     (HAVE_FIPS_VERSION >= 2)) || (defined(HAVE_SELFTEST) && \
-     (!defined(HAVE_SELFTEST_VERSION) || HAVE_SELFTEST_VERSION < 2))
-    /* In the event of fips cert 3389 or CAVP selftest v1 build, these enums are
-     * not in aes.h for use with pkcs7 so enumerate it here outside the fips
-     * boundary */
-    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
-    CCM_NONCE_MIN_SZ = 7,
-#endif
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(Pkcs7_Misc)
 };
 
 enum Cms_Options {
     CMS_SKID = 1,
-    CMS_ISSUER_AND_SERIAL_NUMBER = 2,
+    CMS_ISSUER_AND_SERIAL_NUMBER = 2
 };
 #define DEGENERATE_SID 3
 
@@ -245,7 +248,9 @@ struct PKCS7 {
     byte*  der;                   /* DER encoded version of message       */
     word32 derSz;
 #endif
-    byte*  cert[MAX_PKCS7_CERTS];
+    byte*  cert[MAX_PKCS7_CERTS]; /* array of certs parsed from bundle */
+    byte*  verifyCert;            /* cert from array used for verify */
+    word32 verifyCertSz;
 
     /* Encrypted-data Content Type */
     byte*        encryptionKey;         /* block cipher encryption key */
@@ -313,7 +318,7 @@ struct PKCS7 {
 #endif
     word32 state;
 
-    word16 skipDefaultSignedAttribs:1; /* skip adding default signed attribs */
+    word16 defaultSignedAttribs; /* set which default signed attribs */
 
     byte version; /* 1 for RFC 2315 and 3 for RFC 4108 */
     PKCS7SignerInfo* signerInfo;
@@ -335,6 +340,8 @@ struct PKCS7 {
     /* used by DecodeEnvelopedData with multiple encrypted contents */
     byte*  cachedEncryptedContent;
     word32 cachedEncryptedContentSz;
+    word16 contentCRLF:1; /* have content line endings been converted to CRLF */
+    word16 contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -361,6 +368,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
 /* CMS/PKCS#7 SignedData */
 WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7);
+WOLFSSL_API int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,

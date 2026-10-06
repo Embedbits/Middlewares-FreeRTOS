@@ -17,11 +17,13 @@ list(APPEND mock_list
             "${CMAKE_BINARY_DIR}/Annexed_TCP/FreeRTOS_IP_Private.h"
             "${CMAKE_BINARY_DIR}/Annexed_TCP/NetworkBufferManagement.h"
             "${CMAKE_BINARY_DIR}/Annexed_TCP/FreeRTOS_UDP_IP.h"
+            "${CMAKE_BINARY_DIR}/Annexed_TCP/FreeRTOS_DNS.h"
             "${CMAKE_BINARY_DIR}/Annexed_TCP/FreeRTOS_DNS_Callback.h"
             "${CMAKE_BINARY_DIR}/Annexed_TCP/FreeRTOS_DNS_Networking.h"
             "${CMAKE_BINARY_DIR}/Annexed_TCP/FreeRTOS_DNS_Parser.h"
         )
 # list the directories your mocks need
+set (mock_include_list "")
 list(APPEND mock_include_list
             .
             ${TCP_INCLUDE_DIRS}
@@ -30,21 +32,23 @@ list(APPEND mock_include_list
         )
 
 #list the definitions of your mocks to control what to be included
+set (mock_define_list "")
 list(APPEND mock_define_list
 #-DportUSING_MPU_WRAPPERS=0
        )
 
 # ================= Create the library under test here (edit) ==================
 
-add_compile_options(-Wno-pedantic -Wno-div-by-zero -O0 -ggdb3)
+add_compile_options(-Wno-pedantic -ggdb3)
 # list the files you would like to test here
 set(real_source_files ""
         )
 list(APPEND real_source_files
-            ${project_name}/FreeRTOS_UDP_IP_stubs.c
+            ${project_name}/${project_name}_stubs.c
             ${MODULE_ROOT_DIR}/source/FreeRTOS_DNS_Cache.c
 	)
 # list the directories the module under test includes
+set (real_include_directories "")
 list(APPEND real_include_directories
             .
             ${TCP_INCLUDE_DIRS}
@@ -56,6 +60,7 @@ list(APPEND real_include_directories
 # =====================  Create UnitTest Code here (edit)  =====================
 
 # list the directories your test needs to include
+set (test_include_directories "")
 list(APPEND test_include_directories
             .
             ${CMOCK_DIR}/vendor/unity/src

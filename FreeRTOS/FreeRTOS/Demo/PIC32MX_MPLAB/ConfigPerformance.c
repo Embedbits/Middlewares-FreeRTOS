@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -123,7 +123,7 @@ extern unsigned long _ebase_address[];
 
 	/* Setup EBase. */
 	_CP0_SET_EBASE( ( unsigned long ) _ebase_address );
-
+	
 	/* Space vectors by 0x20 bytes. */
 	_CP0_XCH_INTCTL( 0x20 );
 
@@ -138,7 +138,7 @@ extern unsigned long _ebase_address[];
 
 	/* Set MVEC bit. */
 	INTCONbits.MVEC = 1;
-
+	
 	/* Finally enable interrupts again. */
 	ulStatus |= hwGLOBAL_INTERRUPT_BIT;
 	_CP0_SET_STATUS( ulStatus );

@@ -1,5 +1,5 @@
 /*
- * coreMQTT v2.1.0
+ * coreMQTT v2.3.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -28,6 +28,7 @@
  */
 #include "core_mqtt.h"
 #include "mqtt_cbmc_state.h"
+#include "core_mqtt_config_defaults.h"
 
 /**
  * @brief Implement a get time function to return timeout after certain

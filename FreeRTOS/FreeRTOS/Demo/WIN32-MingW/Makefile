@@ -12,8 +12,8 @@ else
 endif
 
 # Linker - Note this expects you are using MinGW version of GCC
-LD :=  gcc
-LDFLAGS := -Xlinker -Map=$(BUILD_DIR)/rtosdemo.map 
+LD :=  ${CC}
+LDFLAGS := -Xlinker -Map=$(BUILD_DIR)/rtosdemo.map
 
 # Executable Targets
 EXE := $(BUILD_DIR)/RTOSDemo.exe
@@ -58,11 +58,14 @@ FREERTOS_PLUS_TRACE_OBJS :=
 FREERTOS_PLUS_TRACE_BUILD_DIR := $(BUILD_DIR)/FreeRTOS-Plus-Trace
 
 ## Trace Recorder includes
-FREERTOS_PLUS_TRACE_INCLUDES += $(wildcard $(FREERTOS_PLUS_TRACE_DIR)/Include/*.h)
-FREERTOS_PLUS_TRACE_INCLUDE_DIRS += -I $(FREERTOS_PLUS_TRACE_DIR)/Include
+FREERTOS_PLUS_TRACE_INCLUDES += $(wildcard $(FREERTOS_PLUS_TRACE_DIR)/include/*.h)
+FREERTOS_PLUS_TRACE_INCLUDE_DIRS += -I $(FREERTOS_PLUS_TRACE_DIR)/include
+FREERTOS_PLUS_TRACE_INCLUDES += $(wildcard $(FREERTOS_PLUS_TRACE_DIR)/kernelports/FreeRTOS/include/*.h)
+FREERTOS_PLUS_TRACE_INCLUDE_DIRS += -I $(FREERTOS_PLUS_TRACE_DIR)/kernelports/FreeRTOS/include
 
 ## Trace Recorder sources
 FREERTOS_PLUS_TRACE_SOURCES += $(wildcard $(FREERTOS_PLUS_TRACE_DIR)/*.c)
+FREERTOS_PLUS_TRACE_SOURCES += $(wildcard $(FREERTOS_PLUS_TRACE_DIR)/kernelports/FreeRTOS/*.c)
 
 ## Trace Recorder configuration includes
 FREERTOS_PLUS_TRACE_INCLUDES += $(wildcard ./Trace_Recorder_Configuration/*.h)

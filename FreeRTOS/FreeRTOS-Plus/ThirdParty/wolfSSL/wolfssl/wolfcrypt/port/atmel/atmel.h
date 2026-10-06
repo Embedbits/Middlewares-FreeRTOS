@@ -1,6 +1,6 @@
 /* atmel.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,10 +29,8 @@
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_ATECC_PKCB)
-    #undef  SHA_BLOCK_SIZE
-    #define SHA_BLOCK_SIZE  SHA_BLOCK_SIZE_REMAP
-    #include <cryptoauthlib.h>
     #undef SHA_BLOCK_SIZE
+    #include <cryptoauthlib.h>
 #endif
 
 /* ATECC508A/608A only supports ECC P-256 */
@@ -121,7 +119,7 @@ int  atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms);
 int  atmel_ecc_create_key(int slotId, byte* peerKey);
 int  atmel_ecc_sign(int slotId, const byte* message, byte* signature);
 int  atmel_ecc_verify(const byte* message, const byte* signature,
-    const byte* pubkey, int* verified);
+    const byte* pubkey, int* pVerified);
 
 #endif /* WOLFSSL_ATECC508A */
 

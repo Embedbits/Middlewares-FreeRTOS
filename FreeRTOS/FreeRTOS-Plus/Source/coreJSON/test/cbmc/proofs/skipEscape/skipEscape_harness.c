@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.2.0
+ * coreJSON v3.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -27,32 +27,13 @@
  * @brief Implements the proof harness for the skipEscape function.
  */
 
-#include <stdlib.h>
-#include "core_json_annex.h"
+#include "core_json_contracts.h"
 
 void harness()
 {
     char * buf;
-    size_t start, max;
-    bool ret;
+    size_t * start;
+    size_t max;
 
-    /* max is the buffer length which must be nonzero for non-API functions. */
-    __CPROVER_assume( max > 0 );
-
-    /* max is the buffer length which must not exceed unwindings. */
-    __CPROVER_assume( max < CBMC_MAX_BUFSIZE );
-
-    /* buf must not be NULL */
-    buf = malloc( max );
-    __CPROVER_assume( buf != NULL );
-
-    ret = skipEscape( buf, &start, max );
-
-    __CPROVER_assert( isBool( ret ), "A bool value is returned." );
-
-    if( ret == true )
-    {
-        __CPROVER_assert( start <= max,
-                          "The buffer start index does not exceed the buffer length." );
-    }
+    skipEscape( buf, start, max );
 }

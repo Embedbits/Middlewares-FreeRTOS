@@ -25,12 +25,32 @@ git submodule update --init --recursive
 
 ## coreMQTT Agent Library Configurations
 
-The MQTT Agent library uses the same `core_mqtt_config.h` configuration file as coreMQTT, with the addition of configuration constants listed at the top of [core_mqtt_agent.h](source/include/core_mqtt_agent.h) and [core_mqtt_agent_command_functions.h](source/include/core_mqtt_agent_command_functions.h). Documentation for these configurations can be found [here](https://freertos.org/Documentation/api-ref/coreMQTT-Agent/docs/doxygen/output/html/core_mqtt_agent_config.html).
+The MQTT Agent library uses the same `core_mqtt_config.h` configuration file as coreMQTT, with the addition of configuration constants listed at the top of [core_mqtt_agent.h](source/include/core_mqtt_agent.h) and [core_mqtt_agent_command_functions.h](source/include/core_mqtt_agent_command_functions.h). Documentation for these configurations can be found [here](https://freertos.github.io/coreMQTT-Agent/main/core_mqtt_agent_config.html).
 
 To provide values for these configuration values, they must be either:
 * Defined in `core_mqtt_config.h` used by coreMQTT
 **OR**
 * Passed as compile time preprocessor macros
+
+### Configuration values to modify timing performance
+
+#### Agent queue block time:
+Some TCP stacks provide a select functionality which allows any given observer to be notified of any incoming packet on the socket. This allows us to make the MQTT-Agent event driven by calling `MQTTAgent_ProcessLoop` when the observer is notified of any incoming packets on the socket. FreeRTOS+TCP can also use socket callbacks to notify the socket owner of incoming data on the socket.
+If your TCP stack does not provide this functionality, the agent will block on its event queue for a maximum of `MQTT_AGENT_MAX_EVENT_QUEUE_WAIT_TIME` milliseconds after which it calls `MQTTAgent_ProcessLoop`. This leads to delay between when the packet actually arrives and when it actually gets processed. Thus, if you want to make the MQTT Agent more responsive, you can make the `MQTT_AGENT_MAX_EVENT_QUEUE_WAIT_TIME` value smaller. This would cause the agent to check the socket more often thereby reducing the time between when an incoming packet is received and when it is processed.
+
+NOTE: While making the above change it is very important to understand that reducing the `MQTT_AGENT_MAX_EVENT_QUEUE_WAIT_TIME` value would cause the agent process loop to run more often which might have an impact on the runtime of other tasks.
+
+
+#### Socket read/recv timeout:
+Most TCP stacks allow applications to block on a socket read (also called recv()) call when there is no data to be read. If you are using the MQTT Agent, then the socket read timeout must be set to 0 – that is, the socket must be non-blocking.
+When the socket is set to blocking - every read operation of the socket blocks the Agent for the duration of the timeout. This stops the agent from processing other incoming requests such as processing a message which the application wants to publish.
+This is emphasized in cases where QoS0 publishes are involved because in this case there is no incoming packet (e.g. PUB-ACK) to unblock the agent from the socket read operation. Thus, when the application decides to publish a message, that message has to wait in the agent queue as the agent is blocked. This leads to very slow turn-around time.
+
+
+#### Agent task priority:
+MQTT Agent is designed to work best when its priority is set to be higher than all the tasks using it. This allows the agent to quickly process all the requests from the application as well as incoming data from the MQTT message broker.
+If the agent is of lower priority than the tasks using it then the user-task can continuously put requests in the agent queue without giving agent a chance to process those requests. This process would go on till the agent queue is fully filled and the producer task blocks. Only then the Agent task might get a chance to process a message from the queue.
+
 
 ## Porting the coreMQTT Agent Library
 In order to use the MQTT Agent library on a platform, you need to supply thread safe functions for the agent's [messaging interface](source/include/core_mqtt_agent_message_interface.h).
@@ -111,7 +131,7 @@ Please refer to the demos of the MQTT Agent library in the following locations f
 
 ## Documentation
 
-The MQTT Agent API documentation can be found [here](https://freertos.org/Documentation/api-ref/coreMQTT-Agent/docs/doxygen/output/html/index.html).
+The MQTT Agent API documentation can be found [here](https://freertos.github.io/coreMQTT-Agent/main/index.html).
 
 ### Generating documentation
 
@@ -123,7 +143,7 @@ doxygen docs/doxygen/config.doxyfile
 ```
 
 ## Getting help
-You can use your Github login to get support from both the FreeRTOS community and directly from the primary FreeRTOS developers on our [active support forum](https://forums.freertos.org). You can find a list of [frequently asked questions](https://www.freertos.org/FAQ.html) here.
+You can use your Github login to get support from both the FreeRTOS community and directly from the primary FreeRTOS developers on our [active support forum](https://forums.freertos.org). You can find a list of [frequently asked questions](https://www.freertos.org/Why-FreeRTOS/FAQs) here.
 
 ## Contributing
 

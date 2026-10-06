@@ -1,6 +1,6 @@
 /* wifi_connect.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,7 +24,7 @@
 #include "esp_idf_version.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if ESP_IDF_VERSION_MAJOR >= 4
 #include "esp_event.h"
 #else
 #include "esp_event_loop.h"

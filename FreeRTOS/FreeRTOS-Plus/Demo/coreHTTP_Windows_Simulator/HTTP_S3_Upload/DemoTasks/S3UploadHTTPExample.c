@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -292,6 +292,10 @@ static BaseType_t prvUploadS3ObjectFile( const TransportInterface_t * pxTranspor
  */
 static BaseType_t prvVerifyS3ObjectFileSize( const TransportInterface_t * pxTransportInterface,
                                              const char * pcPath );
+
+/*-----------------------------------------------------------*/
+
+extern BaseType_t xPlatformIsNetworkUp( void );
 
 /*-----------------------------------------------------------*/
 

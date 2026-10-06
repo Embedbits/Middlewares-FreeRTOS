@@ -1,6 +1,6 @@
 /* bio.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,13 +25,12 @@
 #ifndef WOLFSSL_BIO_H_
 #define WOLFSSL_BIO_H_
 
-#include <wolfssl/openssl/ssl.h>
-
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 #define BIO_FLAGS_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
 #define BIO_FLAGS_READ         WOLFSSL_BIO_FLAG_READ
@@ -40,26 +39,40 @@
 #define BIO_FLAGS_SHOULD_RETRY WOLFSSL_BIO_FLAG_RETRY
 
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
+#if defined(OPENSSL_ALL) \
+    || defined(HAVE_STUNNEL) \
+    || defined(HAVE_LIGHTY) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+    || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA)
 #define BIO_new_file                    wolfSSL_BIO_new_file
+#endif
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_ctrl                        wolfSSL_BIO_ctrl
 #define BIO_ctrl_pending                wolfSSL_BIO_ctrl_pending
 #define BIO_wpending                    wolfSSL_BIO_wpending
 #define BIO_get_mem_ptr                 wolfSSL_BIO_get_mem_ptr
+#ifdef OPENSSL_ALL
+#define BIO_set_mem_buf                 wolfSSL_BIO_set_mem_buf
+#endif
 #define BIO_int_ctrl                    wolfSSL_BIO_int_ctrl
 #define BIO_reset                       wolfSSL_BIO_reset
 #define BIO_s_file                      wolfSSL_BIO_s_file
 #define BIO_s_bio                       wolfSSL_BIO_s_bio
 #define BIO_s_socket                    wolfSSL_BIO_s_socket
+#define BIO_s_accept                    wolfSSL_BIO_s_socket
 #define BIO_set_fd                      wolfSSL_BIO_set_fd
 #define BIO_set_close                   wolfSSL_BIO_set_close
 #define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
 #define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
 #define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
+#define BIO_up_ref                      wolfSSL_BIO_up_ref
 
+#define BIO_new_fd                      wolfSSL_BIO_new_fd
 #define BIO_set_fp                      wolfSSL_BIO_set_fp
 #define BIO_get_fp                      wolfSSL_BIO_get_fp
 #define BIO_seek                        wolfSSL_BIO_seek
+#define BIO_tell                        wolfSSL_BIO_tell
 #define BIO_write_filename              wolfSSL_BIO_write_filename
 #define BIO_set_mem_eof_return          wolfSSL_BIO_set_mem_eof_return
 
@@ -69,6 +82,8 @@
 #define BIO_puts      wolfSSL_BIO_puts
 
 #define BIO_should_retry                wolfSSL_BIO_should_retry
+#define BIO_should_read                 wolfSSL_BIO_should_read
+#define BIO_should_write                wolfSSL_BIO_should_write
 
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
@@ -100,6 +115,8 @@
 #define BIO_get_shutdown           wolfSSL_BIO_get_shutdown
 #define BIO_set_shutdown           wolfSSL_BIO_set_shutdown
 
+#define BIO_get_fd                 wolfSSL_BIO_get_fd
+
 #define BIO_clear_flags            wolfSSL_BIO_clear_flags
 #define BIO_set_ex_data            wolfSSL_BIO_set_ex_data
 #define BIO_get_ex_data            wolfSSL_BIO_get_ex_data
@@ -123,11 +140,14 @@
 #define BIO_meth_set_create        wolfSSL_BIO_meth_set_create
 #define BIO_meth_set_destroy       wolfSSL_BIO_meth_set_destroy
 
+#define BIO_snprintf               XSNPRINTF
 
 /* BIO CTRL */
 #define BIO_CTRL_RESET             1
 #define BIO_CTRL_EOF               2
 #define BIO_CTRL_INFO              3
+#define BIO_CTRL_SET               4
+#define BIO_CTRL_GET               5
 #define BIO_CTRL_PUSH              6
 #define BIO_CTRL_POP               7
 #define BIO_CTRL_GET_CLOSE         8
@@ -149,16 +169,20 @@
 
 #define BIO_CTRL_DGRAM_QUERY_MTU   40
 
+#define BIO_FP_TEXT                0x00
 #define BIO_NOCLOSE                0x00
 #define BIO_CLOSE                  0x01
 
 #define BIO_FP_WRITE               0x04
+
+/* You shouldn't free up or change the data if BIO_FLAGS_MEM_RDONLY is set */
+#define BIO_FLAGS_MEM_RDONLY       0x200
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
 
-
 #endif /* WOLFSSL_BIO_H_ */
-

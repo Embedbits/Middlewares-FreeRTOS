@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -93,7 +95,7 @@ typedef void ( * CellularAtParseTokenHandler_t )( CellularContext_t * pContext,
 
 /**
  * @ingroup cellular_common_datatypes_paramstructs
- * @brief the URC token and URC handler mapping structure used by pkthanlder.
+ * @brief the URC token and URC handler mapping structure used by pkthandler.
  */
 typedef struct CellularAtParseTokenMap
 {
@@ -220,6 +222,25 @@ typedef CellularPktStatus_t ( * CellularATCommandDataSendPrefixCallback_t ) ( vo
  */
 typedef CellularPktStatus_t ( * CellularUndefinedRespCallback_t )( void * pCallbackContext,
                                                                    const char * pLine );
+
+/**
+ * @ingroup cellular_common_datatypes_functionpointers
+ * @brief Callback used to process input buffer.
+ *
+ * @param[in] pInputBufferCallbackContext The pCallbackContext in CellularInputBufferCallback_t.
+ * @param[in] pBuffer The data buffer with modem response data.
+ * @param[in] bufferLength The length of the input buffer.
+ * @param[out] pBufferLengthHandled The length of the handled input buffer in pBuffer.
+ *
+ * @return CELLULAR_PKT_STATUS_OK if the operation is successful.
+ * CELLULAR_PKT_STATUS_SIZE_MISMATCH if more data is required.
+ * CELLULAR_PKT_STATUS_PREFIX_MISMATCH if the input buffer is not handled in the callback.
+ * Otherwise an error code indicating the cause of the error.
+ */
+typedef CellularPktStatus_t ( * CellularInputBufferCallback_t ) ( void * pInputBufferCallbackContext,
+                                                                  char * pBuffer,
+                                                                  uint32_t bufferLength,
+                                                                  uint32_t * pBufferLengthHandled );
 
 /*-----------------------------------------------------------*/
 
@@ -423,7 +444,7 @@ CellularError_t _Cellular_ConvertCsqSignalRssi( int16_t csqRssi,
                                                 int16_t * pRssiValue );
 
 /**
- * @brief Convert CSQ command retruned BER value.
+ * @brief Convert CSQ command returned BER value.
  *
  * @param[in] csqBer The CSQ command returned BER index.
  * @param[out] pBerValue The output parameter to return the converted
@@ -563,7 +584,7 @@ CellularPktStatus_t _Cellular_TimeoutAtcmdDataSendRequestWithCallback( CellularC
  * @param[in] pContext The opaque cellular context pointer created by Cellular_Init.
  * @param[in] atReq The AT command data structure with send command response callback.
  * @param[in] dataReq The following data request after the at request.
- * @param[in] pktDataSendPrefixCallback The callback function to inidcate the data sending start.
+ * @param[in] pktDataSendPrefixCallback The callback function to indicate the data sending start.
  * @param[in] pCallbackContext The callback context pass to pktDataSendPrefixCallback function.
  * @param[in] atTimeoutMS The timeout value to wait for the AT command response from cellular modem.
  * @param[in] dataTimeoutMS The timeout value to wait for the data command response from cellular modem.
@@ -620,6 +641,24 @@ CellularPktStatus_t _Cellular_TimeoutAtcmdDataSendSuccessToken( CellularContext_
 CellularError_t _Cellular_RegisterUndefinedRespCallback( CellularContext_t * pContext,
                                                          CellularUndefinedRespCallback_t undefinedRespCallback,
                                                          void * pCallbackContext );
+
+/**
+ * @brief Register input buffer callback.
+ *
+ * Cellular module can register the callback function to handler the input buffer
+ * before pktio continue to process the line in the buffer.
+ *
+ * @param[in] pContext The opaque cellular context pointer created by Cellular_Init.
+ * @param[in] inputBufferCallback The callback function to handle the URC data.
+ * @param[in] pInputBufferCallbackContext The pInputBufferCallbackContext passed to the inputBufferCallback
+ * callback function if inputBufferCallback is not NULL.
+ *
+ * @return CELLULAR_SUCCESS if the operation is successful, otherwise an error code
+ * indicating the cause of the error.
+ */
+CellularError_t _Cellular_RegisterInputBufferCallback( CellularContext_t * pContext,
+                                                       CellularInputBufferCallback_t inputBufferCallback,
+                                                       void * pInputBufferCallbackContext );
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

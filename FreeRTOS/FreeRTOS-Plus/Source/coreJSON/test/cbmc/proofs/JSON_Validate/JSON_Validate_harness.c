@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.2.0
+ * coreJSON v3.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -27,24 +27,12 @@
  * @brief Implements the proof harness for the JSON_Validate function.
  */
 
-#include <stdlib.h>
-#include "core_json_annex.h"
+#include "core_json_contracts.h"
 
 void harness()
 {
-    char * buf = NULL;
+    char * buf;
     size_t max;
-    JSONStatus_t ret;
 
-    /* max is the buffer length which must not exceed unwindings. */
-    __CPROVER_assume( max < CBMC_MAX_BUFSIZE );
-
-    if( nondet_bool() )
-    {
-        buf = malloc( max );
-    }
-
-    ret = JSON_Validate( buf, max );
-
-    __CPROVER_assert( jsonValidateEnum( ret ), "The return value is a subset of JSONStatus_t." );
+    JSON_Validate( buf, max );
 }

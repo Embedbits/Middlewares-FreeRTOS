@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -550,7 +550,7 @@ static void populateAuthContextForServer( const char * pServer,
 static SntpStatus_t addClientAuthCode( SntpAuthContext_t * pAuthContext,
                                        const SntpServerInfo_t * pTimeServer,
                                        void * pRequestBuffer,
-                                       uint16_t bufferSize,
+                                       size_t bufferSize,
                                        uint16_t * pAuthCodeSize );
 
 
@@ -586,7 +586,7 @@ static SntpStatus_t addClientAuthCode( SntpAuthContext_t * pAuthContext,
 static SntpStatus_t validateServerAuth( SntpAuthContext_t * pAuthContext,
                                         const SntpServerInfo_t * pTimeServer,
                                         const void * pResponseData,
-                                        size_t responseSize );
+                                        uint16_t responseSize );
 
 /**
  * @brief Generates a random number using PKCS#11.
@@ -668,6 +668,7 @@ void calculateCurrentTime( UTCTime_t * pBaseTime,
                            UTCTime_t * pCurrentTime )
 {
     uint64_t msElapsedSinceLastSync = 0;
+    uint64_t currentTimeSecs;
     TickType_t ticksElapsedSinceLastSync = xTaskGetTickCount() - lastSyncTickCount;
 
     /* Calculate time elapsed since last synchronization according to the number
@@ -686,13 +687,30 @@ void calculateCurrentTime( UTCTime_t * pBaseTime,
     /* Set the current UTC time in the output parameter. */
     if( msElapsedSinceLastSync >= 1000 )
     {
-        pCurrentTime->secs = pBaseTime->secs + msElapsedSinceLastSync / 1000;
+        currentTimeSecs = ( uint64_t ) ( pBaseTime->secs ) + ( msElapsedSinceLastSync / 1000 );
+
+        /* Support case of UTC timestamp rollover on 7 February 2038. */
+        if( currentTimeSecs > UINT32_MAX )
+        {
+            /* Assert when the UTC timestamp rollover. */
+            configASSERT( !( currentTimeSecs > UINT32_MAX ) );
+
+            /* Subtract an extra second as timestamp 0 represents the epoch for
+             * UTC era 1. */
+            LogWarn( ( "UTC timestamp rollover." ) );
+            pCurrentTime->secs = ( uint32_t ) ( currentTimeSecs - UINT32_MAX - 1 );
+        }
+        else
+        {
+            pCurrentTime->secs = ( uint32_t ) ( currentTimeSecs );
+        }
+
         pCurrentTime->msecs = msElapsedSinceLastSync % 1000;
     }
     else
     {
         pCurrentTime->secs = pBaseTime->secs;
-        pCurrentTime->msecs = msElapsedSinceLastSync;
+        pCurrentTime->msecs = ( uint32_t ) ( msElapsedSinceLastSync );
     }
 }
 
@@ -733,8 +751,18 @@ int32_t UdpTransport_Send( NetworkContext_t * pNetworkContext,
     struct freertos_sockaddr destinationAddress;
     int32_t bytesSent;
 
-    destinationAddress.sin_addr = FreeRTOS_htonl( serverAddr );
+    #if defined( ipconfigIPv4_BACKWARD_COMPATIBLE ) && ( ipconfigIPv4_BACKWARD_COMPATIBLE == 0 )
+    {
+        destinationAddress.sin_address.ulIP_IPv4 = FreeRTOS_htonl( serverAddr );
+    }
+    #else
+    {
+        destinationAddress.sin_addr = FreeRTOS_htonl( serverAddr );
+    }
+    #endif /* defined( ipconfigIPv4_BACKWARD_COMPATIBLE ) && ( ipconfigIPv4_BACKWARD_COMPATIBLE == 0 ) */
+
     destinationAddress.sin_port = FreeRTOS_htons( serverPort );
+    destinationAddress.sin_family = FREERTOS_AF_INET;
 
     /* Send the buffer with ulFlags set to 0, so the FREERTOS_ZERO_COPY bit
      * is clear. */
@@ -787,20 +815,34 @@ static int32_t UdpTransport_Recv( NetworkContext_t * pNetworkContext,
 
     /* If data is received from the network, discard the data if  received from a different source than
      * the server. */
-    if( ( bytesReceived > 0 ) && ( ( FreeRTOS_ntohl( sourceAddress.sin_addr ) != serverAddr ) ||
-                                   ( FreeRTOS_ntohs( sourceAddress.sin_port ) != serverPort ) ) )
+    #if defined( ipconfigIPv4_BACKWARD_COMPATIBLE ) && ( ipconfigIPv4_BACKWARD_COMPATIBLE == 0 )
+        if( ( bytesReceived > 0 ) && ( ( FreeRTOS_ntohl( sourceAddress.sin_address.ulIP_IPv4 ) != serverAddr ) ||
+                                       ( FreeRTOS_ntohs( sourceAddress.sin_port ) != serverPort ) ) )
+    #else
+        if( ( bytesReceived > 0 ) && ( ( FreeRTOS_ntohl( sourceAddress.sin_addr ) != serverAddr ) ||
+                                       ( FreeRTOS_ntohs( sourceAddress.sin_port ) != serverPort ) ) )
+    #endif /* defined( ipconfigIPv4_BACKWARD_COMPATIBLE ) && ( ipconfigIPv4_BACKWARD_COMPATIBLE == 0 ) */
     {
         bytesReceived = 0;
 
         #if defined( LIBRARY_LOG_LEVEL ) && ( LIBRARY_LOG_LEVEL != LOG_NONE )
             /* Convert the IP address of the sender's address to string for logging. */
             char stringAddr[ 16 ];
-            FreeRTOS_inet_ntoa( sourceAddress.sin_addr, stringAddr );
 
-            /* Log about reception of packet from unexpected sender. */
-            LogWarn( ( "Received UDP packet from unexpected source: Addr=%s Port=%u",
-                       stringAddr, FreeRTOS_ntohs( sourceAddress.sin_port ) ) );
-        #endif
+        #if defined( ipconfigIPv4_BACKWARD_COMPATIBLE ) && ( ipconfigIPv4_BACKWARD_COMPATIBLE == 0 )
+            {
+                FreeRTOS_inet_ntoa( sourceAddress.sin_address.ulIP_IPv4, stringAddr );
+            }
+        #else
+            {
+                FreeRTOS_inet_ntoa( sourceAddress.sin_addr, stringAddr );
+            }
+        #endif /* defined( ipconfigIPv4_BACKWARD_COMPATIBLE ) && ( ipconfigIPv4_BACKWARD_COMPATIBLE == 0 ) */
+
+        /* Log about reception of packet from unexpected sender. */
+        LogWarn( ( "Received UDP packet from unexpected source: Addr=%s Port=%u",
+                   stringAddr, FreeRTOS_ntohs( sourceAddress.sin_port ) ) );
+        #endif /* if defined( LIBRARY_LOG_LEVEL ) && ( LIBRARY_LOG_LEVEL != LOG_NONE ) */
     }
 
     /* Translate the return code of timeout to the UDP transport interface expected
@@ -818,7 +860,7 @@ static int32_t UdpTransport_Recv( NetworkContext_t * pNetworkContext,
 static void sntpClient_GetTime( SntpTimestamp_t * pCurrentTime )
 {
     UTCTime_t currentTime;
-    uint64_t ntpSecs;
+    uint32_t ntpSecs;
 
     /* Obtain mutex for accessing system clock variables */
     xSemaphoreTake( xMutex, portMAX_DELAY );
@@ -838,8 +880,12 @@ static void sntpClient_GetTime( SntpTimestamp_t * pCurrentTime )
      * converting from UNIX time to SNTP timestamp. */
     if( ntpSecs > UINT32_MAX )
     {
+        /* Assert when SNTP time rollover. */
+        configASSERT( !( ntpSecs > UINT32_MAX ) );
+
         /* Subtract an extra second as timestamp 0 represents the epoch for
          * NTP era 1. */
+        LogWarn( ( "SNTP timestamp rollover." ) );
         pCurrentTime->seconds = ntpSecs - UINT32_MAX - 1;
     }
     else
@@ -953,7 +999,7 @@ static void populateAuthContextForServer( const char * pServer,
         for( index = 0; index < strlen( pKeyHexString ); index += 2 )
         {
             char byteString[ 3 ] = { pKeyHexString[ index ], pKeyHexString[ index + 1 ], '\0' };
-            uint8_t byteVal = strtoul( byteString, NULL, 16 );
+            uint8_t byteVal = ( uint8_t ) ( strtoul( byteString, NULL, 16 ) );
             pAuthContext->pAuthKey[ index / 2 ] = byteVal;
         }
     }
@@ -990,7 +1036,7 @@ static CK_RV setupPkcs11ObjectForAesCmac( const SntpAuthContext_t * pAuthContext
     };
 
     /* Update the attributes array with the key of AES-CMAC operation. */
-    aes_cmac_template[ 6 ].pValue = pAuthContext->pAuthKey;
+    aes_cmac_template[ 6 ].pValue = ( uint8_t * ) ( pAuthContext->pAuthKey );
     aes_cmac_template[ 6 ].ulValueLen = sizeof( pAuthContext->pAuthKey );
 
     result = xInitializePkcs11Session( pPkcs11Session );
@@ -1032,7 +1078,7 @@ static CK_RV setupPkcs11ObjectForAesCmac( const SntpAuthContext_t * pAuthContext
 SntpStatus_t addClientAuthCode( SntpAuthContext_t * pAuthContext,
                                 const SntpServerInfo_t * pTimeServer,
                                 void * pRequestBuffer,
-                                uint16_t bufferSize,
+                                size_t bufferSize,
                                 uint16_t * pAuthCodeSize )
 {
     CK_RV result = CKR_OK;
@@ -1255,7 +1301,7 @@ static uint32_t generateRandomNumber()
     if( pkcs11Status == CKR_OK )
     {
         if( pFunctionList->C_GenerateRandom( session,
-                                             &randomNum,
+                                             ( uint8_t * ) ( &randomNum ),
                                              sizeof( randomNum ) ) != CKR_OK )
         {
             LogError( ( "Failed to generate random number. "
@@ -1280,7 +1326,7 @@ static uint32_t generateRandomNumber()
 void initializeSystemClock( void )
 {
     /* On boot-up initialize the system time as the first second in the configured year. */
-    int64_t startupTimeInUnixSecs = translateYearToUnixSeconds( democonfigSYSTEM_START_YEAR );
+    uint32_t startupTimeInUnixSecs = translateYearToUnixSeconds( democonfigSYSTEM_START_YEAR );
 
     systemClock.baseTime.secs = startupTimeInUnixSecs;
     systemClock.baseTime.msecs = 0;
@@ -1383,6 +1429,7 @@ static bool createUdpSocket( Socket_t * pSocket )
          * spoofing vulnerability from "network off-path" attackers. */
         uint16_t randomPort = ( generateRandomNumber() % UINT16_MAX );
         bindAddress.sin_port = FreeRTOS_htons( randomPort );
+        bindAddress.sin_family = FREERTOS_AF_INET;
 
         if( FreeRTOS_bind( *pSocket, &bindAddress, sizeof( bindAddress ) ) == 0 )
         {
@@ -1404,7 +1451,6 @@ static bool createUdpSocket( Socket_t * pSocket )
 static void closeUdpSocket( Socket_t * pSocket )
 {
     bool status = false;
-    struct freertos_sockaddr bindAddress;
 
     configASSERT( pSocket != NULL );
 
@@ -1430,7 +1476,7 @@ static bool calculateBackoffForNextPoll( BackoffAlgorithmContext_t * pBackoffCon
     if( shouldInitializeContext == true )
     {
         /* Initialize reconnect attempts and interval.*/
-        BackoffAlgorithm_InitializeParams( &pBackoffContext,
+        BackoffAlgorithm_InitializeParams( pBackoffContext,
                                            minPollPeriod,
                                            SNTP_DEMO_POLL_MAX_BACKOFF_DELAY_SEC,
                                            SNTP_DEMO_MAX_SERVER_BACKOFF_RETRIES );
@@ -1438,7 +1484,7 @@ static bool calculateBackoffForNextPoll( BackoffAlgorithmContext_t * pBackoffCon
 
     /* Generate a random number and calculate the new backoff poll period to wait before the next
      * time poll attempt. */
-    status = BackoffAlgorithm_GetNextBackoff( &pBackoffContext, generateRandomNumber(), &newPollPeriod );
+    status = BackoffAlgorithm_GetNextBackoff( pBackoffContext, generateRandomNumber(), &newPollPeriod );
 
     if( status == BackoffAlgorithmRetriesExhausted )
     {

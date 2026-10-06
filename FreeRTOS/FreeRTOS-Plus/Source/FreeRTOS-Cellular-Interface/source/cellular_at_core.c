@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,15 +42,6 @@
 
 #include "cellular_at_core.h"
 #include "cellular_internal.h"
-
-/*-----------------------------------------------------------*/
-
-#ifndef CELLULAR_CHECK_IS_PREFIX_CHAR
-    #define CELLULAR_CHECK_IS_PREFIX_CHAR( inputChar )                    \
-    ( ( ( ( int32_t ) isalpha( ( ( int8_t ) ( inputChar ) ) ) ) == 0 ) && \
-      ( ( ( int32_t ) isdigit( ( ( int8_t ) ( inputChar ) ) ) ) == 0 ) && \
-      ( ( inputChar ) != '+' ) && ( ( inputChar ) != '_' ) )
-#endif
 
 /*-----------------------------------------------------------*/
 
@@ -131,6 +124,10 @@ CellularATError_t Cellular_ATIsPrefixPresent( const char * pString,
         ptrPrefixChar = strchr( pString, ( int32_t ) ':' );
 
         if( ptrPrefixChar == NULL )
+        {
+            *pResult = false;
+        }
+        else if( !CELLULAR_CHECK_IS_PREFIX_LEADING_CHAR( *pString ) )
         {
             *pResult = false;
         }
@@ -333,7 +330,7 @@ CellularATError_t Cellular_ATRemoveTrailingWhiteSpaces( char * pString )
          * when the string length is greater than 2. */
         if( stringLen > 2U )
         {
-            p = &pString[ stringLen ];
+            p = &( pString[ stringLen ] );
 
             do
             {
@@ -574,11 +571,11 @@ CellularATError_t Cellular_ATGetSpecificNextTok( char ** ppString,
 
         if( ( tokStrLen < dataStrlen ) && ( ( *ppString )[ tokStrLen + 1U ] != '\0' ) )
         {
-            *ppString = &tok[ strlen( tok ) + 1U ];
+            *ppString = &( tok[ strlen( tok ) + 1U ] );
         }
         else
         {
-            *ppString = &tok[ strlen( tok ) ];
+            *ppString = &( tok[ strlen( tok ) ] );
         }
 
         *ppTokOutput = tok;
@@ -664,11 +661,11 @@ CellularATError_t Cellular_ATHexStrToHex( const char * pString,
             }
             else
             {
-                firstNibble = firstNibble << 4;
+                firstNibble = ( uint8_t ) ( firstNibble << 4 );
                 ( pHexData )[ i ] = firstNibble | secondNibble;
             }
 
-            p = &p[ 2 ];
+            p = &( p[ 2 ] );
         }
     }
 

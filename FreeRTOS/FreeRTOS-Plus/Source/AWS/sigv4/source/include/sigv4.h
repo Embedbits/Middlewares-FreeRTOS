@@ -1,5 +1,5 @@
 /*
- * SigV4 Library v1.2.0
+ * SigV4 Library v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -32,6 +32,7 @@
 
 /* Standard includes. */
 #include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 /* *INDENT-OFF* */
@@ -127,6 +128,15 @@
 
 /**
  * @ingroup sigv4_canonical_flags
+ * @brief Set this flag to indicate that the HTTP request is
+ * a presigned URL.
+ *
+ * This flag is valid only for #SigV4HttpParameters_t.flags.
+ */
+#define SIGV4_HTTP_IS_PRESIGNED_URL              0x10U
+
+/**
+ * @ingroup sigv4_canonical_flags
  * @brief Set this flag to indicate that the HTTP request path, query, and
  * headers are all already canonicalized.
  *
@@ -146,6 +156,7 @@ typedef enum SigV4Status
      * Functions that may return this value:
      * - #SigV4_GenerateHTTPAuthorization
      * - #SigV4_AwsIotDateToIso8601
+     * - #SigV4_EncodeURI
      */
     SigV4Success,
 
@@ -165,6 +176,7 @@ typedef enum SigV4Status
      *
      * Functions that may return this value:
      * - #SigV4_GenerateHTTPAuthorization
+     * - #SigV4_EncodeURI
      */
     SigV4InsufficientMemory,
 
@@ -564,6 +576,33 @@ SigV4Status_t SigV4_AwsIotDateToIso8601( const char * pDate,
                                          char * pDateISO8601,
                                          size_t dateISO8601Len );
 /* @[declare_sigV4_awsIotDateToIso8601_function] */
+
+#if ( SIGV4_USE_CANONICAL_SUPPORT == 1 )
+
+/**
+ * @brief Normalize a URI string according to RFC 3986 and fill destination
+ * buffer with the formatted string.
+ *
+ * @param[in] pUri The URI string to encode.
+ * @param[in] uriLen Length of pUri.
+ * @param[out] pCanonicalURI The resulting canonicalized URI.
+ * @param[in, out] canonicalURILen input: the length of pCanonicalURI,
+ * output: the length of the generated canonical URI.
+ * @param[in] encodeSlash Option to indicate if slashes should be encoded.
+ * @param[in] doubleEncodeEquals Option to indicate if equals should be double-encoded.
+ *
+ * @return #SigV4Success code if successful, error code otherwise.
+ */
+/* @[declare_sigV4_encodeURI_function] */
+    SigV4Status_t SigV4_EncodeURI( const char * pUri,
+                                   size_t uriLen,
+                                   char * pCanonicalURI,
+                                   size_t * canonicalURILen,
+                                   bool encodeSlash,
+                                   bool doubleEncodeEquals );
+/* @[declare_sigV4_encodeURI_function] */
+
+#endif /* #if (SIGV4_USE_CANONICAL_SUPPORT == 1) */
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

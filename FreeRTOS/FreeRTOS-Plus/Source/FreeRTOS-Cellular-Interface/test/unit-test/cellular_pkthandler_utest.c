@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -50,6 +52,7 @@
 #define CELLULAR_AT_MULTI_DATA_WO_PREFIX_STRING_RESP    "+QIRD: 32\r123243154354364576587utrhfgdghfg"
 #define CELLULAR_URC_TOKEN_STRING_INPUT                 "RDY"
 #define CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS      "+RDY"
+#define CELLULAR_URC_TOKEN_STRING_INPUT_WITH_PAYLOAD    "+RDY:START"
 #define CELLULAR_URC_TOKEN_STRING_GREATER_INPUT         "RDYY"
 #define CELLULAR_URC_TOKEN_STRING_SMALLER_INPUT         "RD"
 #define CELLULAR_PLUS_TOKEN_ONLY_STRING                 "+"
@@ -65,6 +68,7 @@ static int32_t pktRespCBReturn = 0;
 static bool passCompareString = false;
 static char * pCompareString = NULL;
 static int32_t undefinedCallbackContext = 0;
+static uint32_t lastDelayTimeMs = 0U;
 
 void cellularAtParseTokenHandler( CellularContext_t * pContext,
                                   char * pInputStr );
@@ -178,6 +182,7 @@ void setUp()
     queueData = 0;
     queueReturnFail = 0;
     pktRespCBReturn = 0;
+    lastDelayTimeMs = 0U;
 }
 
 /* Called after each test method. */
@@ -200,7 +205,7 @@ int suiteTearDown( int numFailures )
 
 void dummyDelay( uint32_t milliseconds )
 {
-    ( void ) milliseconds;
+    lastDelayTimeMs = milliseconds;
 }
 
 void * mock_malloc( size_t size )
@@ -323,6 +328,38 @@ uint16_t MockvQueueDelete( QueueHandle_t queue )
     free( queue );
     queue = NULL;
     return 1;
+}
+
+CellularATError_t Cellular_ATIsPrefixPresent( const char * pString,
+                                              bool * pResult )
+{
+    CellularATError_t atStatus = CELLULAR_AT_SUCCESS;
+
+    TEST_ASSERT( pString != NULL );
+    TEST_ASSERT( pResult != NULL );
+
+    if( strcmp( pString, CELLULAR_AT_MULTI_DATA_WO_PREFIX_STRING_RESP ) == 0 )
+    {
+        *pResult = true;
+    }
+    else if( strcmp( pString, CELLULAR_PLUS_TOKEN_ONLY_STRING ) == 0 )
+    {
+        *pResult = true;
+    }
+    else if( strcmp( pString, CELLULAR_URC_TOKEN_STRING_INPUT_WITH_PAYLOAD ) == 0 )
+    {
+        *pResult = true;
+    }
+    else if( strcmp( pString, CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS ) == 0 )
+    {
+        *pResult = false;
+    }
+    else
+    {
+        *pResult = false;
+    }
+
+    return atStatus;
 }
 
 CellularATError_t _CMOCK_Cellular_ATStrDup_CALLBACK( char ** ppDst,
@@ -621,10 +658,45 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Happy_Path( void )
 
     /* set for cellularAtParseTokenHandler function */
     passCompareString = false;
-    pCompareString = getStringAfterColon( CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS );
+    pCompareString = getStringAfterColon( CELLULAR_URC_TOKEN_STRING_INPUT_WITH_PAYLOAD );
+
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_URC_TOKEN_STRING_INPUT_WITH_PAYLOAD );
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+    TEST_ASSERT_EQUAL( true, passCompareString );
+}
+
+/**
+ * @brief Test input string without payload for _Cellular_HandlePacket.
+ *
+ * URC input string "+RDY" should be regarded as URC without prefix.
+ * If there is a handler function registered in the table, the handler function is
+ * called with pInputStr point to "+RDY" string.
+ */
+void test__Cellular_HandlePacket_AT_UNSOLICITED_Input_String_without_payload( void )
+{
+    CellularContext_t context;
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    CellularAtParseTokenMap_t cellularTestUrcHandlerTable[] =
+    {
+        /* Use the URC string instead of the URC prefix in the mapping table. */
+        { CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS, cellularAtParseTokenHandler }
+    };
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+    context.tokenTable.pCellularUrcHandlerTable = cellularTestUrcHandlerTable;
+    context.tokenTable.cellularPrefixToParserMapSize = 1;
+
+    Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
+
+    /* set for cellularAtParseTokenHandler function */
+    passCompareString = false;
+    pCompareString = CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS;
 
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+
+    /* passCompareString is set to true in cellularAtParseTokenHandler if pCompareString
+     * equals to parameter pInputStr. */
     TEST_ASSERT_EQUAL( true, passCompareString );
 }
 
@@ -688,7 +760,7 @@ void test__Cellular_HandlePacket_Wrong_RespType( void )
     memset( &context, 0, sizeof( CellularContext_t ) );
 
     /* Send invalid message type. */
-    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED + 1, NULL );
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED + 1, CELLULAR_URC_TOKEN_STRING_SMALLER_INPUT );
 
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_BAD_PARAM, pktStatus );
 }
@@ -1043,6 +1115,47 @@ void test__Cellular_AtcmdDataSend_Happy_Path( void )
     _Cellular_PktioSendData_IgnoreAndReturn( CELLULAR_AT_CMD_TYPICAL_MAX_SIZE );
     queueData = CELLULAR_PKT_STATUS_OK;
     pktStatus = _Cellular_AtcmdDataSend( &context, atReq, atDataReq, NULL, NULL, 0, 0, 0 );
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+}
+
+/**
+ * @brief Test that happy path case for _Cellular_AtcmdDataSend.
+ */
+void test__Cellular_AtcmdDataSend_data_send_delay( void )
+{
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    char dataBuf[ CELLULAR_AT_CMD_TYPICAL_MAX_SIZE ] = { '\0' };
+    uint32_t sentDataLength = 0;
+    CellularAtDataReq_t atDataReq =
+    {
+        ( const uint8_t * ) dataBuf,
+        CELLULAR_AT_CMD_TYPICAL_MAX_SIZE,
+        &sentDataLength,
+        NULL,
+        CELLULAR_AT_CMD_TYPICAL_MAX_SIZE
+    };
+
+    CellularAtReq_t atReq =
+    {
+        "AT+COPS?",
+        CELLULAR_AT_WITH_PREFIX,
+        "+COPS",
+        NULL,
+        NULL,
+        sizeof( int32_t ),
+    };
+    CellularContext_t context;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+    _Cellular_PktioSendAtCmd_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
+
+    /* xQueueReceive true, and the data is CELLULAR_PKT_STATUS_OK. */
+    _Cellular_PktioSendData_IgnoreAndReturn( CELLULAR_AT_CMD_TYPICAL_MAX_SIZE );
+    queueData = CELLULAR_PKT_STATUS_OK;
+
+    /* Send data with data send delay 100ms. */
+    pktStatus = _Cellular_AtcmdDataSend( &context, atReq, atDataReq, NULL, NULL, 0, 0, 100U );
+    TEST_ASSERT_EQUAL( 100U, lastDelayTimeMs );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
 }
 

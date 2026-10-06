@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,7 +26,7 @@
  */
 
 /**
- * @brief FreeRTOS Cellular Library API implemenation with 3GPP AT command.
+ * @brief FreeRTOS Cellular Library API implementation with 3GPP AT command.
  */
 
 /* Standard includes. */
@@ -89,30 +91,31 @@
 
 #define T3412_TIMER_UNIT( x )     ( ( uint32_t ) ( ( ( x ) & 0x000000E0U ) >> 5U ) ) /* Bits 6, 7, 8. */
 #define T3412_TIMER_VALUE( x )    ( ( uint32_t ) ( ( x ) & 0x0000001FU ) )
-#define T3412_TIMER_DEACTIVATED              ( 0xFFFFFFFFU )
+#define T3412_TIMER_DEACTIVATED               ( 0xFFFFFFFFU )
 
-#define T3412_TIMER_UNIT_10MINUTES           ( 0U )
-#define T3412_TIMER_UNIT_1HOURS              ( 1U )
-#define T3412_TIMER_UNIT_10HOURS             ( 2U )
-#define T3412_TIMER_UNIT_2SECONDS            ( 3U )
-#define T3412_TIMER_UNIT_30SECONDS           ( 4U )
-#define T3412_TIMER_UNIT_1MINUTES            ( 5U )
-#define T3412_TIMER_UNIT_DEACTIVATED         ( 7U )
+#define T3412_TIMER_UNIT_10MINUTES            ( 0U )
+#define T3412_TIMER_UNIT_1HOURS               ( 1U )
+#define T3412_TIMER_UNIT_10HOURS              ( 2U )
+#define T3412_TIMER_UNIT_2SECONDS             ( 3U )
+#define T3412_TIMER_UNIT_30SECONDS            ( 4U )
+#define T3412_TIMER_UNIT_1MINUTES             ( 5U )
+#define T3412_TIMER_UNIT_DEACTIVATED          ( 7U )
 
-#define CELULAR_PDN_CONTEXT_TYPE_MAX_SIZE    ( 7U ) /* The length of "IPV4V6" + 1. */
+#define CELLULAR_PDN_CONTEXT_TYPE_MAX_SIZE    ( 7U ) /* The length of "IPV4V6" + 1. */
 
 /*-----------------------------------------------------------*/
 
 /**
+ * @ingroup cellular_datatypes_structs
  * @brief operator information.
  */
 typedef struct cellularOperatorInfo
 {
-    CellularPlmnInfo_t plmnInfo;                             /* Device registered PLMN info (MCC and MNC).  */
-    CellularRat_t rat;                                       /* Device registered Radio Access Technology (Cat-M, Cat-NB, GPRS etc).  */
-    CellularNetworkRegistrationMode_t networkRegMode;        /* Network Registered mode of the device (Manual, Auto etc).   */
-    CellularOperatorNameFormat_t operatorNameFormat;         /* Format of registered network operator name. */
-    char operatorName[ CELLULAR_NETWORK_NAME_MAX_SIZE + 1 ]; /* Registered network operator name. */
+    CellularPlmnInfo_t plmnInfo;                             /**<  Device registered PLMN info (MCC and MNC).  */
+    CellularRat_t rat;                                       /**<  Device registered Radio Access Technology (Cat-M, Cat-NB, GPRS etc).  */
+    CellularNetworkRegistrationMode_t networkRegMode;        /**<  Network Registered mode of the device (Manual, Auto etc).   */
+    CellularOperatorNameFormat_t operatorNameFormat;         /**<  Format of registered network operator name. */
+    char operatorName[ CELLULAR_NETWORK_NAME_MAX_SIZE + 1 ]; /**<  Registered network operator name. */
 } cellularOperatorInfo_t;
 
 /*-----------------------------------------------------------*/
@@ -209,10 +212,12 @@ static CellularPktStatus_t _Cellular_RecvFuncGetHplmn( CellularContext_t * pCont
                                                        const CellularATCommandResponse_t * pAtResp,
                                                        void * pData,
                                                        uint16_t dataLen );
-static CellularPktStatus_t _Cellular_RecvFuncGetIccid( CellularContext_t * pContext,
-                                                       const CellularATCommandResponse_t * pAtResp,
-                                                       void * pData,
-                                                       uint16_t dataLen );
+#if ( CELLULAR_CONFIG_USE_CCID_COMMAND == 1 )
+    static CellularPktStatus_t _Cellular_RecvFuncGetIccid( CellularContext_t * pContext,
+                                                           const CellularATCommandResponse_t * pAtResp,
+                                                           void * pData,
+                                                           uint16_t dataLen );
+#endif
 static CellularPktStatus_t _Cellular_RecvFuncGetImsi( CellularContext_t * pContext,
                                                       const CellularATCommandResponse_t * pAtResp,
                                                       void * pData,
@@ -486,7 +491,7 @@ static CellularPktStatus_t _parseTimeZoneInfo( char * pTimeZoneResp,
 
     if( pktStatus == CELLULAR_PKT_STATUS_OK )
     {
-        LogDebug( ( "TimeZoneInfo: Timezone %d Year %d Month %d day %d,", pTimeInfo->timeZone,
+        LogDebug( ( "TimeZoneInfo: Timezone %d Year %d Month %d day %d,", ( int ) pTimeInfo->timeZone,
                     pTimeInfo->year,
                     pTimeInfo->month,
                     pTimeInfo->day ) );
@@ -858,7 +863,7 @@ static CellularError_t queryNetworkStatus( CellularContext_t * pContext,
     CellularNetworkRegType_t recvRegType = regType;
     CellularAtReq_t atReqGetResult = { 0 };
 
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
     atReqGetResult.pAtCmd = pCommand;
     atReqGetResult.atCmdType = CELLULAR_AT_MULTI_WITH_PREFIX;
     atReqGetResult.pAtRspPrefix = pPrefix;
@@ -978,7 +983,7 @@ static bool _parseCopsNetworkNameToken( const char * pToken,
             {
                 ( void ) strncpy( pOperatorInfo->plmnInfo.mcc, pToken, CELLULAR_MCC_MAX_SIZE );
                 pOperatorInfo->plmnInfo.mcc[ CELLULAR_MCC_MAX_SIZE ] = '\0';
-                ( void ) strncpy( pOperatorInfo->plmnInfo.mnc, &pToken[ CELLULAR_MCC_MAX_SIZE ],
+                ( void ) strncpy( pOperatorInfo->plmnInfo.mnc, &( pToken[ CELLULAR_MCC_MAX_SIZE ] ),
                                   ( uint32_t ) ( mccMncLen - CELLULAR_MCC_MAX_SIZE + 1u ) );
                 pOperatorInfo->plmnInfo.mnc[ CELLULAR_MNC_MAX_SIZE ] = '\0';
             }
@@ -1207,23 +1212,17 @@ static CellularPktStatus_t _Cellular_RecvFuncIpAddress( CellularContext_t * pCon
 
         if( atCoreStatus == CELLULAR_AT_SUCCESS )
         {
-            LogDebug( ( "Recv IP address: Context id: %s", pToken ) );
+            LogDebug( ( "Recv IP address: Context id: %s, Address %s", pToken, pInputLine ) );
 
             if( pInputLine[ 0 ] != '\0' )
             {
-                atCoreStatus = Cellular_ATGetNextTok( &pInputLine, &pToken );
+                ( void ) strncpy( pData, pInputLine, dataLen );
             }
             else
             {
-                /* This is the case "+CGPADDR: 1". Return "0.0.0.0" in this case.*/
-                ( void ) strncpy( pData, "0,0,0,0", dataLen );
+                /* This is the case "+CGPADDR: <cid>". Return empty string. */
+                ( void ) memset( pData, 0, dataLen );
             }
-        }
-
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
-        {
-            LogDebug( ( "Recv IP address: Ip Addr: %s", pToken ) );
-            ( void ) strncpy( pData, pToken, dataLen );
         }
 
         pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
@@ -1271,7 +1270,7 @@ static CellularATError_t parseEidrxToken( char * pToken,
                 if( ( tempValue >= 0 ) &&
                     ( tempValue <= ( int32_t ) UINT8_MAX ) )
                 {
-                    pEidrxSettingsList->eidrxList[ count ].requestedEdrxVaue = ( uint8_t ) tempValue;
+                    pEidrxSettingsList->eidrxList[ count ].requestedEdrxValue = ( uint8_t ) tempValue;
                 }
                 else
                 {
@@ -1338,7 +1337,7 @@ static CellularATError_t parseEidrxLine( char * pInputLine,
     {
         LogDebug( ( "GetEidrx setting[%d]: RAT: %d, Value: 0x%x",
                     count, pEidrxSettingsList->eidrxList[ count ].rat,
-                    pEidrxSettingsList->eidrxList[ count ].requestedEdrxVaue ) );
+                    pEidrxSettingsList->eidrxList[ count ].requestedEdrxValue ) );
     }
     else
     {
@@ -1417,16 +1416,25 @@ static CellularError_t atcmdUpdateMccMnc( CellularContext_t * pContext,
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularPktStatus_t pktStatus;
-    CellularAtReq_t atReqGetMccMnc = { 0 };
+    CellularAtReq_t atCopsRequest = { 0 };
 
-    atReqGetMccMnc.pAtCmd = "AT+COPS?";
-    atReqGetMccMnc.atCmdType = CELLULAR_AT_WITH_PREFIX;
-    atReqGetMccMnc.pAtRspPrefix = "+COPS";
-    atReqGetMccMnc.respCallback = _Cellular_RecvFuncUpdateMccMnc;
-    atReqGetMccMnc.pData = pOperatorInfo;
-    atReqGetMccMnc.dataLen = ( uint16_t ) sizeof( cellularOperatorInfo_t );
+    /* Set the response to numeric format. */
+    atCopsRequest.pAtCmd = "AT+COPS=3,2";
+    atCopsRequest.atCmdType = CELLULAR_AT_NO_RESULT;
+    pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atCopsRequest );
 
-    pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetMccMnc );
+    if( pktStatus == CELLULAR_PKT_STATUS_OK )
+    {
+        /* Acquire the MCC and MNC information. */
+        atCopsRequest.pAtCmd = "AT+COPS?";
+        atCopsRequest.atCmdType = CELLULAR_AT_WITH_PREFIX;
+        atCopsRequest.pAtRspPrefix = "+COPS";
+        atCopsRequest.respCallback = _Cellular_RecvFuncUpdateMccMnc;
+        atCopsRequest.pData = pOperatorInfo;
+        atCopsRequest.dataLen = ( uint16_t ) sizeof( cellularOperatorInfo_t );
+        pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atCopsRequest );
+    }
+
     cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
 
     return cellularStatus;
@@ -1441,7 +1449,7 @@ static CellularError_t atcmdQueryRegStatus( CellularContext_t * pContext,
     const cellularAtData_t * pLibAtData = NULL;
     CellularNetworkRegistrationStatus_t psRegStatus = REGISTRATION_STATUS_UNKNOWN;
 
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
 
     cellularStatus = queryNetworkStatus( pContext, "AT+CREG?", "+CREG", CELLULAR_REG_TYPE_CREG );
 
@@ -1474,7 +1482,7 @@ static CellularError_t atcmdQueryRegStatus( CellularContext_t * pContext,
     /* Get the service status from lib AT data. */
     if( cellularStatus == CELLULAR_SUCCESS )
     {
-        pLibAtData = &pContext->libAtData;
+        pLibAtData = &( pContext->libAtData );
         _Cellular_LockAtDataMutex( pContext );
         pServiceStatus->rat = pLibAtData->rat;
         pServiceStatus->csRegistrationStatus = pLibAtData->csRegStatus;
@@ -1592,7 +1600,7 @@ static CellularATError_t parseT3324TimerValue( char * pToken,
         switch( timerUnitIndex )
         {
             case T3324_TIMER_UNIT_2SECONDS:
-                *pTimerValueSeconds = timerValue * 2u;
+                *pTimerValueSeconds = timerValue * 2U;
                 break;
 
             case T3324_TIMER_UNIT_1MINUTE:
@@ -1600,7 +1608,7 @@ static CellularATError_t parseT3324TimerValue( char * pToken,
                 break;
 
             case T3324_TIMER_UNIT_DECIHOURS:
-                *pTimerValueSeconds = timerValue * ( 15U * 60U );
+                *pTimerValueSeconds = timerValue * ( 6U * 60U );
                 break;
 
             case T3324_TIMER_UNIT_DEACTIVATED:
@@ -1701,7 +1709,7 @@ CellularError_t Cellular_CommonSetEidrxSettings( CellularHandle_t cellularHandle
                            "AT+CEDRXS=",
                            pEidrxSettings->mode,
                            pEidrxSettings->rat,
-                           PRINTF_BYTE_TO_BINARY_INT4( pEidrxSettings->requestedEdrxVaue ) );
+                           PRINTF_BYTE_TO_BINARY_INT4( pEidrxSettings->requestedEdrxValue ) );
         LogDebug( ( "Eidrx setting: %s ", cmdBuf ) );
         /* Query the PSMsettings from the network. */
         pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqSetEidrx );
@@ -1800,6 +1808,7 @@ CellularError_t Cellular_CommonGetRegisteredNetwork( CellularHandle_t cellularHa
     }
     else
     {
+        ( void ) memset( pOperatorInfo, 0, sizeof( cellularOperatorInfo_t ) );
         cellularStatus = atcmdUpdateMccMnc( pContext, pOperatorInfo );
     }
 
@@ -2069,9 +2078,9 @@ CellularError_t Cellular_CommonGetIPAddress( CellularHandle_t cellularHandle,
 
 void _Cellular_DestroyAtDataMutex( CellularContext_t * pContext )
 {
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
 
-    PlatformMutex_Destroy( &pContext->libAtDataMutex );
+    PlatformMutex_Destroy( &( pContext->libAtDataMutex ) );
 }
 
 /*-----------------------------------------------------------*/
@@ -2080,9 +2089,9 @@ bool _Cellular_CreateAtDataMutex( CellularContext_t * pContext )
 {
     bool status = false;
 
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
 
-    status = PlatformMutex_Create( &pContext->libAtDataMutex, false );
+    status = PlatformMutex_Create( &( pContext->libAtDataMutex ), false );
 
     return status;
 }
@@ -2091,18 +2100,18 @@ bool _Cellular_CreateAtDataMutex( CellularContext_t * pContext )
 
 void _Cellular_LockAtDataMutex( CellularContext_t * pContext )
 {
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
 
-    PlatformMutex_Lock( &pContext->libAtDataMutex );
+    PlatformMutex_Lock( &( pContext->libAtDataMutex ) );
 }
 
 /*-----------------------------------------------------------*/
 
 void _Cellular_UnlockAtDataMutex( CellularContext_t * pContext )
 {
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
 
-    PlatformMutex_Unlock( &pContext->libAtDataMutex );
+    PlatformMutex_Unlock( &( pContext->libAtDataMutex ) );
 }
 
 /*-----------------------------------------------------------*/
@@ -2114,9 +2123,9 @@ void _Cellular_InitAtData( CellularContext_t * pContext,
 {
     cellularAtData_t * pLibAtData = NULL;
 
-    configASSERT( pContext != NULL );
+    CELLULAR_CONFIG_ASSERT( pContext != NULL );
 
-    pLibAtData = &pContext->libAtData;
+    pLibAtData = &( pContext->libAtData );
 
     if( mode == 0u )
     {
@@ -2141,7 +2150,7 @@ CellularError_t Cellular_CommonSetPdnConfig( CellularHandle_t cellularHandle,
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
     char cmdBuf[ CELLULAR_AT_CMD_MAX_SIZE ] = { '\0' };
-    char pPdpTypeStr[ CELULAR_PDN_CONTEXT_TYPE_MAX_SIZE ] = { '\0' };
+    char pPdpTypeStr[ CELLULAR_PDN_CONTEXT_TYPE_MAX_SIZE ] = { '\0' };
     CellularAtReq_t atReqSetPdn = { 0 };
 
     atReqSetPdn.pAtCmd = cmdBuf;
@@ -2542,60 +2551,62 @@ static CellularPktStatus_t _Cellular_RecvFuncGetHplmn( CellularContext_t * pCont
 
 /*-----------------------------------------------------------*/
 
-static CellularPktStatus_t _Cellular_RecvFuncGetIccid( CellularContext_t * pContext,
-                                                       const CellularATCommandResponse_t * pAtResp,
-                                                       void * pData,
-                                                       uint16_t dataLen )
-{
-    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
-    CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
-    char * pRespLine = NULL;
+#if ( CELLULAR_CONFIG_USE_CCID_COMMAND == 1 )
+    static CellularPktStatus_t _Cellular_RecvFuncGetIccid( CellularContext_t * pContext,
+                                                           const CellularATCommandResponse_t * pAtResp,
+                                                           void * pData,
+                                                           uint16_t dataLen )
+    {
+        CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+        CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
+        char * pRespLine = NULL;
 
-    if( pContext == NULL )
-    {
-        LogError( ( "getIccid: pContext is invalid" ) );
-        pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
-    }
-    else if( ( pAtResp == NULL ) || ( pAtResp->pItm == NULL ) ||
-             ( pAtResp->pItm->pLine == NULL ) )
-    {
-        LogError( ( "getIccid: Response is invalid" ) );
-        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
-    }
-    else if( ( pData == NULL ) || ( dataLen != ( CELLULAR_ICCID_MAX_SIZE + 1U ) ) )
-    {
-        LogError( ( "getIccid: pData is invalid or dataLen is wrong" ) );
-        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
-    }
-    else
-    {
-        pRespLine = pAtResp->pItm->pLine;
-        atCoreStatus = Cellular_ATRemoveAllWhiteSpaces( pRespLine );
-
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
+        if( pContext == NULL )
         {
-            /* Removing QCCID Prefix in AT Response. */
-            atCoreStatus = Cellular_ATRemovePrefix( &pRespLine );
+            LogError( ( "getIccid: pContext is invalid" ) );
+            pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
+        }
+        else if( ( pAtResp == NULL ) || ( pAtResp->pItm == NULL ) ||
+                 ( pAtResp->pItm->pLine == NULL ) )
+        {
+            LogError( ( "getIccid: Response is invalid" ) );
+            pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+        }
+        else if( ( pData == NULL ) || ( dataLen != ( CELLULAR_ICCID_MAX_SIZE + 1U ) ) )
+        {
+            LogError( ( "getIccid: pData is invalid or dataLen is wrong" ) );
+            pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+        }
+        else
+        {
+            pRespLine = pAtResp->pItm->pLine;
+            atCoreStatus = Cellular_ATRemoveAllWhiteSpaces( pRespLine );
+
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                /* Removing QCCID Prefix in AT Response. */
+                atCoreStatus = Cellular_ATRemovePrefix( &pRespLine );
+            }
+
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                /* Storing the ICCID value in the AT Response. */
+                if( strlen( pRespLine ) < ( ( size_t ) CELLULAR_ICCID_MAX_SIZE + 1U ) )
+                {
+                    ( void ) strncpy( pData, pRespLine, dataLen );
+                }
+                else
+                {
+                    atCoreStatus = CELLULAR_AT_BAD_PARAMETER;
+                }
+            }
+
+            pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
         }
 
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
-        {
-            /* Storing the ICCID value in the AT Response. */
-            if( strlen( pRespLine ) < ( ( size_t ) CELLULAR_ICCID_MAX_SIZE + 1U ) )
-            {
-                ( void ) strncpy( pData, pRespLine, dataLen );
-            }
-            else
-            {
-                atCoreStatus = CELLULAR_AT_BAD_PARAMETER;
-            }
-        }
-
-        pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
+        return pktStatus;
     }
-
-    return pktStatus;
-}
+#endif /* if ( CELLULAR_CONFIG_USE_CCID_COMMAND == 1 ) */
 
 /*-----------------------------------------------------------*/
 
@@ -2656,14 +2667,7 @@ CellularError_t Cellular_CommonGetSimCardLockStatus( CellularHandle_t cellularHa
     CellularContext_t * pContext = ( CellularContext_t * ) cellularHandle;
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
-    CellularAtReq_t atReqGetSimLockStatus = { 0 };
-
-    atReqGetSimLockStatus.pAtCmd = "AT+CPIN?";
-    atReqGetSimLockStatus.atCmdType = CELLULAR_AT_WITH_PREFIX;
-    atReqGetSimLockStatus.pAtRspPrefix = "+CPIN";
-    atReqGetSimLockStatus.respCallback = _Cellular_RecvFuncGetSimLockStatus;
-    atReqGetSimLockStatus.pData = NULL;
-    atReqGetSimLockStatus.dataLen = 0;
+    CellularAtReq_t atReqGetSimLockStatus;
 
     /* pContext is checked in _Cellular_CheckLibraryStatus function. */
     cellularStatus = _Cellular_CheckLibraryStatus( pContext );
@@ -2682,7 +2686,11 @@ CellularError_t Cellular_CommonGetSimCardLockStatus( CellularHandle_t cellularHa
         /* Initialize the sim state and the sim lock state. */
         pSimCardStatus->simCardLockState = CELLULAR_SIM_CARD_LOCK_UNKNOWN;
 
-        atReqGetSimLockStatus.pData = &pSimCardStatus->simCardLockState;
+        atReqGetSimLockStatus.pAtCmd = "AT+CPIN?";
+        atReqGetSimLockStatus.atCmdType = CELLULAR_AT_WITH_PREFIX;
+        atReqGetSimLockStatus.pAtRspPrefix = "+CPIN";
+        atReqGetSimLockStatus.respCallback = _Cellular_RecvFuncGetSimLockStatus;
+        atReqGetSimLockStatus.pData = &( pSimCardStatus->simCardLockState );
         atReqGetSimLockStatus.dataLen = ( uint16_t ) sizeof( CellularSimCardLockState_t );
 
         pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetSimLockStatus );
@@ -2703,16 +2711,20 @@ CellularError_t Cellular_CommonGetSimCardInfo( CellularHandle_t cellularHandle,
     CellularContext_t * pContext = ( CellularContext_t * ) cellularHandle;
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
-    CellularAtReq_t atReqGetIccid = { 0 };
     CellularAtReq_t atReqGetImsi = { 0 };
     CellularAtReq_t atReqGetHplmn = { 0 };
 
+    #if ( CELLULAR_CONFIG_USE_CCID_COMMAND == 1 )
+    CellularAtReq_t atReqGetIccid = { 0 };
+
+    /* Use non-stanard 3GPP AT command "AT+CCID" for ICCID information. */
     atReqGetIccid.pAtCmd = "AT+CCID";
     atReqGetIccid.atCmdType = CELLULAR_AT_WITH_PREFIX;
     atReqGetIccid.pAtRspPrefix = "+CCID";
     atReqGetIccid.respCallback = _Cellular_RecvFuncGetIccid;
     atReqGetIccid.pData = pSimCardInfo->iccid;
     atReqGetIccid.dataLen = CELLULAR_ICCID_MAX_SIZE + 1U;
+    #endif
 
     atReqGetImsi.pAtCmd = "AT+CIMI";
     atReqGetImsi.atCmdType = CELLULAR_AT_WO_PREFIX;
@@ -2721,11 +2733,11 @@ CellularError_t Cellular_CommonGetSimCardInfo( CellularHandle_t cellularHandle,
     atReqGetImsi.pData = pSimCardInfo->imsi;
     atReqGetImsi.dataLen = CELLULAR_IMSI_MAX_SIZE + 1U;
 
-    atReqGetHplmn.pAtCmd = "AT+CRSM=176,28514,0,0,0"; /* READ BINARY commmand. HPLMN Selector with Access Technology( 6F62 ). */
+    atReqGetHplmn.pAtCmd = "AT+CRSM=176,28514,0,0,0"; /* READ BINARY command. HPLMN Selector with Access Technology( 6F62 ). */
     atReqGetHplmn.atCmdType = CELLULAR_AT_WITH_PREFIX;
     atReqGetHplmn.pAtRspPrefix = "+CRSM";
     atReqGetHplmn.respCallback = _Cellular_RecvFuncGetHplmn;
-    atReqGetHplmn.pData = &pSimCardInfo->plmn;
+    atReqGetHplmn.pData = &( pSimCardInfo->plmn );
     atReqGetHplmn.dataLen = ( uint16_t ) sizeof( CellularPlmnInfo_t );
 
     /* pContext is checked in _Cellular_CheckLibraryStatus function. */
@@ -2750,10 +2762,12 @@ CellularError_t Cellular_CommonGetSimCardInfo( CellularHandle_t cellularHandle,
             pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetHplmn );
         }
 
-        if( pktStatus == CELLULAR_PKT_STATUS_OK )
-        {
-            pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetIccid );
-        }
+        #if ( CELLULAR_CONFIG_USE_CCID_COMMAND == 1 )
+            if( pktStatus == CELLULAR_PKT_STATUS_OK )
+            {
+                pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetIccid );
+            }
+        #endif
 
         if( pktStatus != CELLULAR_PKT_STATUS_OK )
         {
@@ -2839,13 +2853,13 @@ CellularError_t Cellular_CommonSetPsmSettings( CellularHandle_t cellularHandle,
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_MAX_SIZE, "AT+CPSMS=%d,", pPsmSettings->mode );
         cmdBufLen = ( uint32_t ) strlen( cmdBuf );
-        cmdBufLen = cmdBufLen + appendBinaryPattern( &cmdBuf[ cmdBufLen ], ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
+        cmdBufLen = cmdBufLen + appendBinaryPattern( &( cmdBuf[ cmdBufLen ] ), ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
                                                      pPsmSettings->periodicRauValue, false );
-        cmdBufLen = cmdBufLen + appendBinaryPattern( &cmdBuf[ cmdBufLen ], ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
+        cmdBufLen = cmdBufLen + appendBinaryPattern( &( cmdBuf[ cmdBufLen ] ), ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
                                                      pPsmSettings->gprsReadyTimer, false );
-        cmdBufLen = cmdBufLen + appendBinaryPattern( &cmdBuf[ cmdBufLen ], ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
+        cmdBufLen = cmdBufLen + appendBinaryPattern( &( cmdBuf[ cmdBufLen ] ), ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
                                                      pPsmSettings->periodicTauValue, false );
-        ( void ) appendBinaryPattern( &cmdBuf[ cmdBufLen ], ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
+        ( void ) appendBinaryPattern( &( cmdBuf[ cmdBufLen ] ), ( CELLULAR_AT_CMD_MAX_SIZE - cmdBufLen ),
                                       pPsmSettings->activeTimeValue, true );
 
         LogDebug( ( "PSM setting: %s ", cmdBuf ) );
@@ -2902,19 +2916,19 @@ static CellularATError_t parseGetPsmToken( char * pToken,
             break;
 
         case CPSMS_POS_RAU:
-            atCoreStatus = parseT3412TimerValue( pToken, &pPsmSettings->periodicRauValue );
+            atCoreStatus = parseT3412TimerValue( pToken, &( pPsmSettings->periodicRauValue ) );
             break;
 
         case CPSMS_POS_RDY_TIMER:
-            atCoreStatus = parseT3324TimerValue( pToken, &pPsmSettings->gprsReadyTimer );
+            atCoreStatus = parseT3324TimerValue( pToken, &( pPsmSettings->gprsReadyTimer ) );
             break;
 
         case CPSMS_POS_TAU:
-            atCoreStatus = parseT3412TimerValue( pToken, &pPsmSettings->periodicTauValue );
+            atCoreStatus = parseT3412TimerValue( pToken, &( pPsmSettings->periodicTauValue ) );
             break;
 
         case CPSMS_POS_ACTIVE_TIME:
-            atCoreStatus = parseT3324TimerValue( pToken, &pPsmSettings->activeTimeValue );
+            atCoreStatus = parseT3324TimerValue( pToken, &( pPsmSettings->activeTimeValue ) );
             break;
 
         default:

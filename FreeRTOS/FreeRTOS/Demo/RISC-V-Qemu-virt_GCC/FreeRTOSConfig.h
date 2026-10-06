@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -45,10 +45,14 @@
 #define configMTIME_BASE_ADDRESS		( CLINT_ADDR + CLINT_MTIME )
 #define configMTIMECMP_BASE_ADDRESS		( CLINT_ADDR + CLINT_MTIMECMP )
 
+#ifdef PICOLIBC_TLS
+#define configUSE_PICOLIBC_TLS			1
+#endif
+
 #define configUSE_PREEMPTION			1
 #define configUSE_IDLE_HOOK				0
 #define configUSE_TICK_HOOK				1
-#define configCPU_CLOCK_HZ				( 1000000 )
+#define configCPU_CLOCK_HZ				( 10000000 )
 #define configTICK_RATE_HZ				( ( TickType_t ) 1000 )
 #define configMAX_PRIORITIES			( 7 )
 #define configMINIMAL_STACK_SIZE		( ( unsigned short ) 512 )
@@ -72,6 +76,9 @@ void vAssertCalled( void );
 #define configASSERT_DEFINED                   1
 #define configASSERT( x )                      do { if ( !(x) ) vAssertCalled(); } while(0)
 
+/* Co-routine definitions. */
+#define configUSE_CO_ROUTINES 			0
+#define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 
 /* Software timer definitions. */
 #define configUSE_TIMERS				1

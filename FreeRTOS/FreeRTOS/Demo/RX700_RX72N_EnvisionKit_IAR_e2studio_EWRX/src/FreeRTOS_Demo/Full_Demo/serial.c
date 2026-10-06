@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -60,7 +60,7 @@ void vSerialSciCallback( void *pvArgs )
 sci_cb_args_t *pxArgs = (sci_cb_args_t *)pvArgs;
 
     /* Renesas API has a built-in queue but we will ignore it.  If the queue is not
-    full, a received character is passed with SCI_EVT_RX_CHAR event.  If the queue
+    full, a received character is passed with SCI_EVT_RX_CHAR event.  If the queue 
     is full, a received character is passed with SCI_EVT_RXBUF_OVFL event. */
     if( SCI_EVT_RX_CHAR == pxArgs->event || SCI_EVT_RXBUF_OVFL == pxArgs->event )
     {

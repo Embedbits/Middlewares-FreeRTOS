@@ -23,6 +23,7 @@ MAX_HEADERS_LEN=6
 MAX_URI_LEN=3
 MAX_REQUEST_LEN=16
 S3_SERVICE_LEN=2
+UNSIGNED_PAYLOAD_LEN=17
 MAX_REGION_LEN=30
 MAX_SERVICE_LEN=30
 MAX_ALGORITHM_LEN=30
@@ -50,6 +51,7 @@ UNWINDSET += lowercaseHexEncode.0:$(MAX_HASH_DIGEST_LEN)
 UNWINDSET += hmacIntermediate.0:$(MAX_HASH_BLOCK_LEN)
 UNWINDSET += hmacFinal.0:$(MAX_HASH_BLOCK_LEN)
 UNWINDSET += strncmp.0:$(S3_SERVICE_LEN)
+UNWINDSET += strlen.0:$(UNSIGNED_PAYLOAD_LEN)
 
 PROOF_SOURCES += $(PROOFDIR)/$(HARNESS_FILE).c
 PROOF_SOURCES += $(SRCDIR)/test/cbmc/stubs/hash_stubs.c
@@ -61,4 +63,4 @@ include ../Makefile-json.common
 
 # Substitution command to pass to sed for patching sigv4.c. The
 # characters " and # must be escaped with backslash.
-SIGV4_SED_EXPR = 1s/^/\#include \"sigv4_stubs.h\" /; s/^static //; s/SigV4Status_t (scanValue|encodeURI|generateCanonicalQuery|generateCanonicalAndSignedHeaders|copyHeaderStringToCanonicalBuffer)\b/&_/
+SIGV4_SED_EXPR = 1s/^/\#include \"sigv4_stubs.h\" /; s/^static //; s/SigV4Status_t (scanValue|SigV4_EncodeURI|generateCanonicalQuery|generateCanonicalAndSignedHeaders|copyHeaderStringToCanonicalBuffer)\b/&_/

@@ -1,5 +1,16 @@
 # Changelog for backoffAlgorithm Library
 
+## v1.4.1 (June 2024)
+
+### Changes
+- Fix doxygen deployment on Github.
+
+## v1.4.0 (May 2024)
+
+### Changes
+- [#51](https://github.com/FreeRTOS/backoffAlgorithm/pull/51) Update MISRA Check Information.
+- [#45](https://github.com/FreeRTOS/backoffAlgorithm/pull/45) Update doxygen version to 1.9.6.
+
 ## v1.3.0 (October 2022)
 
 ### Changes

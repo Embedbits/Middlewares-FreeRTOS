@@ -1,6 +1,6 @@
 /* ksdk_port.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,13 +23,7 @@
 #define _KSDK_PORT_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#ifdef USE_FAST_MATH
-    #include <wolfssl/wolfcrypt/tfm.h>
-#elif defined WOLFSSL_SP_MATH
-    #include <wolfssl/wolfcrypt/sp_int.h>
-#else
-    #include <wolfssl/wolfcrypt/integer.h>
-#endif
+#include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/curve25519.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
@@ -46,6 +40,7 @@ int ksdk_port_init(void);
 	int wolfcrypt_mp_mod(mp_int *a, mp_int *b, mp_int *c);
 	int wolfcrypt_mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 	int wolfcrypt_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y);
+	int wolfcrypt_mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
 
     /* Exported mp_mulmod function */
     int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d);

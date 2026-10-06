@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.2.0
+ * coreJSON v3.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -38,7 +38,6 @@
 /* Include paths for public enums, structures, and macros. */
 #include "core_json.h"
 #include "core_json_annex.h"
-
 
 /* Sample test from the docs. */
 #define JSON_QUERY_SEPARATOR                "."

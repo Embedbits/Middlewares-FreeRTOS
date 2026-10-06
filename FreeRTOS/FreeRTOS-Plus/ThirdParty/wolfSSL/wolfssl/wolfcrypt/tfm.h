@@ -1,6 +1,6 @@
 /* tfm.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -70,7 +70,12 @@
       #define TFM_X86_64
    #endif
 #endif
-#if defined(TFM_X86_64)
+#if defined(__aarch64__) && defined(__APPLE__)
+    #if !defined(TFM_AARCH_64) && !defined(TFM_NO_ASM)
+        #define TFM_AARCH_64
+    #endif
+#endif
+#if defined(TFM_X86_64) || defined(TFM_AARCH_64)
     #if !defined(FP_64BIT)
        #define FP_64BIT
     #endif
@@ -216,22 +221,27 @@
    typedef unsigned int    fp_digit;
    #define SIZEOF_FP_DIGIT 2
    typedef unsigned long   fp_word;
+   typedef   signed long   fp_sword;
 #elif defined(FP_64BIT)
    /* for GCC only on supported platforms */
    typedef unsigned long long fp_digit;   /* 64bit, 128 uses mode(TI) below */
    #define SIZEOF_FP_DIGIT 8
-   typedef unsigned long      fp_word __attribute__ ((mode(TI)));
+   typedef unsigned long      fp_word  __attribute__ ((mode(TI)));
+   typedef   signed long      fp_sword __attribute__ ((mode(TI)));
 #else
 
    #ifndef NO_TFM_64BIT
       #if defined(_MSC_VER) || defined(__BORLANDC__)
          typedef unsigned __int64   ulong64;
+         typedef   signed __int64    long64;
       #else
          typedef unsigned long long ulong64;
+         typedef   signed long long  long64;
       #endif
       typedef unsigned int       fp_digit;
       #define SIZEOF_FP_DIGIT 4
       typedef ulong64            fp_word;
+      typedef long64             fp_sword;
       #define FP_32BIT
    #else
       /* some procs like coldfire prefer not to place multiply into 64bit type
@@ -239,6 +249,7 @@
       typedef unsigned short     fp_digit;
       #define SIZEOF_FP_DIGIT 2
       typedef unsigned int       fp_word;
+      typedef   signed int       fp_sword;
    #endif
 #endif
 
@@ -266,6 +277,9 @@
 #define FP_MAX_SIZE           (FP_MAX_BITS+(8*DIGIT_BIT))
 
 /* will this lib work? */
+#if CHAR_BIT == 0
+   #error CHAR_BIT must be nonzero
+#endif
 #if (CHAR_BIT & 7)
    #error CHAR_BIT must be a multiple of eight.
 #endif
@@ -289,19 +303,68 @@
 
 /* return codes */
 #define FP_OKAY      0
-#define FP_VAL      -1
-#define FP_MEM      -2
-#define FP_NOT_INF	-3
-#define FP_WOULDBLOCK -4
+#define FP_VAL      (-1)
+#define FP_MEM      (-2)
+#define FP_NOT_INF  (-3)
+#define FP_WOULDBLOCK (-4)
 
 /* equalities */
-#define FP_LT        -1   /* less than */
+#define FP_LT        (-1)   /* less than */
 #define FP_EQ         0   /* equal to */
 #define FP_GT         1   /* greater than */
 
 /* replies */
 #define FP_YES        1   /* yes response */
 #define FP_NO         0   /* no response */
+
+
+#ifdef WOLFSSL_SMALL_STACK
+/*
+ * Dynamic memory allocation of mp_int.
+ */
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)                        \
+    mp_int* name = NULL
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)               \
+    mp_int* name = NULL
+/* Allocate an mp_int of minimal size and zero out. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type)             \
+do {                                                        \
+    name = (mp_int*)XMALLOC(sizeof(mp_int), heap, type);    \
+    if (name != NULL) {                                     \
+        XMEMSET(name, 0, sizeof(mp_int));                   \
+    }                                                       \
+}                                                           \
+while (0)
+/* Dispose of dynamically allocated mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type)      \
+    XFREE(name, heap, type)
+/* Must check for mp_int pointer for NULL. */
+#define MP_INT_SIZE_CHECK_NULL
+#else
+/*
+ * Static allocation of mp_int.
+ */
+/* Declare a statically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)            \
+    mp_int name[1]
+/* Declare a statically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)   \
+    mp_int name[1]
+/* Zero out mp_int of minimal size. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type) \
+    XMEMSET(name, 0, sizeof(mp_int))
+/* Dispose of static mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
+#endif
+
+/* Initialize an mp_int. */
+#define INIT_MP_INT_SIZE(name, bits) \
+    mp_init(name)
+/* Type to cast to when using size marcos. */
+#define MP_INT_SIZE     mp_int
+
 
 #ifdef HAVE_WOLF_BIGINT
     /* raw big integer */
@@ -415,20 +478,27 @@ typedef fp_int   mp_int;
 /* initialize [or zero] an fp int */
 void fp_init(fp_int *a);
 MP_API void fp_zero(fp_int *a);
-MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
+MP_API void fp_clear(fp_int *a);
+/* uses ForceZero to clear sensitive memory */
 MP_API void fp_forcezero (fp_int * a);
 MP_API void fp_free(fp_int* a);
 
 /* zero/one/even/odd/neg/word ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
 #define fp_isone(a) \
-    ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
-#define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
-#define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
-#define fp_isneg(a)  (((a)->sign != 0) ? FP_YES : FP_NO)
-#define fp_isword(a, w) \
-    ((((a)->used == 1) && ((a)->dp[0] == w)) || ((w == 0) && ((a)->used == 0)) \
+    ((((a)->used == 1) && ((a)->dp[0] == 1) && ((a)->sign == FP_ZPOS)) \
                                                                ? FP_YES : FP_NO)
+#define fp_iseven(a) \
+    (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
+#define fp_isodd(a)  \
+    (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
+#define fp_isneg(a)  (((a)->sign != FP_ZPOS) ? FP_YES : FP_NO)
+#define fp_setneg(a) ((a)->sign = FP_NEG)
+#define fp_isword(a, w) \
+    (((((a)->used == 1) && ((a)->dp[0] == (w))) || \
+                               (((w) == 0) && ((a)->used == 0))) ? FP_YES : FP_NO)
+/* Number of bits used based on used field only. */
+#define fp_bitsused(a)   ((a)->used * DIGIT_BIT)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
@@ -440,7 +510,7 @@ int fp_is_bit_set(fp_int *a, fp_digit b);
 int fp_set_bit (fp_int * a, fp_digit b);
 
 /* copy from a to b */
-void fp_copy(fp_int *a, fp_int *b);
+void fp_copy(const fp_int *a, fp_int *b);
 void fp_init_copy(fp_int *a, fp_int *b);
 
 /* clamp digits */
@@ -456,7 +526,7 @@ void fp_init_copy(fp_int *a, fp_int *b);
 void fp_rshd(fp_int *a, int x);
 
 /* right shift x bits */
-void fp_rshb(fp_int *a, int x);
+void fp_rshb(fp_int *c, int x);
 
 /* left shift x digits */
 int fp_lshd(fp_int *a, int x);
@@ -472,8 +542,8 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
 void fp_mod_2d(fp_int *a, int b, fp_int *c);
 int  fp_mul_2d(fp_int *a, int b, fp_int *c);
 void fp_2expt (fp_int *a, int b);
-int  fp_mul_2(fp_int *a, fp_int *c);
-void fp_div_2(fp_int *a, fp_int *c);
+int  fp_mul_2(fp_int *a, fp_int *b);
+void fp_div_2(fp_int *a, fp_int *b);
 /* c = a / 2 (mod b) - constant time (a < b and positive) */
 int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c);
 
@@ -553,7 +623,7 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp);
 /*int fp_lcm(fp_int *a, fp_int *b, fp_int *c);*/
 
 /* setups the montgomery reduction */
-int fp_montgomery_setup(fp_int *a, fp_digit *mp);
+int fp_montgomery_setup(fp_int *a, fp_digit *rho);
 
 /* computes a = B**n mod b without division or multiplication useful for
  * normalizing numbers in a Montgomery system.
@@ -565,9 +635,9 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
 
 /* d = a**b (mod c) */
-int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
-int fp_exptmod_ex(fp_int *a, fp_int *b, int minDigits, fp_int *c, fp_int *d);
-int fp_exptmod_nct(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+int fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
+int fp_exptmod_ex(fp_int *G, fp_int *X, int minDigits, fp_int *P, fp_int *Y);
+int fp_exptmod_nct(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
 
 #ifdef WC_RSA_NONBLOCK
 
@@ -643,18 +713,14 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y);
 /*int fp_prime_random_ex(fp_int *a, int t, int size, int flags, tfm_prime_callback cb, void *dat);*/
 
 /* radix conversions */
-int fp_count_bits(fp_int *a);
+int fp_count_bits(const fp_int *a);
 int fp_leading_bit(fp_int *a);
 
-int fp_unsigned_bin_size(fp_int *a);
+int fp_unsigned_bin_size(const fp_int *a);
 int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 int fp_to_unsigned_bin(fp_int *a, unsigned char *b);
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c);
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
-
-/*int fp_signed_bin_size(fp_int *a);*/
-/*void fp_read_signed_bin(fp_int *a, const unsigned char *b, int c);*/
-/*void fp_to_signed_bin(fp_int *a, unsigned char *b);*/
 
 /*int fp_read_radix(fp_int *a, char *str, int radix);*/
 /*int fp_toradix(fp_int *a, char *str, int radix);*/
@@ -664,7 +730,6 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
 /* VARIOUS LOW LEVEL STUFFS */
 int  s_fp_add(fp_int *a, fp_int *b, fp_int *c);
 void s_fp_sub(fp_int *a, fp_int *b, fp_int *c);
-void fp_reverse(unsigned char *s, int len);
 
 int  fp_mul_comba(fp_int *a, fp_int *b, fp_int *c);
 
@@ -724,7 +789,9 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define mp_isone(a)     fp_isone(a)
 #define mp_iseven(a)    fp_iseven(a)
 #define mp_isneg(a)     fp_isneg(a)
+#define mp_setneg(a)    fp_setneg(a)
 #define mp_isword(a, w) fp_isword(a, w)
+#define mp_bitsused(a)  fp_bitsused(a)
 
 #define MP_RADIX_BIN  2
 #define MP_RADIX_OCT  8
@@ -738,6 +805,7 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define mp_tohex(M, S)     mp_toradix((M), (S), MP_RADIX_HEX)
 
 MP_API int  mp_init (mp_int * a);
+MP_API int  mp_init_copy(fp_int * a, fp_int * b);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);
 MP_API void mp_forcezero (mp_int * a);
@@ -770,17 +838,18 @@ MP_API int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 MP_API int  mp_cmp(mp_int *a, mp_int *b);
 MP_API int  mp_cmp_d(mp_int *a, mp_digit b);
 
-MP_API int  mp_unsigned_bin_size(mp_int * a);
+MP_API int  mp_unsigned_bin_size(const mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
+#define mp_to_unsigned_bin_len_ct   mp_to_unsigned_bin_len
 MP_API int  mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c);
 
 MP_API int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
-MP_API int  mp_copy(fp_int* a, fp_int* b);
+MP_API int  mp_copy(const fp_int* a, fp_int* b);
 MP_API int  mp_isodd(mp_int* a);
 MP_API int  mp_iszero(mp_int* a);
-MP_API int  mp_count_bits(mp_int *a);
+MP_API int  mp_count_bits(const mp_int *a);
 MP_API int  mp_leading_bit(mp_int *a);
 MP_API int  mp_set_int(mp_int *a, unsigned long b);
 MP_API int  mp_is_bit_set (mp_int * a, mp_digit b);
@@ -793,10 +862,10 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 #ifdef WOLFSSL_DEBUG_MATH
     MP_API void mp_dump(const char* desc, mp_int* a, byte verbose);
 #else
-    #define mp_dump(desc, a, verbose)
+    #define mp_dump(desc, a, verbose) WC_DO_NOTHING
 #endif
 
-#if !defined(NO_DSA) || defined(HAVE_ECC)
+#if defined(OPENSSL_EXTRA) || !defined(NO_DSA) || defined(HAVE_ECC)
     MP_API int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 
@@ -808,7 +877,6 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);
     MP_API int mp_div_2(fp_int * a, fp_int * b);
     MP_API int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c);
-    MP_API int mp_init_copy(fp_int * a, fp_int * b);
 #endif
 
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA) || \
@@ -829,9 +897,11 @@ MP_API int  mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
 #ifdef WOLFSSL_KEY_GEN
 MP_API int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 MP_API int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
-MP_API int  mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
+MP_API int  mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap);
 MP_API int  mp_exch(mp_int *a, mp_int *b);
 #endif /* WOLFSSL_KEY_GEN */
+MP_API int  mp_cond_swap_ct_ex(mp_int* a, mp_int* b, int c, int m, mp_int* t);
+MP_API int  mp_cond_swap_ct(mp_int* a, mp_int* b, int c, int m);
 
 MP_API int  mp_cnt_lsb(fp_int *a);
 MP_API int  mp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
@@ -840,6 +910,11 @@ MP_API int  mp_lshd (mp_int * a, int b);
 MP_API int  mp_abs(mp_int* a, mp_int* b);
 
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+void mp_memzero_add(const char* name, mp_int* a);
+void mp_memzero_check(mp_int* a);
+#endif
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE
    must match, return 1 if a match otherwise 0 */

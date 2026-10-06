@@ -1,6 +1,6 @@
 /* wifi_connect.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,20 +27,27 @@
 #include "lwip/netdb.h"
 #include "lwip/apps/sntp.h"
 #include "nvs_flash.h"
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
-#include "protocol_examples_common.h"
+
+/* wolfSSL */
+#include <wolfssl/wolfcrypt/settings.h>
+#include <user_settings.h>
+#include <wolfssl/version.h>
+#ifndef WOLFSSL_ESPIDF
+    #warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
 #endif
 
-const static int CONNECTED_BIT = BIT0;
-static EventGroupHandle_t wifi_event_group;
+#if ESP_IDF_VERSION_MAJOR >= 4
+    #include "protocol_examples_common.h"
+#else
+    const static int CONNECTED_BIT = BIT0;
+    static EventGroupHandle_t wifi_event_group;
+#endif
+
 /* proto-type */
 extern void tls_smp_client_task();
 static void tls_smp_client_init();
 
 const static char *TAG = "tls_client";
-
-static EventGroupHandle_t wifi_event_group;
-extern void tls_smp_client_task();
 
 static void set_time()
 {
@@ -51,9 +58,10 @@ static void set_time()
     time_t now;
     struct tm timeinfo;
     char strftime_buf[64];
-    /* please update the time if seeing unknown failure. */
-    /* this could cause TLS communication failure due to time expiration */
-    utctime.tv_sec = 1567125910; /* dummy time: Fri Aug 30 09:45:00 2019 */
+    /* please update the time if seeing unknown failure when loading cert.   */
+    /* this could cause TLS communication failure due to time expiration     */
+    /* increasing 31536000 seconds is close to spanning 356 days.            */
+    utctime.tv_sec = 1695513105; /* dummy time: Sat Sep 23 17:05:31 PDT 2023 */
     utctime.tv_usec = 0;
     tz.tz_minuteswest = 0;
     tz.tz_dsttime = 0;
@@ -79,8 +87,12 @@ static void set_time()
 static void tls_smp_client_init(void)
 {
     int ret;
-    xTaskHandle _handle;
-    /* http://esp32.info/docs/esp_idf/html/dd/d3c/group__xTaskCreate.html */
+#if ESP_IDF_VERSION_MAJOR >= 4
+        TaskHandle_t _handle;
+#else
+        xTaskHandle _handle;
+#endif
+    /* see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html */
     ret = xTaskCreate(tls_smp_client_task,
                       TLS_SMP_CLIENT_TASK_NAME,
                       TLS_SMP_CLIENT_TASK_WORDS,
@@ -92,6 +104,7 @@ static void tls_smp_client_init(void)
         ESP_LOGI(TAG, "create thread %s failed", TLS_SMP_CLIENT_TASK_NAME);
     }
 }
+#if ESP_IDF_VERSION_MAJOR < 4
 /* event handler for wifi events */
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
@@ -101,9 +114,14 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         esp_wifi_connect();
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
+    #if ESP_IDF_VERSION_MAJOR >= 4
+        ESP_LOGI(TAG, "got ip:" IPSTR "\n",
+                 IP2STR(&event->event_info.got_ip.ip_info.ip));
+    #else
         ESP_LOGI(TAG, "got ip:%s",
                  ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-        /* http://esp32.info/docs/esp_idf/html/dd/d08/group__xEventGroupSetBits.html */
+    #endif
+        /* see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html */
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
@@ -115,19 +133,70 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     }
     return ESP_OK;
 }
+#endif
 /* entry point */
 void app_main(void)
 {
     ESP_LOGI(TAG, "Start app_main...");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "CONFIG_IDF_TARGET = %s", CONFIG_IDF_TARGET);
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_STRING = %s", LIBWOLFSSL_VERSION_STRING);
+
+#if defined(WOLFSSL_MULTI_INSTALL_WARNING)
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "WARNING: Multiple wolfSSL installs found.");
+    ESP_LOGI(TAG, "Check ESP-IDF and local project [components] directory.");
+    ESP_LOGI(TAG, "");
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_HASH)
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH = %s", LIBWOLFSSL_VERSION_GIT_HASH);
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_SHORT_HASH )
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_SHORT_HASH = %s", LIBWOLFSSL_VERSION_GIT_SHORT_HASH);
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_HASH_DATE)
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH_DATE = %s", LIBWOLFSSL_VERSION_GIT_HASH_DATE);
+#endif
+
+
+    /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* not available for C3 at this time */
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#else
+    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+            );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#endif
+
+    /* all platforms: stack high water mark check */
+    ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+
+
     ESP_ERROR_CHECK(nvs_flash_init());
 
     ESP_LOGI(TAG, "Initialize wifi");
-    /* TCP/IP adapter initialization */
+#if (ESP_IDF_VERSION_MAJOR == 4 && ESP_IDF_VERSION_MINOR >= 1) || \
+    (ESP_IDF_VERSION_MAJOR >= 5)
+    esp_netif_init();
+#else
     tcpip_adapter_init();
+#endif
 
     /* */
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
-    (void) wifi_event_handler;
+#if ESP_IDF_VERSION_MAJOR >= 4
    ESP_ERROR_CHECK(esp_event_loop_create_default());
    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
    * Read "Establishing Wi-Fi or Ethernet Connection" section in
@@ -148,7 +217,7 @@ void app_main(void)
     };
     /* WiFi station mode */
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    /* Wifi Set the configuration of the ESP32 STA or AP */ 
+    /* Wifi Set the configuration of the ESP32 STA or AP */
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     /* Start Wifi */
     ESP_ERROR_CHECK(esp_wifi_start() );

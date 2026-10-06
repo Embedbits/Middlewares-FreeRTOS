@@ -39,13 +39,17 @@ The STARTTLS option allows the sniffer to receive and ignore plaintext before re
 
 `./configure --enable-sniffer CPPFLAGS=-DSTARTTLS_ALLOWED`
 
+The SSL Keylog file option enables the sniffer to decrypt TLS traffic using the master secret obtained from a [NSS keylog file](https://web.archive.org/web/20220531072242/https://firefox-source-docs.mozilla.org/security/nss/legacy/key_log_format/index.html). This allows the sniffer to decrypt all TLS traffic, even for TLS connections using ephemeral cipher suites. Keylog file sniffing is supported for TLS versions 1.2 and 1.3. WolfSSL can be configured to export a keylog file using the `--enable-keylog-export` configure option, independently from the sniffer feature (NOTE: never do this in a production environment, as it is inherently insecure). To enable sniffer support for keylog files, use the following configure command line and build as before:
+
+`./configure --enable-sniffer CPPFLAGS=-DWOLFSSL_SNIFFER_KEYLOGFILE`
+
 All options may be enabled with the following configure command line:
 
 ```sh
 ./configure --enable-sniffer \
-    CPPFLAGS=”-DWOLFSSL_SNIFFER_STATS -DWOLFSSL_SNIFFER_WATCH \
+    CPPFLAGS="-DWOLFSSL_SNIFFER_STATS -DWOLFSSL_SNIFFER_WATCH \
     -DWOLFSSL_SNIFFER_STORE_DATA_CB -DWOLFSSL_SNIFFER_CHAIN_INPUT \
-    -DSTARTTLS_ALLOWED”
+    -DSTARTTLS_ALLOWED -DWOLFSSL_SNIFFER_KEYLOGFILE"
 ```
 
 To add some other cipher support to the sniffer, you can add options like:
@@ -88,7 +92,11 @@ To build with OCTEON III support for a Linux host:
 
 ## Command Line Options
 
-The wolfSSL sniffer includes a test application `snifftest` in the `sslSniffer/sslSnifferTest/ directory`. The command line application has several options that can be passed in at runtime to change the default behavior of the application. To execute a “live” sniff just run the application without any parameters and then pick an interface to sniff on followed by the port.
+The wolfSSL sniffer includes a test application `snifftest` in the `sslSniffer/sslSnifferTest/` directory. The command line application has two sniffing modes: "live" mode and "offline" mode. In "live" mode, the application will prompt the user for network information and other parameters and then actively sniff real network traffic on an interface. In "offline" mode, the user provides the application with a pcap file and other network information via command line arguments, and the sniffer
+will then decrypt the relevant TLS traffic captured in the pcap file.
+
+### Live Sniff Mode
+To execute a “live” sniff just run the application without any parameters and then pick an interface to sniff on followed by the port.
 
 An example startup may look like this:
 
@@ -116,36 +124,49 @@ The above example sniffs on the localhost interface (lo0) with the default wolfS
 
 Trace output will be written to a file named `tracefile.txt`.
 
-To decode a previously saved pcap file you will need to enter a few parameters.
+### Offline Sniff Mode
 
-The following table lists the accepted inputs in saved file mode.
+Offline mode allows traffic to be decoded from a previously saved pcap file. To run the sniffer in offline mode, you will need to provide the application with some command line arguments, some of which are mandatory and some of which are optional
+
+The following table lists the accepted inputs in offline mode.
 
 Synopsis:
 
-`snifftest  dumpFile pemKey [server] [port] [password]`
+`snifftest -pcap pcap_arg -key key_arg [-password password_arg] [-server server_arg] [-port port_arg] [-keylogfile keylogfile_arg] [-threads threads_arg]`
 
 `snifftest` Options Summary:
 
 ```
-Option      Description                                 Default Value
-dumpFile    A previously saved pcap file                NA
-pemKey      The server’s private key in PEM format      NA
-server      The server’s IP address (v4 or v6)          127.0.0.1
-port        The server port to sniff                    443
-password    Private Key Password if required            NA
+Option           Description                                 Default Value   Mandatory
+pcap_arg         A previously saved pcap file                NA              Y
+key_arg          The server’s private key in PEM format      NA              Y
+password_arg     Private Key Password if required            NA              N
+server_arg       The server’s IP address (v4 or v6)          127.0.0.1       N
+port_arg         The server port to sniff                    443             N
+threads          The number of threads to run with           5               N
+keylogfile_arg   Keylog file containing decryption secrets   NA              N
 ```
 
 To decode a pcap file named test.pcap with a server key file called myKey.pem that was generated on the localhost with a server at port 443 just use:
 
-`./snifftest test.pcap myKey.pem`
+`./snifftest -pcap test.pcap -key myKey.pem`
 
 If the server was on 10.0.1.2 and on port 12345 you could instead use:
 
-`./snifftest test.pcap myKey.pem 10.0.1.2 12345`
+`./snifftest -pcap test.pcap -key myKey.pem -server 10.0.1.2 -port 12345`
 
 If the server was on localhost using IPv6 and on port 12345 you could instead use:
 
-`./snifftest test.pcap myKey.pem ::1 12345`
+`./snifftest -pcap test.pcap -key myKey.pem -server ::1 -port 12345`
+
+If you wanted to use 15 threads to decode `test.pcap` and your key does not require a password, you could use a dummy password and run:
+
+`./snifftest -pcap test.pcap -key myKey.pem -server 10.0.1.2 -port 12345 -password pass -threads 15`
+
+If the server exported its secrets in a [NSS keylog file](https://web.archive.org/web/20220531072242/https://firefox-source-docs.mozilla.org/security/nss/legacy/key_log_format/index.html)
+named "sslkeylog.log", you could decrypt the traffic using:
+
+`./snifftest -pcap test.pcap -key myKey.pem -server 10.0.1.2 -port 12345 -keylogfile /path/to/sslkeylog.log`
 
 
 ## API Usage
@@ -160,7 +181,7 @@ Use the include `#include <wolfssl/sniffer.h>`.
 void ssl_InitSniffer(void);
 ```
 
-Initializes the wolfSSL sniffer for use and should be called once per application.  
+Initializes the wolfSSL sniffer for use and should be called once per application.
 
 ### ssl_FreeSniffer
 
@@ -281,8 +302,8 @@ Return Values:
 ### ssl_SetEphemeralKey
 
 ```c
-int ssl_SetEphemeralKey(const char* address, int port, 
-                        const char* keyFile, int typeKey, 
+int ssl_SetEphemeralKey(const char* address, int port,
+                        const char* keyFile, int typeKey,
                         const char* password, char* error)
 ```
 Creates a sniffer session based on the `serverAddress` and `port` inputs using ECC or DH static ephemeral key.
@@ -295,6 +316,35 @@ Return Values:
 
 * 0 on success
 * -1 if a problem occurred, the string error will hold a message describing the problem
+
+### ssl_LoadSecretsFromKeyLogFile
+
+```c
+int ssl_LoadSecretsFromKeyLogFile(const char* keylogfile, char* error)
+```
+
+Loads secrets to decrypt TLS traffic from a keylog file. Only sniffer servers registered with `ssl_createKeyLogSnifferServer()` will be able to decrypt using these secrets
+
+This function requires that sniffer keylog file support (`WOLFSSL_SNIFFER_KEYLOGFILE`) is enabled in the build. Keylog file sniffing is supported for TLS versions 1.2 and 1.3.
+
+Return Values:
+* 0 on success
+* -1 if a problem occurred, the string error will hold a message describing the problem
+
+### ssl_CreateKeyLogSnifferServer
+
+```c
+int ssl_CreateKeyLogSnifferServer(const char* address, int port, char* error)
+```
+
+Creates a sniffer session based on `serverAddress` and `port`, and uses secrets obtained from a keylog file to decrypt traffic. Keylog files should be loaded using `ssl_LoadSecretsFromKeyLogFile()`.
+
+This function requires that sniffer keylog file support (`WOLFSSL_SNIFFER_KEYLOGFILE`) is enabled in the build. Keylog file sniffing is supported for TLS versions 1.2 and 1.3.
+
+Return Values:
+* 0 on success
+* -1 if a problem occurred, the string error will hold a message describing the problem
+
 
 ### ssl_DecodePacket
 
@@ -369,6 +419,32 @@ Return Values:
 * -1 if a problem occurred
 
 
+### ssl_SetKeyCallback
+
+This feature is enabled by default and will be called when a key is required for a session using static ephemeral keys with TLS v1.3.
+
+The public key being used will be provided allowing lookup of the corresponding private key.
+
+The `privKey` buffer is a dynamic buffer assigned via a call to setup a static ephemeral key via `ssl_SetNamedEphemeralKey` or `ssl_SetEphemeralKey`.
+
+```c
+typedef int (*SSLKeyCb)(void* vSniffer, int namedGroup,
+    const unsigned char* srvPub, unsigned int srvPubSz,
+    const unsigned char* cliPub, unsigned int cliPubSz,
+    unsigned char* privKey, unsigned int* privKeySz,
+    void* ctx, char* error);
+
+int ssl_SetKeyCallback(SSLKeyCb cb, void* ctx, char* error);
+```
+
+The parameter `vSniffer` is a typeless pointer to the current sniffer session (`SnifferSession`). The `namedGroup` is the TLS defined named groups like `WOLFSSL_ECC_SECP256R1` or `WOLFSSL_FFDHE_2048`. The server and client public key information are provided to lookup the private key to be used for this session. The loaded private key to be used will be passed in `key`. If a different key should be used it can optionally be returned in `privKey` and `privKeySz`.
+
+Return Values:
+
+* 0 on success
+* -1 if a problem occurred, the string error will hold a message describing the problem
+
+
 ## API Usage: SSL Statistics options
 
 For an example on the use of the sniffer stats option, search the source `snifftest.c` for `WOLFSSL_SNIFFER_STATS`.
@@ -378,25 +454,23 @@ See the header file `sniffer.h` for the structure `SSLStats` for the list of sta
 ```c
 typedef struct SSLStats
 {
-    unsigned long int sslStandardConns;
-    unsigned long int sslClientAuthConns;
-    unsigned long int sslResumedConns;
-    unsigned long int sslEphemeralMisses;
-    unsigned long int sslResumeMisses;
-    unsigned long int sslCiphersUnsupported;
-    unsigned long int sslKeysUnmatched;
-    unsigned long int sslKeyFails;
-    unsigned long int sslDecodeFails;
-    unsigned long int sslAlerts;
-    unsigned long int sslDecryptedBytes;
-    unsigned long int sslEncryptedBytes;
-    unsigned long int sslEncryptedPackets;
-    unsigned long int sslDecryptedPackets;
-    unsigned long int sslKeyMatches;
-    unsigned long int sslEncryptedConns;
-
-    unsigned long int sslResumptionValid;
-    unsigned long int sslResumptionInserts;
+    unsigned long int sslStandardConns;      /* server_hello count not including resumed sessions */
+    unsigned long int sslClientAuthConns;    /* client's who have presented certificates (mutual authentication) */
+    unsigned long int sslResumedConns;       /* resumed connections */
+    unsigned long int sslEphemeralMisses;    /* TLS v1.2 and older PFS / ephemeral connections missed (not able to decrypt) */
+    unsigned long int sslResumeMisses;       /* Resumption sessions not found */
+    unsigned long int sslCiphersUnsupported; /* No cipher suite match found when compared to supported */
+    unsigned long int sslKeysUnmatched;      /* Key callback failures (not found). Applies to WOLFSSL_SNIFFER_WATCH only */
+    unsigned long int sslKeyFails;           /* Failures loading or using keys */
+    unsigned long int sslDecodeFails;        /* Dropped packets (not application_data or match protocol version) */
+    unsigned long int sslAlerts;             /* Number of decoded alert messages */
+    unsigned long int sslDecryptedBytes;     /* Number of decrypted bytes */
+    unsigned long int sslEncryptedBytes;     /* Number of encrypted bytes */
+    unsigned long int sslEncryptedPackets;   /* Number of encrypted packets */
+    unsigned long int sslDecryptedPackets;   /* Number of decrypted packets */
+    unsigned long int sslKeyMatches;         /* Key callback successes (failures tracked in sslKeysUnmatched). Applies to WOLFSSL_SNIFFER_WATCH only. */
+    unsigned long int sslEncryptedConns;     /* Number of created sniffer sessions */
+    unsigned long int sslResumptionInserts;  /* Number of sessions reused with resumption */
 } SSLStats;
 ```
 
@@ -460,7 +534,7 @@ typedef int (*SSLWatchCb)(void* vSniffer,
     void* ctx, char* error);
 ```
 
-The parameter `vSniffer` is a typeless pointer to the current sniffer session and is meant to be passed directly to the function `ssl_SetWatchKey`. `certHash` is a SHA-256 hash of the certificate sent by the server, and its size is `certHashSz`. A pointer to certificate message’s payload is provided in the parameter `certChain`, and the certificate chain’s size in `certChainSz`. This will be a list of pairs of 24-bit certificate sizes and raw DER certificates in network order from the wire. The application space callback context data is provided in parameter ctx and is set by the function `ssl_SetWatchKeyCtx`. Any error string is copied into parameter error. Your callback function can use these values to locate the appropriate private key and load it into the sniffer session with the function `ssl_SetWatchKey`.
+The parameter `vSniffer` is a typeless pointer to the current sniffer session and is meant to be passed directly to the function `ssl_SetWatchKey_file` or `ssl_SetWatchKey_buffer`. The `certHash` is a SHA-256 hash of the certificate sent by the server, and its size is `certHashSz`. A pointer to certificate message’s payload is provided in the parameter `certChain`, and the certificate chain’s size in `certChainSz`. This will be a list of pairs of 24-bit certificate sizes and raw DER certificates in network order from the wire. The application space callback context data is provided in parameter ctx and is set by the function `ssl_SetWatchKeyCtx`. Any error string is copied into parameter error. Your callback function can use these values to locate the appropriate private key and load it into the sniffer session with the function `ssl_SetWatchKey_file` or `ssl_SetWatchKey_buffer`.
 
 Return Values:
 
@@ -497,7 +571,7 @@ Return Values:
 ### ssl_SetWatchKey_buffer
 
 ```c
-int ssl_SetWatchKey_buffer(void* vSniffer, const unsigned char* key, 
+int ssl_SetWatchKey_buffer(void* vSniffer, const unsigned char* key,
     unsigned int keySz, int keyType, char* error);
 ```
 
@@ -605,7 +679,7 @@ Remember to always start the sniffing application before the server.  This is im
 
 ### Cipher Suite Limitations
 
-As a passive sniffer the wolfSSL sniffer will not be able to decode any SSL session that uses DHE (Ephemeral Diffie-Hellman) because it will not have access to the temporary key that the server generates.  You may need to disable DHE cipher suites on the server and/or client to prevent these cipher suites from being used.
+As a passive sniffer the wolfSSL sniffer will not be able to decode any SSL session that uses DHE (Ephemeral Diffie-Hellman) because it will not have access to the temporary key that the server generates. You may need to disable DHE cipher suites on the server and/or client to prevent these cipher suites from being used. The notable exception to this is if the sniffer session uses the keylog file feature, in which case any session using TLS 1.2 or 1.3 can be decoded.
 
 ### Thread Safety
 

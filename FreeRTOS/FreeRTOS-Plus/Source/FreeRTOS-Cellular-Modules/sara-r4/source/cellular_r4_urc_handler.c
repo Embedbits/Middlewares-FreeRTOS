@@ -82,8 +82,6 @@ static void _Cellular_UrcProcessCreg( CellularContext_t * pContext,
 /*-----------------------------------------------------------*/
 
 /* Try to Keep this map in Alphabetical order. */
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 CellularAtParseTokenMap_t CellularUrcHandlerTable[] =
 {
     { "CEREG",  _Cellular_UrcProcessCereg  },
@@ -98,15 +96,12 @@ CellularAtParseTokenMap_t CellularUrcHandlerTable[] =
     { "UUSORD", _cellular_UrcProcessUusord } /* Socket receive URC. */
 };
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 uint32_t CellularUrcHandlerTableSize = sizeof( CellularUrcHandlerTable ) / sizeof( CellularAtParseTokenMap_t );
 
 /*-----------------------------------------------------------*/
 
 /* Parse PS ACT/DEACT from +CIEV URC indication. */
 /* This URC does not tell which context ID number is ACT/DEACT. */
-
 static CellularPktStatus_t _parseUrcIndicationCall( const CellularContext_t * pContext,
                                                     char * pUrcStr )
 {
@@ -169,7 +164,7 @@ static CellularPktStatus_t _parseUrcIndicationCsq( CellularContext_t * pContext,
     CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
     int32_t retStrtoi = 0;
-    int16_t csqBarLevel = CELLULAR_INVALID_SIGNAL_BAR_VALUE;
+    uint8_t csqBarLevel = CELLULAR_INVALID_SIGNAL_BAR_VALUE;
     CellularSignalInfo_t signalInfo = { 0 };
 
     if( ( pContext == NULL ) || ( pUrcStr == NULL ) )
@@ -184,7 +179,15 @@ static CellularPktStatus_t _parseUrcIndicationCsq( CellularContext_t * pContext,
 
     if( atCoreStatus == CELLULAR_AT_SUCCESS )
     {
-        if( ( retStrtoi >= INT16_MIN ) && ( retStrtoi <= ( int32_t ) INT16_MAX ) )
+        /* Possible value is 0 to 5.
+         *  o 0: < -105 dBm
+         *  o 1 : < -93 dBm
+         *  o 2 : < -81 dBm
+         *  o 3 : < -69 dBm
+         *  o 4 : < -57 dBm
+         *  o 5 : >= -57 dBm
+         */
+        if( ( retStrtoi >= 0 ) && ( retStrtoi <= 5 ) )
         {
             csqBarLevel = retStrtoi;
         }
@@ -264,22 +267,15 @@ static void _cellular_UrcProcessCiev( CellularContext_t * pContext,
                     {
                         case CIEV_POS_SIGNAL:
                             LogDebug( ( "_cellular_UrcProcessCiev: CIEV_POS_SIGNAL" ) );
-                            /* This URC only gives bar level and not the exact RSSI value. */
 
-                            /*
-                             *  o 0: < -105 dBm
-                             *  o 1 : < -93 dBm
-                             *  o 2 : < -81 dBm
-                             *  o 3 : < -69 dBm
-                             *  o 4 : < -57 dBm
-                             *  o 5 : >= -57 dBm
-                             */
-                            /* Parse the signal Bar level from string. */
+                            /* Parse the signal Bar level from string. This URC only
+                             * gives bar level and not the exact RSSI value. */
                             pktStatus = _parseUrcIndicationCsq( pContext, pUrcStr );
                             break;
 
                         case CIEV_POS_CALL:
                             LogDebug( ( "_cellular_UrcProcessCiev: CIEV_POS_CALL" ) );
+
                             /* Parse PS ACT/DEACT from +CIEV URC indication. */
                             /* This URC does not tell which context ID number is ACT/DEACT. */
                             pktStatus = _parseUrcIndicationCall( ( const CellularContext_t * ) pContext, pUrcStr );

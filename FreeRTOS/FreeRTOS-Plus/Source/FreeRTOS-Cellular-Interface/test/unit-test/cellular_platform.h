@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -67,6 +69,7 @@
 #define pdFALSE                              ( 0x0 )
 #define pdTRUE                               ( 0x1 )
 #define pdPASS                               ( 0x1 )
+#define pdFAIL                               ( 0x0 )
 
 #define PlatformTickType                     uint32_t
 

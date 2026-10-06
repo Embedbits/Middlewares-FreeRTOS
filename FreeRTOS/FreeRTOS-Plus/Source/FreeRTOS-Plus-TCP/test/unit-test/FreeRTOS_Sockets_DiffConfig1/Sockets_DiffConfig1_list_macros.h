@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -77,11 +77,5 @@ void * listGET_LIST_ITEM_OWNER( const ListItem_t * listItem );
 
 #undef listLIST_IS_INITIALISED
 BaseType_t listLIST_IS_INITIALISED( List_t * pxList );
-
-/*
- * Returns pdTRUE if the IP task has been created and is initialised.  Otherwise
- * returns pdFALSE.
- */
-BaseType_t xIPIsNetworkTaskReady( void );
 
 #endif /* ifndef LIST_MACRO_H */

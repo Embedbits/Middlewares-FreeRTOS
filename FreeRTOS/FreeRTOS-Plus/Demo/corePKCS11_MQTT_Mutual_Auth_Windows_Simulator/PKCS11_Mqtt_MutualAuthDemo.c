@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -130,8 +130,9 @@
 
 /**
  * @brief Timeout for MQTT_ProcessLoop in milliseconds.
+ * Refer to FreeRTOS-Plus/Demo/coreMQTT_Windows_Simulator/readme.txt for more details.
  */
-#define mqttexamplePROCESS_LOOP_TIMEOUT_MS                ( 500U )
+#define mqttexamplePROCESS_LOOP_TIMEOUT_MS                ( 2000U )
 
 /**
  * @brief Keep alive time reported to the broker while establishing
@@ -161,14 +162,18 @@
 /**
  * @brief The length of the outgoing publish records array used by the coreMQTT
  * library to track QoS > 0 packet ACKS for outgoing publishes.
+ * Number of publishes = ulMaxPublishCount * Number of topic subscribed
+ * Update in ulMaxPublishCount needs updating mqttexampleOUTGOING_PUBLISH_RECORD_LEN.
  */
-#define mqttexampleOUTGOING_PUBLISH_RECORD_LEN            ( 10U )
+#define mqttexampleOUTGOING_PUBLISH_RECORD_LEN            ( 15U )
 
 /**
  * @brief The length of the incoming publish records array used by the coreMQTT
  * library to track QoS > 0 packet ACKS for incoming publishes.
+ * Number of publishes = ulMaxPublishCount * Number of topic subscribed
+ * Update in ulMaxPublishCount needs updating mqttexampleINCOMING_PUBLISH_RECORD_LEN.
  */
-#define mqttexampleINCOMING_PUBLISH_RECORD_LEN            ( 10U )
+#define mqttexampleINCOMING_PUBLISH_RECORD_LEN            ( 15U )
 
 /**
  * @brief Milliseconds per second.
@@ -299,6 +304,10 @@ static MQTTStatus_t prvProcessLoopWithTimeout( MQTTContext_t * pMqttContext,
 
 /*-----------------------------------------------------------*/
 
+extern BaseType_t xPlatformIsNetworkUp( void );
+
+/*-----------------------------------------------------------*/
+
 /* @brief Static buffer used to hold MQTT messages being sent and received. */
 static uint8_t ucSharedBuffer[ democonfigNETWORK_BUFFER_SIZE ];
 
@@ -411,7 +420,18 @@ static void prvMQTTDemoTask( void * pvParameters )
     for( ; ; )
     {
         LogInfo( ( "---------STARTING DEMO---------\r\n" ) );
+
         /****************************** Connect. ******************************/
+        /* Wait for Networking */
+        if( xPlatformIsNetworkUp() == pdFALSE )
+        {
+            LogInfo( ( "Waiting for the network link up event..." ) );
+
+            while( xPlatformIsNetworkUp() == pdFALSE )
+            {
+                vTaskDelay( pdMS_TO_TICKS( 1000U ) );
+            }
+        }
 
         /* Establish a TLS connection with the MQTT broker. This example connects
          * to the MQTT broker as specified by democonfigMQTT_BROKER_ENDPOINT and

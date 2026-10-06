@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -476,7 +476,7 @@ static JSONStatus_t prvParseCredentials( HTTPResponse_t * pxResponse,
  * @return pdPASS on success, pdFAIL on failure.
  */
 static BaseType_t prvGetTemporaryCredentials( TransportInterface_t * pxTransportInterface,
-                                              const char * pcDateISO8601,
+                                              char * pcDateISO8601,
                                               size_t xDateISO8601Len,
                                               HTTPResponse_t * pxResponse,
                                               SigV4Credentials_t * pxSigvCreds );
@@ -579,6 +579,10 @@ void vStartSimpleHTTPDemo( void )
                  tskIDLE_PRIORITY,         /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
                  NULL );                   /* Used to pass out a handle to the created task - not used in this case. */
 }
+
+/*-----------------------------------------------------------*/
+
+extern BaseType_t xPlatformIsNetworkUp( void );
 
 /*-----------------------------------------------------------*/
 
@@ -1177,7 +1181,7 @@ static BaseType_t prvDownloadS3ObjectFile( const TransportInterface_t * pxTransp
 }
 
 static BaseType_t prvGetTemporaryCredentials( TransportInterface_t * pxTransportInterface,
-                                              const char * pcDateISO8601,
+                                              char * pcDateISO8601,
                                               size_t xDateISO8601Len,
                                               HTTPResponse_t * pxResponse,
                                               SigV4Credentials_t * pxSigvCreds )
@@ -1492,7 +1496,7 @@ static void prvSha256Encode( const char * pcInputStr,
         mbedtls_sha256( pcInputStr, xInputStrLen, ucSha256, 0 );
     #endif
 
-    for(size_t i = 0; i < SHA256_HASH_DIGEST_LENGTH; i++ )
+    for( size_t i = 0; i < SHA256_HASH_DIGEST_LENGTH; i++ )
     {
         *pcOutputChar = cHexChars[ ( ucSha256[ i ] & 0xF0 ) >> 4 ];
         pcOutputChar++;

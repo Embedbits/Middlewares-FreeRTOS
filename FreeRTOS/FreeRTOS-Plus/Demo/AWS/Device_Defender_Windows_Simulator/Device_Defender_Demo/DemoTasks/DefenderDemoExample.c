@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -216,6 +216,10 @@ static char pcDeviceMetricsJsonReport[ democonfigDEVICE_METRICS_REPORT_BUFFER_SI
  * @brief Report ID sent in the defender report.
  */
 static uint32_t ulReportId = 0UL;
+
+/*-----------------------------------------------------------*/
+
+extern BaseType_t xPlatformIsNetworkUp( void );
 
 /*-----------------------------------------------------------*/
 

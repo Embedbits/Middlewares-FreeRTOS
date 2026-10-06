@@ -1,5 +1,17 @@
 # Changelog for coreSNTP Library
 
+## v1.3.1 (June 2024)
+
+### Changes
+ - Fix doxygen deployment on Github.
+
+## v1.3.0 (May 2024)
+
+### Changes
+ - [#85](https://github.com/FreeRTOS/coreSNTP/pull/85) Fix MISRA C 2012 deviations.
+ - [#83](https://github.com/FreeRTOS/coreSNTP/pull/83) Include all SntpStatus_t values in Sntp_StatusToStr.
+ - [#81](https://github.com/FreeRTOS/coreSNTP/pull/81) Logging Print Formatter Fix.
+
 ## v1.2.0 (October 2022)
 
 ### Changes

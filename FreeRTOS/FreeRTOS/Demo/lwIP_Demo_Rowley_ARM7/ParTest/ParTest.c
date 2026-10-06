@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -41,7 +41,7 @@
 const unsigned long ulLED_MASK[ NB_LED ]= { LED1, LED2, LED3, LED4 };
 
 void vParTestInitialise( void )
-{
+{	
 	/* Start with all LED's off. */
     AT91C_BASE_PIOB->PIO_SODR = LED_MASK;
 }

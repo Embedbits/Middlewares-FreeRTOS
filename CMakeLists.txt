@@ -92,12 +92,13 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/FreeRTOS/FreeRTOS/Source freertos-ker
 # CMakeLists.txt and add_library() yourself.
 
 # FreeRTOS/FreeRTOS-Plus/Source/AWS/ota ships no CMakeLists.txt of its own,
-# only otaDependenyFilePaths.cmake - include it from your own
+# only otaDependencyFilePaths.cmake - include it from your own
 # CMakeLists.txt and add_library() yourself.
 
-# FreeRTOS/FreeRTOS-Plus/Source/AWS/sigv4 ships no CMakeLists.txt of its own,
-# only sigv4FilePaths.cmake - include it from your own
-# CMakeLists.txt and add_library() yourself.
+option(FREERTOS_ENABLE_SIGV4 "Enable FreeRTOS/FreeRTOS-Plus/Source/AWS/sigv4" OFF)
+if(FREERTOS_ENABLE_SIGV4)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/FreeRTOS/FreeRTOS-Plus/Source/AWS/sigv4 freertos-plus-sigv4)
+endif()
 
 # FreeRTOS/FreeRTOS-Plus/Source/Application-Protocols/coreHTTP ships no CMakeLists.txt of its own,
 # only httpFilePaths.cmake - include it from your own
@@ -114,6 +115,22 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/FreeRTOS/FreeRTOS/Source freertos-ker
 # FreeRTOS/FreeRTOS-Plus/Source/Application-Protocols/coreSNTP ships no CMakeLists.txt of its own,
 # only coreSntpFilePaths.cmake - include it from your own
 # CMakeLists.txt and add_library() yourself.
+
+option(FREERTOS_ENABLE_FREERTOS_PLUS_TCP "Enable FreeRTOS/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP" OFF)
+if(FREERTOS_ENABLE_FREERTOS_PLUS_TCP)
+    if(NOT FREERTOS_PLUS_TCP_NETWORK_IF)
+        message(FATAL_ERROR "FreeRTOS-Plus-TCP: set FREERTOS_PLUS_TCP_NETWORK_IF (e.g. STM32FXX, STM32HXX, POSIX, WIN_PCAP - full list in FreeRTOS-Plus-TCP/CMakeLists.txt) in ${FREERTOS_CONFIG_CMAKE} before enabling FREERTOS_ENABLE_FREERTOS_PLUS_TCP. This wrapper adds FreeRTOS-Plus-TCP/source (+ tools) directly instead of its top-level CMakeLists.txt (which builds its tests and fetches its own kernel copy), so upstream's defaulting/validation of this variable never runs.")
+    endif()
+    # FreeRTOS-Plus-TCP/source/portable's CMakeLists.txt requires this to
+    # already be set - normally defaulted to "2" by the top-level
+    # CMakeLists.txt bypassed above.
+    if(NOT FREERTOS_PLUS_TCP_BUFFER_ALLOCATION)
+        set(FREERTOS_PLUS_TCP_BUFFER_ALLOCATION "2")
+    endif()
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/FreeRTOS/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/cmake_modules")
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/FreeRTOS/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/source freertos-plus-freertos_plus_tcp_source)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/FreeRTOS/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/tools freertos-plus-freertos_plus_tcp_tools)
+endif()
 
 # FreeRTOS/FreeRTOS-Plus/Source/Utilities/backoff_algorithm ships no CMakeLists.txt of its own,
 # only backoffAlgorithmFilePaths.cmake - include it from your own

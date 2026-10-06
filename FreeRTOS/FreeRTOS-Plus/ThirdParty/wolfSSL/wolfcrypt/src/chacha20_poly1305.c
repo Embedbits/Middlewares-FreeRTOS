@@ -1,6 +1,6 @@
 /* chacha.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -47,6 +47,7 @@ or Authenticated Encryption with Additional Data (AEAD) algorithm.
 #endif
 
 #define CHACHA20_POLY1305_AEAD_INITIAL_COUNTER  0
+WOLFSSL_ABI
 int wc_ChaCha20Poly1305_Encrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
@@ -60,7 +61,7 @@ int wc_ChaCha20Poly1305_Encrypt(
 
     /* Validate function arguments */
     if (!inKey || !inIV ||
-        !inPlaintext || !inPlaintextLen ||
+        (inPlaintextLen > 0 && inPlaintext == NULL) ||
         !outCiphertext ||
         !outAuthTag)
     {
@@ -79,6 +80,7 @@ int wc_ChaCha20Poly1305_Encrypt(
     return ret;
 }
 
+WOLFSSL_ABI
 int wc_ChaCha20Poly1305_Decrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
@@ -93,7 +95,7 @@ int wc_ChaCha20Poly1305_Decrypt(
 
     /* Validate function arguments */
     if (!inKey || !inIV ||
-        !inCiphertext || !inCiphertextLen ||
+        (inCiphertextLen > 0 && inCiphertext == NULL) ||
         !inAuthTag ||
         !outPlaintext)
     {
@@ -147,7 +149,7 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     /* setup aead context */
     XMEMSET(aead, 0, sizeof(ChaChaPoly_Aead));
     XMEMSET(authKey, 0, sizeof(authKey));
-    aead->isEncrypt = (byte)isEncrypt;
+    aead->isEncrypt = isEncrypt ? 1 : 0;
 
     /* Initialize the ChaCha20 context (key and iv) */
     ret = wc_Chacha_SetKey(&aead->chacha, inKey,
@@ -292,5 +294,185 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
 
     return ret;
 }
+
+#ifdef HAVE_XCHACHA
+
+int wc_XChaCha20Poly1305_Init(
+    ChaChaPoly_Aead *aead,
+    const byte *ad, word32 ad_len,
+    const byte *nonce, word32 nonce_len,
+    const byte *key, word32 key_len,
+    int isEncrypt)
+{
+    byte authKey[CHACHA20_POLY1305_AEAD_KEYSIZE];
+    int ret;
+
+    if ((ad == NULL) || (nonce == NULL) || (key == NULL))
+        return BAD_FUNC_ARG;
+
+    if ((key_len != CHACHA20_POLY1305_AEAD_KEYSIZE) ||
+        (nonce_len != XCHACHA20_POLY1305_AEAD_NONCE_SIZE))
+        return BAD_FUNC_ARG;
+
+    if ((ret = wc_XChacha_SetKey(&aead->chacha,
+                                 key, key_len,
+                                 nonce, nonce_len,
+                                 0 /* counter */)) < 0)
+        return ret;
+
+    XMEMSET(authKey, 0, sizeof authKey);
+
+    /* Create the Poly1305 key */
+    if ((ret = wc_Chacha_Process(&aead->chacha, authKey, authKey,
+                                 (word32)sizeof authKey)) < 0)
+        return ret;
+    /* advance to start of the next ChaCha block. */
+    wc_Chacha_purge_current_block(&aead->chacha);
+
+    /* Initialize Poly1305 context */
+    if ((ret = wc_Poly1305SetKey(&aead->poly, authKey,
+                                 (word32)sizeof authKey)) < 0)
+        return ret;
+
+    if ((ret = wc_Poly1305Update(&aead->poly, ad, (word32)ad_len)) < 0)
+        return ret;
+
+    if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)ad_len)) < 0)
+        return ret;
+
+    aead->isEncrypt = isEncrypt ? 1 : 0;
+    aead->state = CHACHA20_POLY1305_STATE_AAD;
+
+    return 0;
+}
+
+static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
+    byte *dst, const size_t dst_space,
+    const byte *src, const size_t src_len,
+    const byte *ad, const size_t ad_len,
+    const byte *nonce, const size_t nonce_len,
+    const byte *key, const size_t key_len,
+    int isEncrypt)
+{
+    int ret;
+    long int dst_len = isEncrypt ?
+        (long int)src_len + POLY1305_DIGEST_SIZE :
+        (long int)src_len - POLY1305_DIGEST_SIZE;
+    const byte *src_i;
+    byte *dst_i;
+    size_t src_len_rem;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    ChaChaPoly_Aead *aead = (ChaChaPoly_Aead *)XMALLOC(sizeof *aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (aead == NULL)
+        return MEMORY_E;
+#else
+    ChaChaPoly_Aead aead_buf, *aead = &aead_buf;
+#endif
+
+    if ((dst == NULL) || (src == NULL)) {
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
+
+    if ((long int)dst_space < dst_len) {
+        ret = BUFFER_E;
+        goto out;
+    }
+
+    if ((ret = wc_XChaCha20Poly1305_Init(aead, ad, (word32)ad_len,
+                                         nonce, (word32)nonce_len,
+                                         key, (word32)key_len, 1)) < 0)
+        goto out;
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_XChaCha20Poly1305_crypt_oneshot aead", aead,
+        sizeof(ChaChaPoly_Aead));
+#endif
+
+    /* process the input in 16k pieces to accommodate src_lens that don't fit in a word32,
+     * and to exploit hot cache for the input data.
+     */
+    src_i = src;
+    src_len_rem = isEncrypt ? src_len : (size_t)dst_len;
+    dst_i = dst;
+    while (src_len_rem > 0) {
+        word32 this_src_len =
+            (src_len_rem > 16384) ?
+            16384 :
+            (word32)src_len_rem;
+
+        if ((ret = wc_Chacha_Process(&aead->chacha, dst_i, src_i, this_src_len)) < 0)
+            goto out;
+
+        if ((ret = wc_Poly1305Update(&aead->poly, isEncrypt ? dst_i : src_i, this_src_len)) < 0)
+            goto out;
+
+        src_len_rem -= (size_t)this_src_len;
+        src_i += this_src_len;
+        dst_i += this_src_len;
+    }
+
+    if (aead->poly.leftover) {
+        if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)aead->poly.leftover)) < 0)
+            return ret;
+    }
+
+#ifdef WORD64_AVAILABLE
+    ret = wc_Poly1305_EncodeSizes64(&aead->poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
+#else
+    ret = wc_Poly1305_EncodeSizes(&aead->poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
+#endif
+    if (ret < 0)
+        goto out;
+
+    if (isEncrypt)
+        ret = wc_Poly1305Final(&aead->poly, dst + src_len);
+    else {
+        byte outAuthTag[POLY1305_DIGEST_SIZE];
+
+        if ((ret = wc_Poly1305Final(&aead->poly, outAuthTag)) < 0)
+            goto out;
+
+        if (ConstantCompare(outAuthTag, src + dst_len, POLY1305_DIGEST_SIZE) != 0) {
+            ret = MAC_CMP_FAILED_E;
+            goto out;
+        }
+    }
+
+  out:
+
+    ForceZero(aead, sizeof *aead);
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(aead, sizeof(ChaChaPoly_Aead));
+#endif
+
+    return ret;
+}
+
+int wc_XChaCha20Poly1305_Encrypt(
+    byte *dst, const size_t dst_space,
+    const byte *src, const size_t src_len,
+    const byte *ad, const size_t ad_len,
+    const byte *nonce, const size_t nonce_len,
+    const byte *key, const size_t key_len)
+{
+    return wc_XChaCha20Poly1305_crypt_oneshot(dst, dst_space, src, src_len, ad, ad_len, nonce, nonce_len, key, key_len, 1);
+}
+
+int wc_XChaCha20Poly1305_Decrypt(
+    byte *dst, const size_t dst_space,
+    const byte *src, const size_t src_len,
+    const byte *ad, const size_t ad_len,
+    const byte *nonce, const size_t nonce_len,
+    const byte *key, const size_t key_len)
+{
+    return wc_XChaCha20Poly1305_crypt_oneshot(dst, dst_space, src, src_len, ad, ad_len, nonce, nonce_len, key, key_len, 0);
+}
+
+#endif /* HAVE_XCHACHA */
 
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */

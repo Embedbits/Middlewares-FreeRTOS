@@ -1,5 +1,5 @@
 /*
- * FreeRTOS V202212.01
+ * FreeRTOS V202411.00
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -24,7 +24,7 @@
  *
  */
 
-/*
+/* 
  * "Reg test" tasks - These fill the registers with known values, then check
  * that each register maintains its expected value for the lifetime of the
  * task.  Each task uses a different set of values.  The reg test tasks execute
@@ -32,7 +32,7 @@
  * containing an unexpected value is indicative of an error in the context
  * switching mechanism.
  */
-
+ 
 	RSEG    CODE:CODE(2)
 	thumb
 

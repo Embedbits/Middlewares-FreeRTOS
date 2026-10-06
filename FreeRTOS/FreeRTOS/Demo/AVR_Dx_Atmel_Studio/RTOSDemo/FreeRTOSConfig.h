@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -39,12 +39,12 @@
 /*
  * Timer instance  |  Value
  * ----------------|---------
- *     TCB0        |    0
- *     TCB1        |    1
- *     TCB2        |    2
- *     TCB3        |    3
+ *     TCB0        |    0  
+ *     TCB1        |    1  
+ *     TCB2        |    2  
+ *     TCB3        |    3  
  *     TCB4        |    4
- *     RTC         |    5
+ *     RTC         |    5  
  */
 
 #define configUSE_TIMER_INSTANCE 0
@@ -91,6 +91,10 @@ For other frequency values, update clock_config.h with your own settings */
 #define configUSE_TRACE_FACILITY 0
 #define configUSE_STATS_FORMATTING_FUNCTIONS 0
 
+/* Co-routine related definitions. */
+#define configUSE_CO_ROUTINES 1
+#define configMAX_CO_ROUTINE_PRIORITIES 2
+
 /* Software timer related definitions. */
 #define configUSE_TIMERS 1
 #define configTIMER_TASK_PRIORITY ( configMAX_PRIORITIES - 1 )
@@ -109,7 +113,7 @@ For other frequency values, update clock_config.h with your own settings */
 #define INCLUDE_vTaskDelayUntil 1
 #define INCLUDE_vTaskDelay 1
 #define INCLUDE_xTaskGetSchedulerState 0
-#define INCLUDE_xTaskGetCurrentTaskHandle 0
+#define INCLUDE_xTaskGetCurrentTaskHandle 1
 #define INCLUDE_uxTaskGetStackHighWaterMark 0
 #define INCLUDE_xTaskGetIdleTaskHandle 0
 #define INCLUDE_eTaskGetState 0

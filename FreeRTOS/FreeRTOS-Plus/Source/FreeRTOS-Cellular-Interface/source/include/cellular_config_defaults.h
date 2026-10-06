@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -342,7 +344,7 @@
 #endif
 
 /**
- * @brief Default radio access technoloyg.<br>
+ * @brief Default radio access technology.<br>
  *
  * <b>Possible values:</b>`Any value before CELLULAR_RAT_MAX` ( Reference : @ref CellularRat_t )<br>
  * <b>Default value (if undefined):</b> CELLULAR_RAT_CATM1
@@ -397,6 +399,121 @@
  */
 #ifndef CELLULAR_CONFIG_MAX_PREFIX_STRING_LENGTH
     #define CELLULAR_CONFIG_MAX_PREFIX_STRING_LENGTH    ( 32U )
+#endif
+
+/**
+ * @brief Macro to check prefix leading char.<br>
+ *
+ * Cellular interface requires prefix string starts with "+". Some cellular modem
+ * uses different leading char. This macro can be defined in cellular_config.h to
+ * support different leading char.<br>
+ *
+ * <b>Default value (if undefined):</b> '+'
+ *
+ * For example:
+ * > ^SMSO:(list of supported<fso>s)<br>
+ * The prefix string contains <b>"^"</b> which is not default leading char for prefix
+ * string. User can define this config to support this prefix string.
+ */
+#ifndef CELLULAR_CHECK_IS_PREFIX_LEADING_CHAR
+    #define CELLULAR_CHECK_IS_PREFIX_LEADING_CHAR( x )    ( ( x ) == '+' )
+#endif
+
+/**
+ * @brief Macro to check prefix chars.<br>
+ *
+ * The macro to check prefix string contains valid char. Modem with different prefix
+ * strings can be supported with this config.<br>
+ *
+ * <b>Default value (if undefined):</b> alphabet, digit, '+' and '_'
+ *
+ * For example:
+ * > +APP PDP: 0,ACTIVE<br>
+ * The prefix string contains space which is not default valid char. User can define
+ * this config to support this prefix string.
+ */
+#ifndef CELLULAR_CHECK_IS_PREFIX_CHAR
+    #define CELLULAR_CHECK_IS_PREFIX_CHAR( inputChar )                    \
+    ( ( ( ( int32_t ) isalpha( ( ( int8_t ) ( inputChar ) ) ) ) == 0 ) && \
+      ( ( ( int32_t ) isdigit( ( ( int8_t ) ( inputChar ) ) ) ) == 0 ) && \
+      ( ( inputChar ) != '_' ) &&                                         \
+      ( !( CELLULAR_CHECK_IS_PREFIX_LEADING_CHAR( inputChar ) ) ) )
+#endif
+
+/**
+ * @brief Cellular AT string length.<br>
+ *
+ * The maximum length of an AT string.<br>
+ *
+ * <b>Possible values:</b>`Any positive integer`<br>
+ * <b>Default value (if undefined):</b> 256
+ */
+#ifndef CELLULAR_AT_MAX_STRING_SIZE
+    #define CELLULAR_AT_MAX_STRING_SIZE    ( 256U )
+#endif
+
+/**
+ * @brief Use AT+CCID command for Integrated Circuit Card ID( ICCID ) information.<br>
+ *
+ * Acquire ICCID with non-standard 3GPP command AT+CCID in Cellular_CommonGetSimCardInfo.<br>
+ *
+ * <b>Possible values:</b>`0 or 1`<br>
+ * <b>Default value (if undefined):</b> 1
+ */
+#ifndef CELLULAR_CONFIG_USE_CCID_COMMAND
+    #define CELLULAR_CONFIG_USE_CCID_COMMAND    1
+#endif
+
+/**
+ * @brief Assert function for cellular interface.
+ *
+ * <b>Possible values:</b>`any assert function`<br>
+ * <b>Default value (if undefined):</b> configASSERT
+ */
+#ifndef CELLULAR_CONFIG_ASSERT
+    #define CELLULAR_CONFIG_ASSERT( X )    configASSERT( X )
+#endif
+
+/**
+ * @brief Use FreeRTOS platform function for backward compatibility.<br>
+ *
+ * Define FreeRTOS platform function for cellular interface backward compatibility with version earlier
+ * than v1.4.0.
+ *
+ * <b>Possible values:</b>`0 or 1`<br>
+ * <b>Default value (if undefined):</b> 1
+ */
+#ifndef CELLULAR_CONFIG_PLATFORM_FREERTOS
+    #define CELLULAR_CONFIG_PLATFORM_FREERTOS    1
+#endif
+
+#if CELLULAR_CONFIG_PLATFORM_FREERTOS
+    #define PlatformQueueHandle_t    QueueHandle_t
+    #define PlatformEventBits_t      EventBits_t
+    #define PlatformBaseType_t       BaseType_t
+    #define PlatformTickType_t       TickType_t
+    #define platformTRUE             pdTRUE
+    #define platformFALSE            pdFALSE
+    #define platformPASS             pdPASS
+    #define platformFAIL             pdFAIL
+    #define platformMAX_DELAY        portMAX_DELAY
+    #define PlatformQueue_Create     xQueueCreate
+    #define PlatformQueue_Send       xQueueSend
+    #define PlatformQueue_Receive    xQueueReceive
+    #define PlatformQueue_Delete     vQueueDelete
+#endif /* if CELLULAR_CONFIG_PLATFORM_FREERTOS */
+
+/**
+ * @brief Pktio read buffer size.
+ *
+ * The pktio read buffer size should be configured to greater than the maximum AT command
+ * response size, which is typically the TCP socket receive command response packet size.
+ *
+ * <b>Possible values:</b>`Any positive integer`<br>
+ * <b>Default value (if undefined):</b> 1600
+ */
+#ifndef CELLULAR_CONFIG_PKTIO_READ_BUFFER_SIZE
+    #define CELLULAR_CONFIG_PKTIO_READ_BUFFER_SIZE    1600U
 #endif
 
 /**

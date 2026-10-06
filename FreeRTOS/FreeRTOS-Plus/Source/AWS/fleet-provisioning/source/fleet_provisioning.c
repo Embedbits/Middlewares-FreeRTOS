@@ -1,5 +1,5 @@
 /*
- * AWS IoT Fleet Provisioning v1.1.0
+ * AWS IoT Fleet Provisioning v1.2.1
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -272,7 +272,7 @@ static void writeTopicFragmentAndAdvance( char ** pBufferCursor,
                      ( const void * ) fragment,
                      ( size_t ) length );
 
-    *pBufferCursor += length;
+    *pBufferCursor = &( ( *pBufferCursor )[ length ] );
 }
 /*-----------------------------------------------------------*/
 
@@ -286,10 +286,8 @@ static FleetProvisioningStatus_t GetRegisterThingTopicCheckParams( const char * 
     FleetProvisioningStatus_t ret = FleetProvisioningError;
 
     if( ( pTopicBuffer == NULL ) ||
-        ( format < FleetProvisioningJson ) ||
-        ( format > FleetProvisioningCbor ) ||
-        ( topic < FleetProvisioningPublish ) ||
-        ( topic > FleetProvisioningRejected ) ||
+        ( ( format != FleetProvisioningJson ) && ( format != FleetProvisioningCbor ) ) ||
+        ( ( topic != FleetProvisioningPublish ) && ( topic != FleetProvisioningAccepted ) && ( topic != FleetProvisioningRejected ) ) ||
         ( pTemplateName == NULL ) ||
         ( templateNameLength == 0U ) ||
         ( templateNameLength > FP_TEMPLATENAME_MAX_LENGTH ) ||
@@ -597,7 +595,7 @@ static FleetProvisioningStatus_t consumeIfMatch( const char ** pBufferCursor,
         else
         {
             status = FleetProvisioningSuccess;
-            *pBufferCursor += matchLength;
+            *pBufferCursor = &( ( *pBufferCursor )[ matchLength ] );
             *pRemainingLength -= matchLength;
         }
     }
@@ -629,7 +627,7 @@ static FleetProvisioningStatus_t consumeTemplateName( const char ** pTopicCursor
     if( i > 0U )
     {
         ret = FleetProvisioningSuccess;
-        *pTopicCursor += i;
+        *pTopicCursor = &( ( *pTopicCursor )[ i ] );
         *pRemainingLength -= i;
     }
 

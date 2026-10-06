@@ -1,5 +1,5 @@
 /*
- * AWS IoT Device Defender Client v1.3.0
+ * AWS IoT Device Defender Client v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -363,7 +363,7 @@ static DefenderStatus_t matchApi( const char * pRemainingTopic,
         DEFENDER_API_LENGTH_CBOR_FORMAT + DEFENDER_API_LENGTH_REJECTED_SUFFIX,
     };
 
-    for( i = 0U; i < sizeof( defenderApi ) / sizeof( defenderApi[ 0 ] ); i++ )
+    for( i = 0U; i < ( sizeof( defenderApi ) / sizeof( defenderApi[ 0 ] ) ); i++ )
     {
         if( ( remainingTopicLength == defenderApiTopicLength[ i ] ) &&
             ( strncmp( pRemainingTopic,

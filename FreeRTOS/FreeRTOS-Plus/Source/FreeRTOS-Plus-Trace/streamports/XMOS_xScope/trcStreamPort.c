@@ -1,6 +1,6 @@
 /*
- * Trace Recorder for Tracealyzer v4.6.0
- * Copyright 2021 Percepio AB
+ * Trace Recorder for Tracealyzer v4.8.0.hotfix1
+ * Copyright 2023 Percepio AB
  * www.percepio.com
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -20,10 +20,10 @@ typedef struct TraceStreamPortXS {
 #if (TRC_USE_INTERNAL_BUFFER == 1)
 	uint8_t uiBufferInternal[TRC_STREAM_PORT_INTERNAL_BUFFER_SIZE];
 #endif
-	uint8_t uiBuffer[4];
+	uint8_t uiBuffer[8];
 } TraceStreamPortXS_t;
 
-static TraceStreamPortXS_t* pxStreamPortXS;
+static TraceStreamPortXS_t* pxStreamPortXS TRC_CFG_RECORDER_DATA_ATTRIBUTE;
 
 traceResult xTraceStreamPortInitialize(TraceStreamPortBuffer_t* pxBuffer)
 {

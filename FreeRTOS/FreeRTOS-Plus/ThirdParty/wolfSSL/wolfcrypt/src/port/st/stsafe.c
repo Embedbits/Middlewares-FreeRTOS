@@ -1,6 +1,6 @@
 /* stsafe.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,11 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
 #ifndef STSAFE_INTERFACE_PRINTF
-#define STSAFE_INTERFACE_PRINTF(...)
+#define STSAFE_INTERFACE_PRINTF(...) WC_DO_NOTHING
 #endif
 
 #ifdef WOLFSSL_STSAFEA100
@@ -123,7 +124,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
     word32 pubKeyY_len = sizeof(pubKeyY);
     ecc_key key;
     word32 inOutIdx = 0;
-    StSafeA_CurveId curve_id;
+    StSafeA_CurveId curve_id = STSAFE_A_NIST_P_256;
     int ecc_curve;
 
     (void)ssl;
@@ -170,7 +171,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
         #ifdef USE_STSAFE_VERBOSE
             STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", err);
         #endif
-            err = WC_HW_E;
+            err = -err;
         }
     }
 
@@ -249,7 +250,7 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     word32 otherKeyX_len = sizeof(otherKeyX);
     word32 otherKeyY_len = sizeof(otherKeyY);
     byte pubKeyRaw[STSAFE_MAX_PUBKEY_RAW_LEN];
-    StSafeA_KeySlotNumber slot;
+    StSafeA_KeySlotNumber slot = STSAFE_A_SLOT_0;
     StSafeA_CurveId curve_id;
     ecc_key tmpKey;
     int ecc_curve;
@@ -322,7 +323,11 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     }
 
     /* Compute shared secret */
-    err = stsafe_interface_shared_secret(curve_id, &otherKeyX[0], &otherKeyY[0],
+    err = stsafe_interface_shared_secret(
+#ifdef WOLFSSL_STSAFE_TAKES_SLOT
+        slot,
+#endif
+        curve_id, &otherKeyX[0], &otherKeyY[0],
         out, (int32_t*)outlen);
     if (err != STSAFE_A_OK) {
     #ifdef USE_STSAFE_VERBOSE
@@ -507,7 +512,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 #ifdef USE_STSAFE_VERBOSE
                     STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", rc);
                 #endif
-                    rc = WC_HW_E;
+                    rc = -rc;
                 }
             }
         }
@@ -535,7 +540,11 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (rc == 0) {
                 /* Compute shared secret */
             	*info->pk.ecdh.outlen = 0;
-                rc = stsafe_interface_shared_secret(curve_id,
+                rc = stsafe_interface_shared_secret(
+        #ifdef WOLFSSL_STSAFE_TAKES_SLOT
+                    STSAFE_A_SLOT_0,
+        #endif
+                    curve_id,
                     otherKeyX, otherKeyY,
                     info->pk.ecdh.out, (int32_t*)info->pk.ecdh.outlen);
                 if (rc != STSAFE_A_OK) {

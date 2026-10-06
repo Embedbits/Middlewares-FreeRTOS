@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -54,22 +54,6 @@
 
 #define phyMIN_PHY_ADDRESS    0
 #define phyMAX_PHY_ADDRESS    31
-
-#if defined( PHY_LS_HIGH_CHECK_TIME_MS ) || defined( PHY_LS_LOW_CHECK_TIME_MS )
-    #warning please use the new defines with 'ipconfig' prefix
-#endif
-
-#ifndef ipconfigPHY_LS_HIGH_CHECK_TIME_MS
-
-/* Check if the LinkStatus in the PHY is still high after 15 seconds of not
- * receiving packets. */
-    #define ipconfigPHY_LS_HIGH_CHECK_TIME_MS    15000U
-#endif
-
-#ifndef ipconfigPHY_LS_LOW_CHECK_TIME_MS
-    /* Check if the LinkStatus in the PHY is still low every second. */
-    #define ipconfigPHY_LS_LOW_CHECK_TIME_MS    1000U
-#endif
 
 /* As the following 3 macro's are OK in most situations, and so they're not
  * included in 'FreeRTOSIPConfigDefaults.h'.
@@ -238,7 +222,7 @@ BaseType_t xPhyDiscover( EthernetPhy_t * pxPhyObject )
             pxPhyObject->fnPhyRead( xPhyAddress, phyREG_02_PHYSID1, &ulUpperID );
             ulPhyID = ( ( ( uint32_t ) ulUpperID ) << 16 ) | ( ulLowerID & 0xFFF0U );
 
-            pxPhyObject->ucPhyIndexes[ pxPhyObject->xPortCount ] = xPhyAddress;
+            pxPhyObject->ucPhyIndexes[ pxPhyObject->xPortCount ] = ( uint8_t ) xPhyAddress;
             pxPhyObject->ulPhyIDs[ pxPhyObject->xPortCount ] = ulPhyID;
 
             pxPhyObject->xPortCount++;
@@ -253,7 +237,7 @@ BaseType_t xPhyDiscover( EthernetPhy_t * pxPhyObject )
 
     if( pxPhyObject->xPortCount > 0 )
     {
-        FreeRTOS_printf( ( "PHY ID %lX\n", pxPhyObject->ulPhyIDs[ 0 ] ) );
+        FreeRTOS_printf( ( "PHY ID %X\n", ( unsigned int ) pxPhyObject->ulPhyIDs[ 0 ] ) );
     }
 
     return pxPhyObject->xPortCount;
@@ -308,7 +292,7 @@ static uint32_t xPhyReset( EthernetPhy_t * pxPhyObject,
 
         if( xTaskCheckForTimeOut( &xTimer, &xRemainingTime ) != pdFALSE )
         {
-            FreeRTOS_printf( ( "xPhyReset: phyBMCR_RESET timed out ( done 0x%02lX )\n", ulDoneMask ) );
+            FreeRTOS_printf( ( "xPhyReset: phyBMCR_RESET timed out ( done 0x%02X )\n", ( unsigned int ) ulDoneMask ) );
             break;
         }
 
@@ -487,7 +471,7 @@ BaseType_t xPhyConfigure( EthernetPhy_t * pxPhyObject,
             pxPhyObject->fnPhyWrite( xPhyAddress, phyREG_19_PHYCR, ulPhyControl );
         }
 
-        FreeRTOS_printf( ( "+TCP: advertise: %04lX config %04lX\n", ulAdvertise, ulConfig ) );
+        FreeRTOS_printf( ( "+TCP: advertise: %04X config %04X\n", ( unsigned int ) ulAdvertise, ( unsigned int ) ulConfig ) );
     }
 
     /* Keep these values for later use. */
@@ -542,7 +526,7 @@ BaseType_t xPhyStartAutoNegotiation( EthernetPhy_t * pxPhyObject,
                                      uint32_t ulPhyMask )
 {
     uint32_t xPhyIndex, ulDoneMask, ulBitMask;
-    uint32_t ulPHYLinkStatus, ulRegValue;
+    uint32_t ulRegValue;
     TickType_t xRemainingTime;
     TimeOut_t xTimer;
 
@@ -597,7 +581,7 @@ BaseType_t xPhyStartAutoNegotiation( EthernetPhy_t * pxPhyObject,
 
         if( xTaskCheckForTimeOut( &xTimer, &xRemainingTime ) != pdFALSE )
         {
-            FreeRTOS_printf( ( "xPhyStartAutoNegotiation: phyBMSR_AN_COMPLETE timed out ( done 0x%02lX )\n", ulDoneMask ) );
+            FreeRTOS_printf( ( "xPhyStartAutoNegotiation: phyBMSR_AN_COMPLETE timed out ( done 0x%02X )\n", ( unsigned int ) ulDoneMask ) );
             break;
         }
 
@@ -624,14 +608,9 @@ BaseType_t xPhyStartAutoNegotiation( EthernetPhy_t * pxPhyObject,
 
             pxPhyObject->fnPhyRead( xPhyAddress, phyREG_01_BMSR, &ulRegValue );
 
-            if( ( ulRegValue & phyBMSR_LINK_STATUS ) != 0 )
+            if( ( ulRegValue & phyBMSR_LINK_STATUS ) != 0U )
             {
-                ulPHYLinkStatus |= phyBMSR_LINK_STATUS;
                 pxPhyObject->ulLinkStatusMask |= ulBitMask;
-            }
-            else
-            {
-                ulPHYLinkStatus &= ~( phyBMSR_LINK_STATUS );
             }
 
             if( ulPhyID == PHY_ID_KSZ8081MNXIA )
@@ -726,11 +705,11 @@ BaseType_t xPhyStartAutoNegotiation( EthernetPhy_t * pxPhyObject,
                 pxPhyObject->fnPhyRead( xPhyAddress, PHYREG_10_PHYSTS, &ulRegValue );
             }
 
-            FreeRTOS_printf( ( "Autonego ready: %08lx: %s duplex %u mbit %s status\n",
-                               ulRegValue,
+            FreeRTOS_printf( ( "Autonego ready: %08x: %s duplex %u mbit %s status\n",
+                               ( unsigned int ) ulRegValue,
                                ( ulRegValue & phyPHYSTS_DUPLEX_STATUS ) ? "full" : "half",
                                ( ulRegValue & phyPHYSTS_SPEED_STATUS ) ? 10 : 100,
-                               ( ( ulPHYLinkStatus |= phyBMSR_LINK_STATUS ) != 0 ) ? "high" : "low" ) );
+                               ( ( pxPhyObject->ulLinkStatusMask & ulBitMask ) != 0U ) ? "high" : "low" ) );
 
             if( ( ulRegValue & phyPHYSTS_DUPLEX_STATUS ) != ( uint32_t ) 0U )
             {
@@ -775,7 +754,7 @@ BaseType_t xPhyCheckLinkStatus( EthernetPhy_t * pxPhyObject,
             if( ( pxPhyObject->ulLinkStatusMask & ulBitMask ) == 0UL )
             {
                 pxPhyObject->ulLinkStatusMask |= ulBitMask;
-                FreeRTOS_printf( ( "xPhyCheckLinkStatus: PHY LS now %02lX\n", pxPhyObject->ulLinkStatusMask ) );
+                FreeRTOS_printf( ( "xPhyCheckLinkStatus: PHY LS now %02X\n", ( unsigned int ) pxPhyObject->ulLinkStatusMask ) );
                 xNeedCheck = pdTRUE;
             }
         }
@@ -802,7 +781,7 @@ BaseType_t xPhyCheckLinkStatus( EthernetPhy_t * pxPhyObject,
                         pxPhyObject->ulLinkStatusMask &= ~( ulBitMask );
                     }
 
-                    FreeRTOS_printf( ( "xPhyCheckLinkStatus: PHY LS now %02lX\n", pxPhyObject->ulLinkStatusMask ) );
+                    FreeRTOS_printf( ( "xPhyCheckLinkStatus: PHY LS now %02X\n", ( unsigned int ) pxPhyObject->ulLinkStatusMask ) );
                     xNeedCheck = pdTRUE;
                 }
             }

@@ -1,6 +1,6 @@
 /* fe_x25519_128.i
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* Generated using (from wolfssl):
+ *   cd ../scripts
+ *   ruby ./x25519/fe_x25519_128_gen.rb > ../wolfssl/wolfcrypt/src/fe_x25519_128.i
+ */
+
 void fe_init(void)
 {
 }
@@ -31,42 +36,42 @@ void fe_init(void)
  */
 void fe_frombytes(fe out, const unsigned char *in)
 {
-    out[0] = (((int64_t)((in[ 0]      )       ))      )
-           | (((int64_t)((in[ 1]      )       )) <<  8)
-           | (((int64_t)((in[ 2]      )       )) << 16)
-           | (((int64_t)((in[ 3]      )       )) << 24)
-           | (((int64_t)((in[ 4]      )       )) << 32)
-           | (((int64_t)((in[ 5]      )       )) << 40)
-           | (((int64_t)((in[ 6]      ) & 0x07)) << 48);
-    out[1] = (((int64_t)((in[ 6] >>  3) & 0x1f))      )
-           | (((int64_t)((in[ 7]      )       )) <<  5)
-           | (((int64_t)((in[ 8]      )       )) << 13)
-           | (((int64_t)((in[ 9]      )       )) << 21)
-           | (((int64_t)((in[10]      )       )) << 29)
-           | (((int64_t)((in[11]      )       )) << 37)
-           | (((int64_t)((in[12]      ) & 0x3f)) << 45);
-    out[2] = (((int64_t)((in[12] >>  6) & 0x03))      )
-           | (((int64_t)((in[13]      )       )) <<  2)
-           | (((int64_t)((in[14]      )       )) << 10)
-           | (((int64_t)((in[15]      )       )) << 18)
-           | (((int64_t)((in[16]      )       )) << 26)
-           | (((int64_t)((in[17]      )       )) << 34)
-           | (((int64_t)((in[18]      )       )) << 42)
-           | (((int64_t)((in[19]      ) & 0x01)) << 50);
-    out[3] = (((int64_t)((in[19] >>  1) & 0x7f))      )
-           | (((int64_t)((in[20]      )       )) <<  7)
-           | (((int64_t)((in[21]      )       )) << 15)
-           | (((int64_t)((in[22]      )       )) << 23)
-           | (((int64_t)((in[23]      )       )) << 31)
-           | (((int64_t)((in[24]      )       )) << 39)
-           | (((int64_t)((in[25]      ) & 0x0f)) << 47);
-    out[4] = (((int64_t)((in[25] >>  4) & 0x0f))      )
-           | (((int64_t)((in[26]      )       )) <<  4)
-           | (((int64_t)((in[27]      )       )) << 12)
-           | (((int64_t)((in[28]      )       )) << 20)
-           | (((int64_t)((in[29]      )       )) << 28)
-           | (((int64_t)((in[30]      )       )) << 36)
-           | (((int64_t)((in[31]      ) & 0x7f)) << 44);
+    out[0] = (((sword64)((in[ 0]      )       ))      )
+           | (((sword64)((in[ 1]      )       )) <<  8)
+           | (((sword64)((in[ 2]      )       )) << 16)
+           | (((sword64)((in[ 3]      )       )) << 24)
+           | (((sword64)((in[ 4]      )       )) << 32)
+           | (((sword64)((in[ 5]      )       )) << 40)
+           | (((sword64)((in[ 6]      ) & 0x07)) << 48);
+    out[1] = (((sword64)((in[ 6] >>  3) & 0x1f))      )
+           | (((sword64)((in[ 7]      )       )) <<  5)
+           | (((sword64)((in[ 8]      )       )) << 13)
+           | (((sword64)((in[ 9]      )       )) << 21)
+           | (((sword64)((in[10]      )       )) << 29)
+           | (((sword64)((in[11]      )       )) << 37)
+           | (((sword64)((in[12]      ) & 0x3f)) << 45);
+    out[2] = (((sword64)((in[12] >>  6) & 0x03))      )
+           | (((sword64)((in[13]      )       )) <<  2)
+           | (((sword64)((in[14]      )       )) << 10)
+           | (((sword64)((in[15]      )       )) << 18)
+           | (((sword64)((in[16]      )       )) << 26)
+           | (((sword64)((in[17]      )       )) << 34)
+           | (((sword64)((in[18]      )       )) << 42)
+           | (((sword64)((in[19]      ) & 0x01)) << 50);
+    out[3] = (((sword64)((in[19] >>  1) & 0x7f))      )
+           | (((sword64)((in[20]      )       )) <<  7)
+           | (((sword64)((in[21]      )       )) << 15)
+           | (((sword64)((in[22]      )       )) << 23)
+           | (((sword64)((in[23]      )       )) << 31)
+           | (((sword64)((in[24]      )       )) << 39)
+           | (((sword64)((in[25]      ) & 0x0f)) << 47);
+    out[4] = (((sword64)((in[25] >>  4) & 0x0f))      )
+           | (((sword64)((in[26]      )       )) <<  4)
+           | (((sword64)((in[27]      )       )) << 12)
+           | (((sword64)((in[28]      )       )) << 20)
+           | (((sword64)((in[29]      )       )) << 28)
+           | (((sword64)((in[30]      )       )) << 36)
+           | (((sword64)((in[31]      ) & 0x7f)) << 44);
 }
 
 /* Convert a number represented as an array of words to an array of bytes.
@@ -79,7 +84,7 @@ void fe_frombytes(fe out, const unsigned char *in)
 void fe_tobytes(unsigned char *out, const fe n)
 {
     fe      in;
-    int64_t c;
+    sword64 c;
 
     in[0] = n[0];
     in[1] = n[1];
@@ -189,34 +194,34 @@ void fe_copy(fe r, const fe a)
 
 /* Constant time, conditional swap of field elements a and b.
  *
- * a  A field element.
- * b  A field element.
- * c  If 1 then swap and if 0 then don't swap.
+ * f  A field element.
+ * g  A field element.
+ * b  If 1 then swap and if 0 then don't swap.
  */
-void fe_cswap(fe a, fe b, int c)
+void fe_cswap(fe f, fe g, int b)
 {
-    int64_t m = c;
-    int64_t t0, t1, t2, t3, t4;
+    sword64 m = b;
+    sword64 t0, t1, t2, t3, t4;
 
     /* Convert conditional into mask. */
     m = -m;
-    t0 = m & (a[0] ^ b[0]);
-    t1 = m & (a[1] ^ b[1]);
-    t2 = m & (a[2] ^ b[2]);
-    t3 = m & (a[3] ^ b[3]);
-    t4 = m & (a[4] ^ b[4]);
+    t0 = m & (f[0] ^ g[0]);
+    t1 = m & (f[1] ^ g[1]);
+    t2 = m & (f[2] ^ g[2]);
+    t3 = m & (f[3] ^ g[3]);
+    t4 = m & (f[4] ^ g[4]);
 
-    a[0] ^= t0;
-    a[1] ^= t1;
-    a[2] ^= t2;
-    a[3] ^= t3;
-    a[4] ^= t4;
+    f[0] ^= t0;
+    f[1] ^= t1;
+    f[2] ^= t2;
+    f[3] ^= t3;
+    f[4] ^= t4;
 
-    b[0] ^= t0;
-    b[1] ^= t1;
-    b[2] ^= t2;
-    b[3] ^= t3;
-    b[4] ^= t4;
+    g[0] ^= t0;
+    g[1] ^= t1;
+    g[2] ^= t2;
+    g[3] ^= t3;
+    g[4] ^= t4;
 }
 
 /* Subtract b from a into r. (r = a - b)
@@ -297,7 +302,7 @@ void fe_mul(fe r, const fe a, const fe b)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -340,7 +345,7 @@ void fe_sq(fe r, const fe a)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -367,7 +372,7 @@ void fe_mul121666(fe r, fe a)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -425,8 +430,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         b = n[pos / 8] >> (pos & 7);
         b &= 1;
         swap ^= b;
-        fe_cswap(x2, x3, swap);
-        fe_cswap(z2, z3, swap);
+        fe_cswap(x2, x3, (int)swap);
+        fe_cswap(z2, z3, (int)swap);
         swap = b;
 
         fe_sub(t0, x3, z3);
@@ -448,8 +453,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         fe_mul(z3, x1, z2);
         fe_mul(z2, t1, t0);
     }
-    fe_cswap(x2, x3, swap);
-    fe_cswap(z2, z3, swap);
+    fe_cswap(x2, x3, (int)swap);
+    fe_cswap(z2, z3, (int)swap);
 
     fe_invert(z2, z2);
     fe_mul(x2, x2, z2);
@@ -501,28 +506,28 @@ void fe_neg(fe r, const fe a)
 /* Constant time, conditional move of b into a.
  * a is not changed if the condition is 0.
  *
- * a  A field element.
- * b  A field element.
- * c  If 1 then copy and if 0 then don't copy.
+ * f  A field element.
+ * g  A field element.
+ * b  If 1 then copy and if 0 then don't copy.
  */
-void fe_cmov(fe a, const fe b, int c)
+void fe_cmov(fe f, const fe g, int b)
 {
-    int64_t m = c;
-    int64_t t0, t1, t2, t3, t4;
+    sword64 m = b;
+    sword64 t0, t1, t2, t3, t4;
 
     /* Convert conditional into mask. */
     m = -m;
-    t0 = m & (a[0] ^ b[0]);
-    t1 = m & (a[1] ^ b[1]);
-    t2 = m & (a[2] ^ b[2]);
-    t3 = m & (a[3] ^ b[3]);
-    t4 = m & (a[4] ^ b[4]);
+    t0 = m & (f[0] ^ g[0]);
+    t1 = m & (f[1] ^ g[1]);
+    t2 = m & (f[2] ^ g[2]);
+    t3 = m & (f[3] ^ g[3]);
+    t4 = m & (f[4] ^ g[4]);
 
-    a[0] ^= t0;
-    a[1] ^= t1;
-    a[2] ^= t2;
-    a[3] ^= t3;
-    a[4] ^= t4;
+    f[0] ^= t0;
+    f[1] ^= t1;
+    f[2] ^= t2;
+    f[3] ^= t3;
+    f[4] ^= t4;
 }
 
 void fe_pow22523(fe r, const fe a)
@@ -586,7 +591,7 @@ void fe_sq2(fe r, const fe a)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -595,13 +600,13 @@ void fe_sq2(fe r, const fe a)
  * in  An array of bytes.
  * returns a 64-bit word.
  */
-uint64_t load_3(const unsigned char *in)
+word64 load_3(const unsigned char *in)
 {
-    uint64_t result;
+    word64 result;
 
-    result = ((((uint64_t)in[0])      ) |
-              (((uint64_t)in[1]) <<  8) |
-              (((uint64_t)in[2]) << 16));
+    result = ((((word64)in[0])      ) |
+              (((word64)in[1]) <<  8) |
+              (((word64)in[2]) << 16));
 
     return result;
 }
@@ -611,14 +616,14 @@ uint64_t load_3(const unsigned char *in)
  * in  An array of bytes.
  * returns a 64-bit word.
  */
-uint64_t load_4(const unsigned char *in)
+word64 load_4(const unsigned char *in)
 {
-    uint64_t result;
+    word64 result;
 
-    result = ((((uint64_t)in[0])      ) |
-              (((uint64_t)in[1]) <<  8) |
-              (((uint64_t)in[2]) << 16) |
-              (((uint64_t)in[3]) << 24));
+    result = ((((word64)in[0])      ) |
+              (((word64)in[1]) <<  8) |
+              (((word64)in[2]) << 16) |
+              (((word64)in[3]) << 24));
 
     return result;
 }

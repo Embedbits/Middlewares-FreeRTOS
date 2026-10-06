@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -29,8 +29,12 @@
 #define LIST_MACRO_H
 
 #include <FreeRTOS.h>
+#include <FreeRTOS_IP.h>
 #include <portmacro.h>
 #include <list.h>
+
+#undef listGET_HEAD_ENTRY
+ListItem_t * listGET_HEAD_ENTRY( List_t * pxList );
 
 #undef listSET_LIST_ITEM_OWNER
 void listSET_LIST_ITEM_OWNER( ListItem_t * pxListItem,
@@ -85,7 +89,20 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket );
  */
 FreeRTOS_Socket_t * pxTCPSocketLookup( uint32_t ulLocalIP,
                                        UBaseType_t uxLocalPort,
-                                       uint32_t ulRemoteIP,
+                                       IPv46_Address_t xRemoteIP,
                                        UBaseType_t uxRemotePort );
+
+/* Get the size of the IP-header.
+ * The socket is checked for its type: IPv4 or IPv6. */
+size_t uxIPHeaderSizeSocket( const FreeRTOS_Socket_t * pxSocket );
+/*-----------------------------------------------------------*/
+
+BaseType_t xProcessReceivedTCPPacket_IPV6( NetworkBufferDescriptor_t * pxDescriptor );
+
+/*BaseType_t xProcessReceivedTCPPacket_IPV4( NetworkBufferDescriptor_t * pxDescriptor ); */
+
+/* Get the size of the IP-header.
+ * 'usFrameType' must be filled in if IPv6is to be recognised. */
+size_t uxIPHeaderSizePacket( const NetworkBufferDescriptor_t * pxNetworkBuffer );
 
 #endif /* ifndef LIST_MACRO_H */

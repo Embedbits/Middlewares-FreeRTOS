@@ -1,6 +1,6 @@
 /* sniffer_error.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,6 +23,13 @@
 
 #ifndef WOLFSSL_SNIFFER_ERROR_H
 #define WOLFSSL_SNIFFER_ERROR_H
+
+
+/* General Sniffer Error */
+#define WOLFSSL_SNIFFER_ERROR -1
+
+/* Sniffer failed and is in Fatal state */
+#define WOLFSSL_SNIFFER_FATAL_ERROR -2
 
 /* need to have errors as #defines since .rc files can't handle enums */
 /* need to start at 1 and go in order for same reason */
@@ -109,7 +116,6 @@
 #define GOT_CERT_STATUS_STR 73
 #define RSA_KEY_MISSING_STR 74
 #define NO_SECURE_RENEGOTIATION 75
-
 #define BAD_SESSION_STATS 76
 #define REASSEMBLY_MAX_STR 77
 #define DROPPING_LOST_FRAG_STR 78
@@ -131,6 +137,13 @@
 #define STORE_DATA_FAIL_STR 92
 #define CHAIN_INPUT_STR 93
 #define GOT_ENC_EXT_STR 94
+#define GOT_HELLO_RETRY_REQ_STR 95
+
+#define SNIFFER_KEY_SETUP_STR 96
+#define UNSUPPORTED_TLS_VER_STR 97
+#define KEY_MISMATCH_STR 98
+
+#define KEYLOG_FILE_INVALID 99
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

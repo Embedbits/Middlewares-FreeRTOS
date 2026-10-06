@@ -1,6 +1,6 @@
 /* wolfSSL.cs
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,6 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 using System;
 using System.Runtime.InteropServices;
@@ -58,6 +59,7 @@ namespace wolfSSL.CSharp {
             private GCHandle rec_cb;
             private GCHandle snd_cb;
             private GCHandle psk_cb;
+            private GCHandle vrf_cb;
             private IntPtr ctx;
 
             public void set_receive(GCHandle input)
@@ -87,6 +89,19 @@ namespace wolfSSL.CSharp {
                 return this.psk_cb;
             }
 
+            public void set_vrf(GCHandle input)
+            {
+                if (!Object.Equals(this.vrf_cb, default(GCHandle)))
+                {
+                    this.vrf_cb.Free();
+                }
+                this.vrf_cb = input;
+            }
+            public GCHandle get_vrf()
+            {
+                return this.vrf_cb;
+            }
+
             public void set_ctx(IntPtr input)
             {
                 this.ctx = input;
@@ -114,6 +129,10 @@ namespace wolfSSL.CSharp {
                 {
                     this.psk_cb.Free();
                 }
+                if (!Object.Equals(this.vrf_cb, default(GCHandle)))
+                {
+                    this.vrf_cb.Free();
+                }
             }
         }
 
@@ -125,6 +144,7 @@ namespace wolfSSL.CSharp {
         {
             private GCHandle fd_pin;
             private GCHandle psk_cb;
+            private GCHandle vrf_cb;
             private IntPtr ssl;
 
             public void set_fd(GCHandle input)
@@ -143,6 +163,19 @@ namespace wolfSSL.CSharp {
             public GCHandle get_psk()
             {
                 return this.psk_cb;
+            }
+
+            public void set_vrf(GCHandle input)
+            {
+                if (!Object.Equals(this.vrf_cb, default(GCHandle)))
+                {
+                    this.vrf_cb.Free();
+                }
+                this.vrf_cb = input;
+            }
+            public GCHandle get_vrf()
+            {
+                return this.vrf_cb;
             }
 
             public void set_ssl(IntPtr input)
@@ -164,6 +197,10 @@ namespace wolfSSL.CSharp {
                 if (!Object.Equals(this.psk_cb, default(GCHandle)))
                 {
                     this.psk_cb.Free();
+                }
+                if (!Object.Equals(this.vrf_cb, default(GCHandle)))
+                {
+                    this.vrf_cb.Free();
                 }
             }
         }
@@ -361,7 +398,8 @@ namespace wolfSSL.CSharp {
         public static readonly int SSL_VERIFY_PEER = 1;
         public static readonly int SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 2;
         public static readonly int SSL_VERIFY_CLIENT_ONCE = 4;
-        public static readonly int SSL_VERIFY_FAIL_EXCEPT_PSK = 8;
+        public static readonly int SSL_VERIFY_POST_HANDSHAKE = 8;
+        public static readonly int SSL_VERIFY_FAIL_EXCEPT_PSK = 16;
 
         public static readonly int CBIO_ERR_GENERAL = -1;
         public static readonly int CBIO_ERR_WANT_READ = -2;
@@ -687,7 +725,7 @@ namespace wolfSSL.CSharp {
                 int ret;
                 byte[] msg;
 
-                buf.Clear(); /* Clear incomming buffer */
+                buf.Clear(); /* Clear incoming buffer */
 
                 if (sslCtx == IntPtr.Zero)
                 {
@@ -1719,10 +1757,10 @@ namespace wolfSSL.CSharp {
         }
 
         /// <summary>
-        /// Used to load in the private key from a file 
+        /// Used to load in the private key from a file
         /// </summary>
         /// <param name="ctx">CTX structure for TLS/SSL connections </param>
-        /// <param name="fileKey">Name of the file, includeing absolute directory</param>
+        /// <param name="fileKey">Name of the file, including absolute directory</param>
         /// <param name="type">Type of file ie PEM or DER</param>
         /// <returns>1 on success</returns>
         public static int CTX_use_PrivateKey_file(IntPtr ctx, string fileKey, int type)
@@ -1837,11 +1875,20 @@ namespace wolfSSL.CSharp {
         {
             try
             {
-                IntPtr local_ctx = unwrap_ctx(ctx);
+                GCHandle   gch;
+                ctx_handle handles;
+                IntPtr     local_ctx = unwrap_ctx(ctx);
                 if (local_ctx == IntPtr.Zero)
                 {
                     log(ERROR_LOG, "CTX set_verify error");
                     return FAILURE;
+                }
+
+                /* pin the verify callback to protect from garbage collection */
+                if (!vc.Equals(null)) {
+                    gch = GCHandle.FromIntPtr(ctx);
+                    handles = (ctx_handle)gch.Target;
+                    handles.set_vrf(GCHandle.Alloc(vc));
                 }
 
                 wolfSSL_CTX_set_verify(local_ctx, mode, vc);
@@ -1864,11 +1911,20 @@ namespace wolfSSL.CSharp {
         {
             try
             {
-                IntPtr local_ssl = unwrap_ssl(ssl);
+                GCHandle   gch;
+                ssl_handle handles;
+                IntPtr     local_ssl = unwrap_ssl(ssl);
                 if (local_ssl == IntPtr.Zero)
                 {
                     log(ERROR_LOG, "set_verify error");
                     return FAILURE;
+                }
+
+                /* pin the verify callback to protect from garbage collection */
+                if (!vc.Equals(null)) {
+                    gch = GCHandle.FromIntPtr(ssl);
+                    handles = (ssl_handle)gch.Target;
+                    handles.set_vrf(GCHandle.Alloc(vc));
                 }
 
                 wolfSSL_set_verify(local_ssl, mode, vc);
@@ -1942,7 +1998,7 @@ namespace wolfSSL.CSharp {
                     wolfSSL_sk_X509_free(sk);
                 }
                 return ret;
-                
+
             }
             catch (Exception e)
             {

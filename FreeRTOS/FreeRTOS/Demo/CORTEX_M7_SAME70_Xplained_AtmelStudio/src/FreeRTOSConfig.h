@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -79,6 +79,9 @@ readable ASCII form.  See the notes in the implementation of vTaskList() within
 FreeRTOS/Source/tasks.c for limitations. */
 #define configUSE_STATS_FORMATTING_FUNCTIONS	1
 
+/* Co-routine definitions. */
+#define configUSE_CO_ROUTINES 					0
+#define configMAX_CO_ROUTINE_PRIORITIES			( 2 )
 
 /* Software timer definitions. */
 #define configUSE_TIMERS						1
@@ -128,7 +131,7 @@ header file. */
 #define configASSERT( x ) if( ( x ) == 0 ) { taskDISABLE_INTERRUPTS(); for( ;; ); }
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
-standard names.  Defining the constants removes the need to edit the vector
+standard names.  Defining the constants removes the need to edit the vector 
 table in order to install the RTOS interrupt handlers. */
 #define xPortPendSVHandler PendSV_Handler
 #define vPortSVCHandler SVC_Handler

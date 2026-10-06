@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -122,7 +124,7 @@ static CellularTokenTable_t tokenTable =
 /* Look up table is maintained here as global scope within this file instead of
  * block scope to help developers to convert BER value. */
 /* coverity[misra_c_2012_rule_8_9_violation] */
-static const uint16_t rxqualValueToBerTable[] =
+static const uint16_t rxEqualValueToBerTable[] =
 {
     14,  /* Assumed value 0.14%. */
     28,  /* Assumed value 0.28%.*/
@@ -408,6 +410,20 @@ void MockPlatformMutex_Destroy( PlatformMutex_t * pMutex )
     pMutex->created = false;
 }
 
+
+static CellularPktStatus_t prvDummyInputBufferCallback( void * pInputBufferCallbackContext,
+                                                        char * pBuffer,
+                                                        uint32_t bufferLength,
+                                                        uint32_t * pBufferLengthHandled )
+{
+    ( void ) pInputBufferCallbackContext;
+    ( void ) pBuffer;
+    ( void ) bufferLength;
+    ( void ) pBufferLengthHandled;
+
+    return CELLULAR_PKT_STATUS_OK;
+}
+
 /* ========================================================================== */
 
 /**
@@ -505,7 +521,7 @@ void test__Cellular_TranslatePktStatus_Each_Case( void )
  */
 void test__Cellular_TranslateAtCoreStatus_Each_Case( void )
 {
-    CellularPktStatus_t pktStatus = CELLULAR_AT_SUCCESS;
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
 
     pktStatus = _Cellular_TranslateAtCoreStatus( CELLULAR_AT_SUCCESS );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
@@ -522,17 +538,17 @@ void test__Cellular_TranslateAtCoreStatus_Each_Case( void )
  */
 void test__Cellular_CreateSocketData_Mem_Alloc_Fail( void )
 {
-    CellularPktStatus_t pktStatus = CELLULAR_AT_SUCCESS;
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t context;
     CellularSocketHandle_t socketHandle;
 
     mallocAllocFail = 1;
     memset( &context, 0, sizeof( CellularContext_t ) );
-    pktStatus = _Cellular_CreateSocketData( &context, 0, CELLULAR_SOCKET_DOMAIN_AF_INET,
-                                            CELLULAR_SOCKET_TYPE_DGRAM,
-                                            CELLULAR_SOCKET_PROTOCOL_TCP,
-                                            &socketHandle );
-    TEST_ASSERT_EQUAL( CELLULAR_NO_MEMORY, pktStatus );
+    cellularStatus = _Cellular_CreateSocketData( &context, 0, CELLULAR_SOCKET_DOMAIN_AF_INET,
+                                                 CELLULAR_SOCKET_TYPE_DGRAM,
+                                                 CELLULAR_SOCKET_PROTOCOL_TCP,
+                                                 &socketHandle );
+    TEST_ASSERT_EQUAL( CELLULAR_NO_MEMORY, cellularStatus );
 }
 
 /**
@@ -540,7 +556,7 @@ void test__Cellular_CreateSocketData_Mem_Alloc_Fail( void )
  */
 void test__Cellular_CreateSocketData_No_Socket_Data_Entry_Fail( void )
 {
-    CellularPktStatus_t pktStatus = CELLULAR_AT_SUCCESS;
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t context;
     CellularSocketHandle_t socketHandle;
     uint32_t i = 0;
@@ -552,11 +568,11 @@ void test__Cellular_CreateSocketData_No_Socket_Data_Entry_Fail( void )
         context.pSocketData[ i ] = malloc( sizeof( CellularSocketContext_t ) );
     }
 
-    pktStatus = _Cellular_CreateSocketData( &context, 0, CELLULAR_SOCKET_DOMAIN_AF_INET,
-                                            CELLULAR_SOCKET_TYPE_DGRAM,
-                                            CELLULAR_SOCKET_PROTOCOL_TCP,
-                                            &socketHandle );
-    TEST_ASSERT_EQUAL( CELLULAR_NO_MEMORY, pktStatus );
+    cellularStatus = _Cellular_CreateSocketData( &context, 0, CELLULAR_SOCKET_DOMAIN_AF_INET,
+                                                 CELLULAR_SOCKET_TYPE_DGRAM,
+                                                 CELLULAR_SOCKET_PROTOCOL_TCP,
+                                                 &socketHandle );
+    TEST_ASSERT_EQUAL( CELLULAR_NO_MEMORY, cellularStatus );
 }
 
 /**
@@ -564,16 +580,16 @@ void test__Cellular_CreateSocketData_No_Socket_Data_Entry_Fail( void )
  */
 void test__Cellular_CreateSocketData_Happy_Path( void )
 {
-    CellularPktStatus_t pktStatus = CELLULAR_AT_SUCCESS;
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t context;
     CellularSocketHandle_t socketHandle;
 
     memset( &context, 0, sizeof( CellularContext_t ) );
-    pktStatus = _Cellular_CreateSocketData( &context, 0, CELLULAR_SOCKET_DOMAIN_AF_INET,
-                                            CELLULAR_SOCKET_TYPE_DGRAM,
-                                            CELLULAR_SOCKET_PROTOCOL_TCP,
-                                            &socketHandle );
-    TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, pktStatus );
+    cellularStatus = _Cellular_CreateSocketData( &context, 0, CELLULAR_SOCKET_DOMAIN_AF_INET,
+                                                 CELLULAR_SOCKET_TYPE_DGRAM,
+                                                 CELLULAR_SOCKET_PROTOCOL_TCP,
+                                                 &socketHandle );
+    TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
 }
 
 /**
@@ -651,7 +667,7 @@ void test__Cellular_IsValidSocket_Null_Context( void )
 /**
  * @brief Test that bad socket Index parameter case for _Cellular_IsValidSocket.
  */
-void test__Cellular_IsValidSocket_Bad_SocketInex_Parameter( void )
+void test__Cellular_IsValidSocket_Bad_SocketIndex_Parameter( void )
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
     CellularContext_t context;
@@ -835,7 +851,7 @@ void test__Cellular_ConvertCsqSignalBer_Happy( void )
 
     cellularStatus = _Cellular_ConvertCsqSignalBer( csqBer, &berValue );
     TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
-    TEST_ASSERT_EQUAL( rxqualValueToBerTable[ csqBer ], berValue );
+    TEST_ASSERT_EQUAL( rxEqualValueToBerTable[ csqBer ], berValue );
 }
 
 /**
@@ -861,11 +877,11 @@ void test__Cellular_GetModuleContext_Happy_Path( void )
     int32_t * pModuleContext;
 
     memset( &context, 0, sizeof( CellularContext_t ) );
-    context.pModueContext = &moduleContext;
+    context.pModuleContext = &moduleContext;
     cellularStatus = _Cellular_GetModuleContext( &context, ( void ** ) &pModuleContext );
 
     TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
-    TEST_ASSERT_EQUAL( pModuleContext, context.pModueContext );
+    TEST_ASSERT_EQUAL( pModuleContext, context.pModuleContext );
 }
 
 /**
@@ -1637,4 +1653,67 @@ void test__Cellular_RegisterUndefinedRespCallback_Happy_Path( void )
     TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
     TEST_ASSERT_NULL( context.undefinedRespCallback );
     TEST_ASSERT_NULL( context.pUndefinedRespCBContext );
+}
+
+/**
+ * @brief _Cellular_RegisterInputBufferCallback - parameter null context.
+ * pContext parameter is NULL. Verify the return value.
+ */
+void test__Cellular_RegisterInputBufferCallback_Null_Context( void )
+{
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
+
+    /* API call. */
+    cellularStatus = _Cellular_RegisterInputBufferCallback( NULL, NULL, NULL );
+
+    /* Validation. */
+    TEST_ASSERT_EQUAL( CELLULAR_INVALID_HANDLE, cellularStatus );
+}
+
+/**
+ * @brief _Cellular_RegisterInputBufferCallback - parameter NULL callback.
+ * inputBufferCallback parameter is NULL. Verify the member variable is updated.
+ */
+void test__Cellular_RegisterInputBufferCallback_Null_Callback( void )
+{
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
+    CellularContext_t cellularContext;
+    uint32_t inputBufferCallbackContext;
+
+    /* Setup internal variable. */
+    memset( &cellularContext, 0, sizeof( CellularContext_t ) );
+    cellularContext.inputBufferCallback = prvDummyInputBufferCallback;
+    cellularContext.pInputBufferCallbackContext = &inputBufferCallbackContext;
+
+    /* API call. */
+    cellularStatus = _Cellular_RegisterInputBufferCallback( &cellularContext, NULL, &inputBufferCallbackContext );
+
+    /* Validation. */
+    TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
+    TEST_ASSERT_EQUAL( NULL, cellularContext.inputBufferCallback );
+    /* The callback context will be cleaned when inputBufferCallback is NULL. */
+    TEST_ASSERT_EQUAL( NULL, cellularContext.pInputBufferCallbackContext );
+}
+
+/**
+ * @brief _Cellular_RegisterInputBufferCallback - Setup the URC data callback.
+ * Verify the URC data callback and callback context are set correctly.
+ */
+void test__Cellular_RegisterInputBufferCallback_Happy_Path( void )
+{
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
+    CellularContext_t cellularContext;
+    uint32_t inputBufferCallbackContext;
+
+    /* Setup internal variable. */
+    memset( &cellularContext, 0, sizeof( CellularContext_t ) );
+    cellularContext.inputBufferCallback = NULL;
+
+    /* API call. */
+    cellularStatus = _Cellular_RegisterInputBufferCallback( &cellularContext, prvDummyInputBufferCallback, &inputBufferCallbackContext );
+
+    /* Validation. */
+    TEST_ASSERT_EQUAL( CELLULAR_SUCCESS, cellularStatus );
+    TEST_ASSERT_EQUAL( prvDummyInputBufferCallback, cellularContext.inputBufferCallback );
+    TEST_ASSERT_EQUAL( &inputBufferCallbackContext, cellularContext.pInputBufferCallbackContext );
 }

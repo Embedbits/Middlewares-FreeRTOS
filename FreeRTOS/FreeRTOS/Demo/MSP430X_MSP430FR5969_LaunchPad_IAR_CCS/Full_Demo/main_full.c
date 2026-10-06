@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -358,7 +358,7 @@ void vConfigureTimerForRunTimeStats( void )
 __interrupt void v4RunTimeStatsTimerOverflow( void )
 {
 	TA1CTL &= ~TAIFG;
-
+	
 	/* 16-bit overflow, so add 17th bit. */
 	ulRunTimeCounterOverflows += 0x10000;
 	__bic_SR_register_on_exit( SCG1 + SCG0 + OSCOFF + CPUOFF );

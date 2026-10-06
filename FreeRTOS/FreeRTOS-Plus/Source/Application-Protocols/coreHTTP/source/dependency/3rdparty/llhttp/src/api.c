@@ -253,6 +253,14 @@ void llhttp_set_lenient_keep_alive(llhttp_t* parser, int enabled) {
   }
 }
 
+void llhttp_set_lenient_transfer_encoding(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->lenient_flags |= LENIENT_TRANSFER_ENCODING;
+  } else {
+    parser->lenient_flags &= ~LENIENT_TRANSFER_ENCODING;
+  }
+}
+
 /* Callbacks */
 
 
@@ -343,6 +351,13 @@ int llhttp__on_body(llhttp_t* s, const char* p, const char* endp) {
 int llhttp__on_chunk_header(llhttp_t* s, const char* p, const char* endp) {
   int err;
   CALLBACK_MAYBE(s, on_chunk_header);
+  return err;
+}
+
+
+int llhttp__on_chunk_parameters(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  SPAN_CALLBACK_MAYBE(s, on_chunk_parameters, p, endp - p);
   return err;
 }
 

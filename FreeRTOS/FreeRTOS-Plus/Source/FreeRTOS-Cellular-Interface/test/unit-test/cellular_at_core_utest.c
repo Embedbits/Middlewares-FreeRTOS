@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -164,6 +166,11 @@
  * @brief Cellular sample prefix string wrong input.
  */
 #define CELLULAR_SAMPLE_PREFIX_STRING_STAR_FIRST_INPUT             "*CPIN:READY"
+
+/**
+ * @brief Cellular sample prefix string with invalid prefix char.
+ */
+#define CELLULAR_SAMPLE_PREFIX_STRING_INVALID_PREFIX_CHAR          "+*CPIN:READY"
 
 static int mallocAllocFail = 0;
 
@@ -882,6 +889,20 @@ void test_Cellular_ATStrStartWith_Empty_Prefix( void )
 }
 
 /**
+ * @brief Test the long string case for Cellular_ATStrStartWith to return CELLULAR_AT_BAD_PARAMETER.
+ */
+void test_Cellular_ATStrStartWith_ATStringTooLong( void )
+{
+    CellularATError_t cellularStatus = CELLULAR_AT_SUCCESS;
+    bool result;
+    char * pPrefix = "";
+    char pStringSuccess[] = CELLULAR_SAMPLE_PREFIX_STRING_LARGE_INPUT;
+
+    cellularStatus = Cellular_ATStrStartWith( pStringSuccess, pPrefix, &result );
+    TEST_ASSERT_EQUAL( CELLULAR_AT_BAD_PARAMETER, cellularStatus );
+}
+
+/**
  * @brief Test that any NULL parameter causes Cellular_ATStrtoi to return CELLULAR_AT_BAD_PARAMETER.
  */
 void test_Cellular_ATStrtoi_Invalid_Param( void )
@@ -1049,6 +1070,20 @@ void test_Cellular_ATIsPrefixPresent_Wrong_Prefix( void )
     bool Result;
 
     strcpy( pString, CELLULAR_SAMPLE_PREFIX_STRING_STAR_FIRST_INPUT );
+    cellularStatus = Cellular_ATIsPrefixPresent( pString, &Result );
+    TEST_ASSERT_EQUAL( CELLULAR_AT_SUCCESS, cellularStatus );
+    TEST_ASSERT_EQUAL( false, Result );
+}
+
+/**
+ * @brief Test the string with wrong prefix case for Cellular_ATIsPrefixPresent to return CELLULAR_AT_BAD_PARAMETER.
+ */
+void test_Cellular_ATIsPrefixPresent_Invalid_Prefix_Char( void )
+{
+    CellularATError_t cellularStatus = CELLULAR_AT_SUCCESS;
+    char pString[] = CELLULAR_SAMPLE_PREFIX_STRING_INVALID_PREFIX_CHAR;
+    bool Result;
+
     cellularStatus = Cellular_ATIsPrefixPresent( pString, &Result );
     TEST_ASSERT_EQUAL( CELLULAR_AT_SUCCESS, cellularStatus );
     TEST_ASSERT_EQUAL( false, Result );

@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,10 +21,18 @@
 #ifndef USER_SETTINGS_H_
 #define USER_SETTINGS_H_
 
+
 /* Temporary defines. Not suitable for production. */
 #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
 /* End temporary defines */
 
+/* TLS 1.3 */
+#define WOLFSSL_TLS13
+#define HAVE_HKDF
+#define WC_RSA_PSS
+#if defined(WOLFSSL_TLS13)
+    #include <sys/time.h>
+#endif
 /* Operating Environment and Threading */
 #define FREERTOS
 #define FREERTOS_TCP
@@ -67,11 +75,11 @@
 #define NO_PWDBASED
 #define NO_DSA
 #define NO_DES3
-#define NO_RABBIT
 #define NO_RC4
 #define NO_MD4
 
 void wolfssl_thread_entry(void *pvParameters);
 extern void initialise_monitor_handles(void);
+int strncasecmp(const char *s1, const char * s2, unsigned int sz);
 
 #endif /* USER_SETTINGS_H_ */

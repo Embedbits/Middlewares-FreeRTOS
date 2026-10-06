@@ -49,28 +49,16 @@ static CellularError_t sendAtCommandWithRetryTimeout( CellularContext_t * pConte
 
 static cellularModuleContext_t cellularBg96Context = { 0 };
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 const char * CellularSrcTokenErrorTable[] =
 { "ERROR", "BUSY", "NO CARRIER", "NO ANSWER", "NO DIALTONE", "ABORTED", "+CMS ERROR", "+CME ERROR", "SEND FAIL" };
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 uint32_t CellularSrcTokenErrorTableSize = sizeof( CellularSrcTokenErrorTable ) / sizeof( char * );
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 const char * CellularSrcTokenSuccessTable[] =
 { "OK", "CONNECT", "SEND OK", ">" };
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 uint32_t CellularSrcTokenSuccessTableSize = sizeof( CellularSrcTokenSuccessTable ) / sizeof( char * );
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 const char * CellularUrcTokenWoPrefixTable[] =
-{ "NORMAL POWER DOWN", "PSM POWER DOWN", "RDY" };
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
+{ "POWERED DOWN", "PSM POWER DOWN", "RDY" };
 uint32_t CellularUrcTokenWoPrefixTableSize = sizeof( CellularUrcTokenWoPrefixTable ) / sizeof( char * );
 
 /*-----------------------------------------------------------*/
@@ -136,8 +124,6 @@ static bool appendRatList( char * pRatList,
 
 /*-----------------------------------------------------------*/
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
                                      void ** ppModuleContext )
 {
@@ -158,7 +144,7 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
         ( void ) memset( &cellularBg96Context, 0, sizeof( cellularModuleContext_t ) );
 
         /* Create the mutex for DNS. */
-        status = PlatformMutex_Create( &cellularBg96Context.dnsQueryMutex, false );
+        status = PlatformMutex_Create( &cellularBg96Context.contextMutex, false );
 
         if( status == false )
         {
@@ -171,7 +157,7 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
 
             if( cellularBg96Context.pktDnsQueue == NULL )
             {
-                PlatformMutex_Destroy( &cellularBg96Context.dnsQueryMutex );
+                PlatformMutex_Destroy( &cellularBg96Context.contextMutex );
                 cellularStatus = CELLULAR_NO_MEMORY;
             }
             else
@@ -179,6 +165,16 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
                 *ppModuleContext = ( void * ) &cellularBg96Context;
             }
         }
+
+        #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
+        {
+            /* Register the URC data callback. */
+            if( cellularStatus == CELLULAR_SUCCESS )
+            {
+                cellularStatus = _Cellular_RegisterInputBufferCallback( pContext, Cellular_BG96InputBufferCallback, pContext );
+            }
+        }
+        #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
     }
 
     return cellularStatus;
@@ -186,8 +182,6 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 CellularError_t Cellular_ModuleCleanUp( const CellularContext_t * pContext )
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
@@ -202,7 +196,7 @@ CellularError_t Cellular_ModuleCleanUp( const CellularContext_t * pContext )
         vQueueDelete( cellularBg96Context.pktDnsQueue );
 
         /* Delete the mutex for DNS. */
-        PlatformMutex_Destroy( &cellularBg96Context.dnsQueryMutex );
+        PlatformMutex_Destroy( &cellularBg96Context.contextMutex );
     }
 
     return cellularStatus;
@@ -210,8 +204,6 @@ CellularError_t Cellular_ModuleCleanUp( const CellularContext_t * pContext )
 
 /*-----------------------------------------------------------*/
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 CellularError_t Cellular_ModuleEnableUE( CellularContext_t * pContext )
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;
@@ -322,8 +314,6 @@ CellularError_t Cellular_ModuleEnableUE( CellularContext_t * pContext )
 
 /*-----------------------------------------------------------*/
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 CellularError_t Cellular_ModuleEnableUrc( CellularContext_t * pContext )
 {
     CellularError_t cellularStatus = CELLULAR_SUCCESS;

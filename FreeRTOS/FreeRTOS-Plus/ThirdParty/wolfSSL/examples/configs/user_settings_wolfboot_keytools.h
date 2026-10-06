@@ -4,16 +4,16 @@
  * Enabled via WOLFSSL_USER_SETTINGS.
  *
  *
- * Copyright (C) 2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
- * This file is part of wolfBoot.
+ * This file is part of wolfSSL.
  *
- * wolfBoot is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * wolfBoot is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -26,7 +26,7 @@
 #ifndef H_USER_SETTINGS_
 #define H_USER_SETTINGS_
 
-#include <stdint.h>
+/* #include <stdint.h> */ /* DG: Removed, not needed for testing */
 
 /* System */
 #define WOLFSSL_GENERAL_ALIGNMENT 4
@@ -35,8 +35,6 @@
 #define SIZEOF_LONG_LONG 8
 
 /* Math */
-#define WOLFSSL_SP
-#define WOLFSSL_SP_NO_3072
 #define USE_FAST_MATH
 #define FP_MAX_BITS (4096 * 2)
 #define TFM_TIMING_RESISTANT
@@ -45,10 +43,18 @@
 #define HAVE_ECC
 #define WOLFSSL_HAVE_SP_ECC
 #define ECC_TIMING_RESISTANT
+#define HAVE_ECC256
+#define HAVE_ECC384
+#define HAVE_ECC521
 
 /* ED25519 */
 #define HAVE_ED25519
-#define CURVED25519_SMALL
+/* DG: Added, since --enable-usersettings expects small version to be used */
+#define ED25519_SMALL
+
+/* ED448 */
+#define HAVE_ED448
+#define WOLFSSL_SHAKE256
 
 /* RSA */
 #define HAVE_RSA
@@ -58,14 +64,18 @@
 
 /* Hashing */
 #define WOLFSSL_SHA512 /* Required for ED25519 */
+#define WOLFSSL_SHA384
 #define WOLFSSL_SHA3
 #undef  NO_SHA256
 
 /* Chacha stream cipher */
 #define HAVE_CHACHA
 
+/* AES */
+#define WOLFSSL_AES_COUNTER
+#define WOLFSSL_AES_DIRECT
+
 /* Disables */
-#define NO_AES
 #define NO_CMAC
 #define NO_HMAC
 #define NO_RC4
@@ -83,7 +93,6 @@
 #define NO_PWDBASED
 #define NO_WRITEV
 #define NO_FILESYSTEM
-//#define NO_MAIN_DRIVER
 #define NO_OLD_RNGNAME
 #define NO_WOLFSSL_DIR
 #define WOLFSSL_NO_SOCK
@@ -91,7 +100,10 @@
 #define NO_ERROR_STRINGS
 
 #define BENCH_EMBEDDED
-#define NO_CRYPT_TEST
-#define NO_CRYPT_BENCHMARK
+
+/* DG: Removed since we need it here for testing */
+/* #define NO_MAIN_DRIVER */
+/* #define NO_CRYPT_TEST */
+/* #define NO_CRYPT_BENCHMARK */
 
 #endif /* !H_USER_SETTINGS_ */

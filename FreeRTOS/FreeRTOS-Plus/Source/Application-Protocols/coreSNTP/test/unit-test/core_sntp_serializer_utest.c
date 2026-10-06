@@ -1,5 +1,5 @@
 /*
- * coreSNTP v1.2.0
+ * coreSNTP v1.3.1
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -552,6 +552,7 @@ void test_DeserializeResponse_AcceptedResponse_ClockOffset_Edge_Cases( void )
         clientTime.seconds - YEARS_68_IN_SECONDS,
         clientTime.fractions
     };
+
     testClockOffsetCalculation( &clientTime, &serverTime,
                                 &serverTime, &clientTime,
                                 SntpSuccess,
@@ -734,6 +735,7 @@ void test_DeserializeResponse_AcceptedResponse_Nominal_Case( void )
         clientTxTime.seconds + YEARS_20_IN_SECONDS + 2,
         serverTxTime.fractions
     };
+
     serverTxTime.seconds = serverRxTime.seconds + 2;
     SntpTimestamp_t clientRxTime =
     {
@@ -741,6 +743,7 @@ void test_DeserializeResponse_AcceptedResponse_Nominal_Case( void )
                                    * Server -> Client */
         clientTxTime.fractions
     };
+
     expectedOffset = YEARS_20_IN_SECONDS;
 
     testClockOffsetCalculation( &clientTxTime, &serverRxTime,

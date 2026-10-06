@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +29,7 @@
 #include <stdint.h>
 
 /* Cellular APIs includes. */
+#include "cellular_config.h"
 #include "cellular_config_defaults.h"
 #include "cellular_platform.h"
 #include "cellular_types.h"

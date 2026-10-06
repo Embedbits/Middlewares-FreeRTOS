@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -103,6 +103,9 @@ void test_ProcessICMPPacket_EchoRequest( void )
     IPHeader_t * pxIPHeader;
     ICMPPacket_t * pxICMPPacket;
     ICMPHeader_t * pxICMPHeader;
+    NetworkEndPoint_t xEndPoint = { 0 };
+
+    pxNetworkEndPoints = &xEndPoint;
 
     pxNetworkBuffer = &xNetworkBuffer;
     pxNetworkBuffer->pucEthernetBuffer = ucEthBuffer;
@@ -116,6 +119,8 @@ void test_ProcessICMPPacket_EchoRequest( void )
 
     pxICMPPacket->xICMPHeader.ucTypeOfMessage = ipICMP_ECHO_REQUEST;
 
+    uxIPHeaderSizePacket_ExpectAnyArgsAndReturn( 0 );
+
     usGenerateChecksum_ExpectAnyArgsAndReturn( 0xAA );
 
     usGenerateProtocolChecksum_ExpectAnyArgsAndReturn( 0 );
@@ -125,7 +130,7 @@ void test_ProcessICMPPacket_EchoRequest( void )
     TEST_ASSERT_EQUAL( eReturnEthernetFrame, eResult );
     TEST_ASSERT_EQUAL( ( uint8_t ) ipICMP_ECHO_REPLY, pxICMPHeader->ucTypeOfMessage );
     TEST_ASSERT_EQUAL( pxIPHeader->ulSourceIPAddress, pxIPHeader->ulDestinationIPAddress );
-    TEST_ASSERT_EQUAL( *ipLOCAL_IP_ADDRESS_POINTER, pxIPHeader->ulSourceIPAddress );
+    TEST_ASSERT_EQUAL( xEndPoint.ipv4_settings.ulIPAddress, pxIPHeader->ulSourceIPAddress );
     TEST_ASSERT_EQUAL( ipconfigICMP_TIME_TO_LIVE, pxIPHeader->ucTimeToLive );
     TEST_ASSERT_EQUAL( 0, pxIPHeader->usFragmentOffset );
     TEST_ASSERT_EQUAL( ( uint16_t ) ~FreeRTOS_htons( 0xAA ), pxIPHeader->usHeaderChecksum );
@@ -169,7 +174,7 @@ void test_ProcessICMPPacket_ICMPEchoReply_NULLData( void )
 
     pxICMPPacket = ( ICMPPacket_t * ) pxNetworkBuffer->pucEthernetBuffer;
 
-    pxICMPPacket->xIPHeader.usLength = FreeRTOS_htons( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ICMP_HEADER );
+    pxICMPPacket->xIPHeader.usLength = FreeRTOS_htons( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ICMPv4_HEADER );
 
     /* ICMP Reply. */
     pxICMPPacket->xICMPHeader.ucTypeOfMessage = ipICMP_ECHO_REPLY;
@@ -197,7 +202,7 @@ void test_ProcessICMPPacket_ICMPEchoReply_ProperData( void )
 
     pxICMPPacket = ( ICMPPacket_t * ) pxNetworkBuffer->pucEthernetBuffer;
 
-    pxICMPPacket->xIPHeader.usLength = FreeRTOS_htons( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ICMP_HEADER + 10 );
+    pxICMPPacket->xIPHeader.usLength = FreeRTOS_htons( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ICMPv4_HEADER + 10 );
 
     /* ICMP Reply. */
     pxICMPPacket->xICMPHeader.ucTypeOfMessage = ipICMP_ECHO_REPLY;
@@ -229,7 +234,7 @@ void test_ProcessICMPPacket_ICMPEchoReply_ImproperData( void )
 
     pxICMPPacket = ( ICMPPacket_t * ) pxNetworkBuffer->pucEthernetBuffer;
 
-    pxICMPPacket->xIPHeader.usLength = FreeRTOS_htons( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ICMP_HEADER + 10 );
+    pxICMPPacket->xIPHeader.usLength = FreeRTOS_htons( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ICMPv4_HEADER + 10 );
 
     /* ICMP Reply. */
     pxICMPPacket->xICMPHeader.ucTypeOfMessage = ipICMP_ECHO_REPLY;

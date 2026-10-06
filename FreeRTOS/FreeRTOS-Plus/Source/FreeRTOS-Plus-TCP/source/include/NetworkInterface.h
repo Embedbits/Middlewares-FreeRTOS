@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V3.1.0
+ * FreeRTOS+TCP V4.2.2
  * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -34,16 +34,26 @@
 #endif
 /* *INDENT-ON* */
 
+#include "FreeRTOS_IP.h"
+
 /* INTERNAL API FUNCTIONS. */
-BaseType_t xNetworkInterfaceInitialise( void );
-BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxNetworkBuffer,
-                                    BaseType_t xReleaseAfterSend );
+
+/* Since there are multiple interfaces, there are multiple versions
+ * of the following functions.
+ * These are now declared static in NetworkInterface.c and their addresses
+ * are stored in a struct NetworkInterfaceDescriptor_t.
+ *
+ *  BaseType_t xNetworkInterfaceInitialise( struct xNetworkInterface *pxInterface );
+ *  BaseType_t xGetPhyLinkStatus( struct xNetworkInterface *pxInterface );
+ */
 
 /* The following function is defined only when BufferAllocation_1.c is linked in the project. */
 void vNetworkInterfaceAllocateRAMToBuffers( NetworkBufferDescriptor_t pxNetworkBuffers[ ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS ] );
 
-/* The following function is defined only when BufferAllocation_1.c is linked in the project. */
-BaseType_t xGetPhyLinkStatus( void );
+BaseType_t xGetPhyLinkStatus( struct xNetworkInterface * pxInterface );
+
+#define MAC_IS_MULTICAST( pucMACAddressBytes )    ( ( pucMACAddressBytes[ 0 ] & 1U ) != 0U )
+#define MAC_IS_UNICAST( pucMACAddressBytes )      ( ( pucMACAddressBytes[ 0 ] & 1U ) == 0U )
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,7 +26,7 @@
  */
 
 /**
- * @brief FreeRTOS Cellular Library URC handler implemenation with 3GPP URC.
+ * @brief FreeRTOS Cellular Library URC handler implementation with 3GPP URC.
  */
 
 
@@ -139,22 +141,22 @@ static CellularPktStatus_t _parseRegStatusInRegStatusParsing( CellularContext_t 
 
         if( regStatus == REGISTRATION_STATUS_REGISTERED_HOME )
         {
-            LogDebug( ( "Netowrk registration : HOME" ) );
+            LogDebug( ( "Network registration : HOME" ) );
         }
         else if( regStatus == REGISTRATION_STATUS_ROAMING_REGISTERED )
         {
-            LogDebug( ( "Netowrk registration : ROAMING" ) );
+            LogDebug( ( "Network registration : ROAMING" ) );
         }
         else if( regStatus == REGISTRATION_STATUS_REGISTRATION_DENIED )
         {
             /* clear the atlib data if the registration failed. */
-            LogDebug( ( "Netowrk registration : DEINED" ) );
+            LogDebug( ( "Network registration : DEINED" ) );
             _Cellular_InitAtData( pContext, 1 );
         }
         else
         {
             /* clear the atlib data if the registration failed. */
-            LogDebug( ( "Netowrk registration : OTHERS" ) );
+            LogDebug( ( "Network registration : OTHERS" ) );
             _Cellular_InitAtData( pContext, 1 );
         }
     }
@@ -473,7 +475,7 @@ static void _regStatusGenerateEvent( const CellularContext_t * pContext,
     serviceStatus.psRejectionCause = pLibAtData->psRejCause;
     serviceStatus.psRejectionType = pLibAtData->psRejectType;
 
-    /* Data should be obtained from COPS commmand. User should obtain with APIs. */
+    /* Data should be obtained from COPS command. User should obtain with APIs. */
     ( void ) strcpy( serviceStatus.plmnInfo.mcc, "FFF" );
     ( void ) strcpy( serviceStatus.plmnInfo.mnc, "FFF" );
     ( void ) strcpy( serviceStatus.operatorName, "FFF" );
@@ -557,7 +559,7 @@ CellularPktStatus_t _Cellular_ParseRegStatus( CellularContext_t * pContext,
     }
     else
     {
-        pLibAtData = &pContext->libAtData;
+        pLibAtData = &( pContext->libAtData );
 
         if( isUrc == true )
         {

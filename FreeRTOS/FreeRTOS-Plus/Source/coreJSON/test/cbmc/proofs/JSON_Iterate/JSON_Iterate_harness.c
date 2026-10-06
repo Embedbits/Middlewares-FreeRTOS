@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.2.0
+ * coreJSON v3.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
@@ -27,55 +27,15 @@
  * @brief Implements the proof harness for the JSON_Iterate function.
  */
 
-#include <stdlib.h>
-#include "core_json_annex.h"
+#include "core_json_contracts.h"
 
 void harness()
 {
     char * buf;
     size_t max;
-    size_t * start, * next;
-    JSONPair_t * pair;
-    JSONStatus_t ret;
+    size_t * start;
+    size_t * next;
+    JSONPair_t * outPair;
 
-    /* max is the buffer length which must not exceed unwindings. */
-    __CPROVER_assume( max < CBMC_MAX_BUFSIZE );
-
-    buf = malloc( max );
-    start = malloc( sizeof( *start ) );
-    next = malloc( sizeof( *next ) );
-    pair = malloc( sizeof( *pair ) );
-
-    if( pair != NULL )
-    {
-        JSONPair_t tmp = { 0 };
-        *pair = tmp;
-    }
-
-    ret = JSON_Iterate( buf,
-                        max,
-                        start,
-                        next,
-                        pair );
-
-    __CPROVER_assert( jsonIterateEnum( ret ), "The return value is a JSONStatus_t." );
-
-    if( ret == JSONSuccess )
-    {
-        if( pair->key != NULL )
-        {
-            __CPROVER_assert( ( pair->key > buf ) &&
-                              ( ( pair->key + pair->keyLength ) < ( buf + max ) ),
-                              "The output key is a sequence of characters within buf." );
-
-            __CPROVER_assert( ( pair->key + pair->keyLength ) < pair->value,
-                              "The output value occurs after the key." );
-        }
-
-        __CPROVER_assert( ( pair->value > buf ) &&
-                          ( ( pair->value + pair->valueLength ) <= ( buf + max ) ),
-                          "The output value is a sequence of characters within buf." );
-
-        __CPROVER_assert( jsonTypesEnum( pair->jsonType ), "The value type is a JSONTypes_t." );
-    }
+    JSON_Iterate( buf, max, start, next, outPair );
 }

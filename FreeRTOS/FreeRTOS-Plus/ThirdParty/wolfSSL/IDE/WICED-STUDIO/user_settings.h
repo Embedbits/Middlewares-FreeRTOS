@@ -75,7 +75,6 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_CACHE_RESISTANT
     //#define WOLFSSL_SP_MATH
 
     /* 64 or 32 bit version */
@@ -666,12 +665,6 @@ extern unsigned int my_rng_seed_gen(void);
 
 #undef  NO_OLD_TLS
 //#define NO_OLD_TLS
-
-#undef  NO_HC128
-//#define NO_HC128
-
-#undef  NO_RABBIT
-//#define NO_RABBIT
 
 #undef  NO_PSK
 //#define NO_PSK

@@ -1,7 +1,7 @@
 autogen.sh - creates ./configure from source checkout, sets up git hooks
 
 pre-commit.sh - our pre commit hook, saves current state before running commit
-                tests to allow a resotre back to current state
+                tests to allow a restore back to current state
 
 commit-tests.sh - our commit tests, must pass before a commit is accepted, use
                   -n (--no-verify) to disable
@@ -38,8 +38,6 @@ scripts/
  ocsp-stapling2.test - example client test against example server, part of tests
  sniffer-testsuite.test - runs snifftest on a pcap of testsuite, part of tests
                           in sniffer mode
-swig/
- PythonBuild.sh - builds and runs simple python example
 
 valgrind-error.sh - deprecated, was used to detect valgrind errors before
                     automake switched to concurrent tests

@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -375,6 +375,10 @@ static BaseType_t prvWaitForDeleteResponse( MQTTContext_t * pxMQTTContext );
 
 /*-----------------------------------------------------------*/
 
+extern BaseType_t xPlatformIsNetworkUp( void );
+
+/*-----------------------------------------------------------*/
+
 static BaseType_t prvWaitForDeleteResponse( MQTTContext_t * pxMQTTContext )
 {
     uint8_t ucCount = 0U;
@@ -390,7 +394,7 @@ static BaseType_t prvWaitForDeleteResponse( MQTTContext_t * pxMQTTContext )
         /* Event callback will set #xDeleteResponseReceived when receiving an
          * incoming publish on either `/delete/accepted` or `/delete/rejected`
          * Shadow topics. */
-        xMQTTStatus = MQTT_ProcessLoop( pxMQTTContext, MQTT_PROCESS_LOOP_TIMEOUT_MS );
+        xMQTTStatus = MQTT_ProcessLoop( pxMQTTContext );
     }
 
     if( ( xMQTTStatus != MQTTSuccess ) || ( xDeleteResponseReceived != pdTRUE ) )

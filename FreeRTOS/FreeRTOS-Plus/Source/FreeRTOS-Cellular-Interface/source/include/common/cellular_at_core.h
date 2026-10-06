@@ -1,6 +1,8 @@
 /*
- * FreeRTOS-Cellular-Interface v1.3.0
+ * FreeRTOS-Cellular-Interface v1.4.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,22 +45,19 @@
 /* Standard includes. */
 #include <stdint.h>
 
+/* Cellular includes. */
+#ifndef CELLULAR_DO_NOT_USE_CUSTOM_CONFIG
+    /* Include custom config file before other headers. */
+    #include "cellular_config.h"
+#endif
+#include "cellular_config_defaults.h"
+
 /*-----------------------------------------------------------*/
-
-/**
- * @brief Maximum size of an AT string.
- */
-#define CELLULAR_AT_MAX_STRING_SIZE    ( 256U )
-
-/**
- * @brief Maximum size of an AT prefix.
- */
-#define CELLULAR_AT_MAX_PREFIX_SIZE    ( 32 )
 
 /**
  * @brief The array size of an array.
  */
-#define ARRY_SIZE( x )    ( sizeof( x ) / sizeof( x[ 0 ] ) )
+#define ARRAY_SIZE( x )    ( sizeof( x ) / sizeof( x[ 0 ] ) )
 
 /*-----------------------------------------------------------*/
 

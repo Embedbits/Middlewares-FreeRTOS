@@ -1,4 +1,6 @@
-See https://freertos.org/pkcs11/ for further information.
+See [here](https://freertos.org/Documentation/03-Libraries/03-FreeRTOS-core/08-corePKCS11/03-corePKCS11-demos/01-Mutual-authentication-demo) for detailed instructions on how to run the demo.
+
+See [here](https://freertos.org/pkcs11/) for further information.
 
 Contains projects that demonstrate the PKCS #11 library.
 In order to run the mutual authentication demo, please convert the certificate and key PEM files associated with your IoT Thing, into a binary format DER.
@@ -7,7 +9,7 @@ To do this, use either the python script pkcs11_demo_setup.py or openssl.
 If you choose to use the python script, pass in the absolute path of your PEM files.
 
 If you are to use openssl, the following commands should be sufficient in converting from PEM to DER.
-Certificate conversion: 
+Certificate conversion:
 openssl x509 -outform der -in $CERT_IN_NAME -out $CERT_OUT_NAME
 
 Key conversion:

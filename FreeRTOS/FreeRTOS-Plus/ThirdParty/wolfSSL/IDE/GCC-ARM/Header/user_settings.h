@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -70,24 +70,38 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_CACHE_RESISTANT
-    //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
+    #define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
-    /* 64 or 32 bit version */
-    //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
+    /* SP Assembly Speedups */
+    #define WOLFSSL_SP_ASM      /* required if using the ASM versions */
     //#define WOLFSSL_SP_ARM32_ASM
     //#define WOLFSSL_SP_ARM64_ASM
+    //#define WOLFSSL_SP_ARM_THUMB_ASM
+    #define WOLFSSL_SP_ARM_CORTEX_M_ASM
 #endif
 
 /* ------------------------------------------------------------------------- */
 /* FIPS - Requires eval or license from wolfSSL */
 /* ------------------------------------------------------------------------- */
 #undef  HAVE_FIPS
+#undef  HAVE_FIPS_VERSION
+#undef  HAVE_FIPS_VERSION_MINOR
 #if 0
     #define HAVE_FIPS
 
-    #undef  HAVE_FIPS_VERSION
-    #define HAVE_FIPS_VERSION 2
+    /* Choose a FIPS version */
+    #if 0
+        /* FIPS 140-2 */
+        #define HAVE_FIPS_VERSION 2
+    #elif 0
+        /* FIPS 140-3 */
+        #define HAVE_FIPS_VERSION 5
+        #define HAVE_FIPS_VERSION_MINOR 2
+    #elif 0
+        /* FIPS Ready */
+        #define HAVE_FIPS_VERSION 5
+        #define HAVE_FIPS_VERSION_MINOR 3
+    #endif
 
     #ifdef SINGLE_THREADED
         #undef  NO_THREAD_LS
@@ -180,6 +194,9 @@ extern "C" {
 
         #undef  WOLFSSL_VALIDATE_ECC_IMPORT
         #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
+
+        #undef  WOLFSSL_ECDSA_SET_K
+        #define WOLFSSL_ECDSA_SET_K
     #endif
 
     /* Compressed Key Support */
@@ -196,7 +213,7 @@ extern "C" {
         #else
             #undef  ALT_ECC_SIZE
             #define ALT_ECC_SIZE
-            /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
+            /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overridden */
             //#undef  FP_MAX_BITS_ECC
             //#define FP_MAX_BITS_ECC (256 * 2)
         #endif
@@ -608,12 +625,6 @@ extern unsigned int my_rng_seed_gen(void);
 #undef  NO_OLD_TLS
 #define NO_OLD_TLS
 
-#undef  NO_HC128
-#define NO_HC128
-
-#undef  NO_RABBIT
-#define NO_RABBIT
-
 #undef  NO_PSK
 #define NO_PSK
 
@@ -634,6 +645,10 @@ extern unsigned int my_rng_seed_gen(void);
 
 #undef  NO_SIG_WRAPPER
 //#define NO_SIG_WRAPPER
+
+#undef WOLFSSL_IGNORE_FILE_WARN
+#define WOLFSSL_IGNORE_FILE_WARN
+
 
 #ifdef __cplusplus
 }

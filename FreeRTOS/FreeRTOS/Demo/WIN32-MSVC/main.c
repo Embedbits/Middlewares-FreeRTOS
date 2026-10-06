@@ -1,6 +1,6 @@
 /*
- * FreeRTOS V202212.01
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202411.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -52,6 +52,12 @@
 #include <stdlib.h>
 #include <conio.h>
 
+#ifdef WIN32_LEAN_AND_MEAN
+    #include "winsock2.h"
+#else
+    #include <winsock.h>
+#endif /* WIN32_LEAN_AND_MEAN */
+
 /* Visual studio intrinsics used so the __debugbreak() function is available
  * should an assert get hit. */
 #include <intrin.h>
@@ -80,9 +86,9 @@
  * as this demo could easily create one large heap region instead of multiple
  * smaller heap regions - in which case heap_4.c would be the more appropriate
  * choice.  See http://www.freertos.org/a00111.html for an explanation. */
-#define mainREGION_1_SIZE                     8201
-#define mainREGION_2_SIZE                     23905
-#define mainREGION_3_SIZE                     16807
+#define mainREGION_1_SIZE                     82010
+#define mainREGION_2_SIZE                     239050
+#define mainREGION_3_SIZE                     168070
 
 /* This demo allows for users to perform actions with the keyboard. */
 #define mainNO_KEY_PRESS_VALUE                -1
@@ -127,7 +133,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask,
 void vApplicationTickHook( void );
 void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
                                     StackType_t ** ppxIdleTaskStackBuffer,
-                                    uint32_t * pulIdleTaskStackSize );
+                                    configSTACK_DEPTH_TYPE * puxIdleTaskStackSize );
 void vApplicationGetTimerTaskMemory( StaticTask_t ** ppxTimerTaskTCBBuffer,
                                      StackType_t ** ppxTimerTaskStackBuffer,
                                      uint32_t * pulTimerTaskStackSize );
@@ -143,7 +149,7 @@ static void prvSaveTraceFile( void );
  * FreeRTOS simulator. This thread passes data safely into the FreeRTOS
  * simulator using a stream buffer.
  */
-static DWORD WINAPI prvWindowsKeyboardInputThread( void * pvParam );
+static int32_t WINAPI prvWindowsKeyboardInputThread( void * pvParam );
 
 /*
  * Interrupt handler for when keyboard input is received.
@@ -151,7 +157,7 @@ static DWORD WINAPI prvWindowsKeyboardInputThread( void * pvParam );
 static uint32_t prvKeyboardInterruptHandler( void );
 
 /*
- * Keyboard interrupt handler for the blinky demo. 
+ * Keyboard interrupt handler for the blinky demo.
  */
 extern void vBlinkyKeyboardInterruptHandler( int xKeyPressed );
 
@@ -198,8 +204,8 @@ int main( void )
         "will only be the most recent data able to fit within the trace recorder buffer.\r\n",
         mainTRACE_FILE_NAME, mainOUTPUT_TRACE_KEY );
 
-    configASSERT( xTraceEnable(TRC_START) == TRC_SUCCESS );
-    
+    configASSERT( xTraceEnable( TRC_START ) == TRC_SUCCESS );
+
     /* Set interrupt handler for keyboard input. */
     vPortSetInterruptHandler( mainINTERRUPT_NUMBER_KEYBOARD, prvKeyboardInterruptHandler );
 
@@ -210,7 +216,7 @@ int main( void )
         prvWindowsKeyboardInputThread, /* Pointer to thread function. */
         NULL,                          /* Argument for new thread. */
         0,                             /* Creation flags. */
-        NULL);
+        NULL );
 
     /* Use the cores that are not used by the FreeRTOS tasks for the Windows thread. */
     SetThreadAffinityMask( xWindowsKeyboardInputThreadHandle, ~0x01u );
@@ -218,13 +224,15 @@ int main( void )
     /* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
      * of this file. */
     #if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
-        {
-            main_blinky();
-        }
+    {
+        printf( "\nStarting the blinky demo.\r\n" );
+        main_blinky();
+    }
     #else
-        {
-            main_full();
-        }
+    {
+        printf( "\nStarting the full demo.\r\n" );
+        main_full();
+    }
     #endif /* if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 ) */
 
     return 0;
@@ -262,11 +270,11 @@ void vApplicationIdleHook( void )
      * allocated by the kernel to any task that has since deleted itself. */
 
     #if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY != 1 )
-        {
-            /* Call the idle task processing used by the full demo.  The simple
-             * blinky demo does not use the idle task hook. */
-            vFullDemoIdleFunction();
-        }
+    {
+        /* Call the idle task processing used by the full demo.  The simple
+         * blinky demo does not use the idle task hook. */
+        vFullDemoIdleFunction();
+    }
     #endif
 }
 
@@ -296,9 +304,9 @@ void vApplicationTickHook( void )
     * functions can be used (those that end in FromISR()). */
 
     #if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY != 1 )
-        {
-            vFullDemoTickHookFunction();
-        }
+    {
+        vFullDemoTickHookFunction();
+    }
     #endif /* mainCREATE_SIMPLE_BLINKY_DEMO_ONLY */
 }
 /*-----------------------------------------------------------*/
@@ -327,7 +335,7 @@ void vAssertCalled( unsigned long ulLine,
 
     taskENTER_CRITICAL();
     {
-        printf("ASSERT! Line %ld, file %s, GetLastError() %ld\r\n", ulLine, pcFileName, GetLastError());
+        printf( "ASSERT! Line %ld, file %s, GetLastError() %ld\r\n", ulLine, pcFileName, GetLastError() );
 
         /* Stop the trace recording and save the trace. */
         ( void ) xTraceDisable();
@@ -341,12 +349,7 @@ void vAssertCalled( unsigned long ulLine,
          * value. */
         while( ulSetToNonZeroInDebuggerToContinue == 0 )
         {
-            __asm {
-                NOP
-            };
-            __asm {
-                NOP
-            };
+             __nop();
         }
 
         /* Re-enable the trace recording. */
@@ -414,7 +417,7 @@ static void prvInitialiseHeap( void )
  * used by the Idle task. */
 void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
                                     StackType_t ** ppxIdleTaskStackBuffer,
-                                    uint32_t * pulIdleTaskStackSize )
+                                    configSTACK_DEPTH_TYPE * puxIdleTaskStackSize )
 {
 /* If the buffers to be provided to the Idle task are declared inside this
  * function then they must be declared static - otherwise they will be allocated on
@@ -432,7 +435,7 @@ void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
     /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
      * Note that, as the array is necessarily of type StackType_t,
      * configMINIMAL_STACK_SIZE is specified in words, not bytes. */
-    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+    *puxIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
 /*-----------------------------------------------------------*/
 
@@ -465,33 +468,34 @@ void vApplicationGetTimerTaskMemory( StaticTask_t ** ppxTimerTaskTCBBuffer,
 /*
  * Interrupt handler for when keyboard input is received.
  */
-static uint32_t prvKeyboardInterruptHandler(void)
+static uint32_t prvKeyboardInterruptHandler( void )
 {
     /* Handle keyboard input. */
-    switch (xKeyPressed)
+    switch( xKeyPressed )
     {
-    case mainNO_KEY_PRESS_VALUE:
-        break;
-    case mainOUTPUT_TRACE_KEY:
-        /* Saving the trace file requires Windows system calls, so enter a critical
-           section to prevent deadlock or errors resulting from calling a Windows
-           system call from within the FreeRTOS simulator. */
-        portENTER_CRITICAL();
-        {
-            ( void ) xTraceDisable();
-            prvSaveTraceFile();
-            ( void ) xTraceEnable(TRC_START);
-        }
-        portEXIT_CRITICAL();
-        break;
-    default:
-        #if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
+        case mainNO_KEY_PRESS_VALUE:
+            break;
+
+        case mainOUTPUT_TRACE_KEY:
+
+            /* Saving the trace file requires Windows system calls, so enter a critical
+             * section to prevent deadlock or errors resulting from calling a Windows
+             * system call from within the FreeRTOS simulator. */
+            portENTER_CRITICAL();
             {
+                ( void ) xTraceDisable();
+                prvSaveTraceFile();
+                ( void ) xTraceEnable( TRC_START );
+            }
+            portEXIT_CRITICAL();
+            break;
+
+        default:
+            #if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
                 /* Call the keyboard interrupt handler for the blinky demo. */
                 vBlinkyKeyboardInterruptHandler( xKeyPressed );
-            }
-        #endif
-    break;
+            #endif
+            break;
     }
 
     /* This interrupt does not require a context switch so return pdFALSE */
@@ -499,20 +503,21 @@ static uint32_t prvKeyboardInterruptHandler(void)
 }
 
 /*-----------------------------------------------------------*/
+
 /*
  * Windows thread function to capture keyboard input from outside of the
  * FreeRTOS simulator. This thread passes data into the simulator using
  * an integer.
  */
-static DWORD WINAPI prvWindowsKeyboardInputThread( void * pvParam )
+static int32_t WINAPI prvWindowsKeyboardInputThread( void * pvParam )
 {
     ( void ) pvParam;
 
-    for ( ; ; )
+    for( ; ; )
     {
         /* Block on acquiring a key press. */
         xKeyPressed = _getch();
-        
+
         /* Notify FreeRTOS simulator that there is a keyboard interrupt.
          * This will trigger prvKeyboardInterruptHandler.
          */

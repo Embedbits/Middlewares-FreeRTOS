@@ -1,6 +1,6 @@
 /* mcapi_test.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,9 +26,9 @@
 
 
 /* mc api header */
-#include "crypto.h"
-
 #include <wolfssl/wolfcrypt/settings.h>
+
+#include "crypto.h"
 
 /* sanity test against our default implementation, wolfssl headers  */
 #include <wolfssl/wolfcrypt/md5.h>
@@ -238,7 +238,7 @@ static int check_md5(void)
         return -1;
     }
 
-    if (ret == 0 && memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
+    if (memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
         printf("md5 final memcmp failed\n");
         return -1;
     }
@@ -311,7 +311,7 @@ static int check_sha256(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
-        printf("sha256 final memcmp fialed\n");
+        printf("sha256 final memcmp failed\n");
         return -1;
     }
     printf("sha256      mcapi test passed\n");
@@ -351,7 +351,7 @@ static int check_sha384(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
-        printf("sha384 final memcmp fialed\n");
+        printf("sha384 final memcmp failed\n");
         return -1;
     }
     printf("sha384      mcapi test passed\n");
@@ -391,7 +391,7 @@ static int check_sha512(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
-        printf("sha512 final memcmp fialed\n");
+        printf("sha512 final memcmp failed\n");
         return -1;
     }
     printf("sha512      mcapi test passed\n");
@@ -434,7 +434,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
-        printf("hmac sha final memcmp fialed\n");
+        printf("hmac sha final memcmp failed\n");
         return -1;
     }
     printf("hmac sha    mcapi test passed\n");
@@ -462,7 +462,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
-        printf("hmac sha256 final memcmp fialed\n");
+        printf("hmac sha256 final memcmp failed\n");
         return -1;
     }
     printf("hmac sha256 mcapi test passed\n");
@@ -490,7 +490,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
-        printf("hmac sha384 final memcmp fialed\n");
+        printf("hmac sha384 final memcmp failed\n");
         return -1;
     }
     printf("hmac sha384 mcapi test passed\n");
@@ -518,7 +518,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
-        printf("hmac sha512 final memcmp fialed\n");
+        printf("hmac sha512 final memcmp failed\n");
         return -1;
     }
     printf("hmac sha512 mcapi test passed\n");
@@ -562,13 +562,12 @@ static int check_compress(void)
         printf("compress dynamic ret failed\n");
         return -1;
     }
+    outSz = ret1;
 
-    if (memcmp(cBuffer, dBuffer, ret1) != 0) {
+    if (memcmp(cBuffer, dBuffer, outSz) != 0) {
         printf("compress dynamic cmp failed\n");
         return -1;
     }
-
-    outSz = ret1;
 
     ret1 = CRYPT_HUFFMAN_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
@@ -578,9 +577,11 @@ static int check_compress(void)
     }
 
     memset(dBuffer, 0, sizeof(dBuffer));
+    ret2 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
-    ret1 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
-
+    if (ret1 != ret2 || ret2 < 0) {
+        printf("decompress dynamic ret failed\n");
+    }
     if (memcmp(dBuffer, text, inSz) != 0) {
         printf("decompress dynamic cmp failed\n");
         return -1;
@@ -597,13 +598,13 @@ static int check_compress(void)
         printf("compress static ret failed\n");
         return -1;
     }
+    outSz = ret1;
 
-    if (memcmp(cBuffer, dBuffer, ret1) != 0) {
+    if (memcmp(cBuffer, dBuffer, outSz) != 0) {
         printf("compress static cmp failed\n");
         return -1;
     }
 
-    outSz = ret1;
 
     ret1 = CRYPT_HUFFMAN_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
@@ -613,9 +614,10 @@ static int check_compress(void)
     }
 
     memset(dBuffer, 0, sizeof(dBuffer));
-
-    ret1 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
-
+    ret2 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+    if (ret1 != ret2 || ret2 < 0) {
+        printf("decompress static ret failed\n");
+    }
     if (memcmp(dBuffer, text, inSz) != 0) {
         printf("decompress static cmp failed\n");
         return -1;
@@ -803,7 +805,7 @@ static int check_aescbc(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = wc_AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -1148,7 +1150,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = wc_AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;

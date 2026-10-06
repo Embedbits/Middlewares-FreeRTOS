@@ -1,24 +1,16 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-HARNESS_FILE=JSON_Validate_harness
 PROOF_UID=JSON_Validate
+CHECK_FUNCTION_CONTRACTS = $(PROOF_UID)
+HARNESS_FILE= $(PROOF_UID)_harness
 
-# This value was experimentally chosen to provide 100% coverage
-# without tripping unwinding assertions and without exhausting memory.
-CBMC_MAX_BUFSIZE=14
+APPLY_LOOP_CONTRACTS = 1
+USE_DYNAMIC_FRAMES = 1
 
-UNWINDSET += JSON_Validate.0:$(CBMC_MAX_BUFSIZE)
+USE_EXTERNAL_SAT_SOLVER ?= --external-sat-solver cadical
 
-PROOF_SOURCES += $(PROOF_STUB)/skipGeneric.c
-PROOF_SOURCES += $(PROOF_STUB)/skipAnyLiteral.c
-PROOF_SOURCES += $(PROOF_STUB)/skipCollection.c
-PROOF_SOURCES += $(PROOF_STUB)/skipNumber.c
-PROOF_SOURCES += $(PROOF_STUB)/skipSpace.c
-PROOF_SOURCES += $(PROOF_STUB)/skipString.c
+USE_FUNCTION_CONTRACTS += skipAnyScalar
+USE_FUNCTION_CONTRACTS += skipCollection
 
 include ../Makefile-json.common
-
-# Substitution command to pass to sed for patching core_json.c. The
-# characters " and # must be escaped with backslash.
-CORE_JSON_SED_EXPR = 1s/^/\#include \"core_json_annex.h\" /; s/^static //; s/(bool|JSONStatus_t|void) skip(AnyLiteral|Collection|Number|Space|String)\b/&_/

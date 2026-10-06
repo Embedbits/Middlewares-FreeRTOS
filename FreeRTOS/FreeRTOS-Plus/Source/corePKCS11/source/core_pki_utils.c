@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V2.0.0
+ * corePKCS11 V3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -47,7 +47,7 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
                                               const uint8_t * pxMbedSignature )
 {
     int8_t xReturn = 0;
-    const uint8_t * pxNextLength;
+    const uint8_t * pxNextLength = NULL;
     uint8_t ucSigComponentLength;
 
     if( ( pxSignaturePKCS == NULL ) || ( pxMbedSignature == NULL ) )
@@ -78,37 +78,48 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
             /* Chop off the leading zero.  The first 4 bytes were SEQUENCE, LENGTH, INTEGER, LENGTH, 0x00 padding.  */
             ( void ) memcpy( pxSignaturePKCS, &pxMbedSignature[ 5 ], 32 );
             /* SEQUENCE, LENGTH, INTEGER, LENGTH, leading zero, R, S's integer tag */
-            pxNextLength = pxMbedSignature + 5 + 32 + 1;
+            pxNextLength = &pxMbedSignature[ 5U + 32U + 1U ];
         }
-        else
+        else if( ucSigComponentLength <= 32UL )
         {
             /* The R component is 32 bytes or less.  Copy so that it is properly represented as a 32 byte value,
              * leaving leading 0 pads at beginning if necessary. */
-            ( void ) memcpy( &pxSignaturePKCS[ 32UL - ucSigComponentLength ], /* If the R component is less than 32 bytes, leave the leading zeros. */
-                             &pxMbedSignature[ 4 ],                           /* SEQUENCE, LENGTH, INTEGER, LENGTH, (R component begins as the 5th byte) */
+            ( void ) memcpy( &pxSignaturePKCS[ 32UL - ucSigComponentLength ],  /* If the R component is less than 32 bytes, leave the leading zeros. */
+                             &pxMbedSignature[ 4 ],                            /* SEQUENCE, LENGTH, INTEGER, LENGTH, (R component begins as the 5th byte) */
                              ucSigComponentLength );
-            pxNextLength = pxMbedSignature + 4 + ucSigComponentLength + 1;    /* Move the pointer to get rid of
-                                                                               * SEQUENCE, LENGTH, INTEGER, LENGTH, R Component, S integer tag. */
+            pxNextLength = &pxMbedSignature[ 4U + ucSigComponentLength + 1U ]; /* Move the pointer to get rid of
+                                                                                * SEQUENCE, LENGTH, INTEGER, LENGTH, R Component, S integer tag. */
+        }
+        else
+        {
+            xReturn = FAILURE;
         }
 
         /********** S Component. ***********/
 
-        /* Now pxNextLength is pointing to the length of the S component. */
-        ucSigComponentLength = pxNextLength[ 0 ];
+        if( xReturn != FAILURE )
+        {
+            /* Now pxNextLength is pointing to the length of the S component. */
+            ucSigComponentLength = pxNextLength[ 0 ];
 
-        if( ucSigComponentLength == 33UL )
-        {
-            ( void ) memcpy( &pxSignaturePKCS[ 32 ],
-                             &pxNextLength[ 2 ], /*LENGTH (of S component), 0x00 padding, S component is 3rd byte - we want to skip the leading zero. */
-                             32 );
-        }
-        else
-        {
-            /* The S component is 32 bytes or less.  Copy so that it is properly represented as a 32 byte value,
-             * leaving leading 0 pads at beginning if necessary. */
-            ( void ) memcpy( &pxSignaturePKCS[ 64UL - ucSigComponentLength ],
-                             &pxNextLength[ 1 ],
-                             ucSigComponentLength );
+            if( ucSigComponentLength == 33UL )
+            {
+                ( void ) memcpy( &pxSignaturePKCS[ 32 ],
+                                 &pxNextLength[ 2 ], /*LENGTH (of S component), 0x00 padding, S component is 3rd byte - we want to skip the leading zero. */
+                                 32 );
+            }
+            else if( ucSigComponentLength <= 32UL )
+            {
+                /* The S component is 32 bytes or less.  Copy so that it is properly represented as a 32 byte value,
+                 * leaving leading 0 pads at beginning if necessary. */
+                ( void ) memcpy( &pxSignaturePKCS[ 64UL - ucSigComponentLength ],
+                                 &pxNextLength[ 1 ],
+                                 ucSigComponentLength );
+            }
+            else
+            {
+                xReturn = FAILURE;
+            }
         }
     }
 
@@ -124,7 +135,7 @@ int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
                                               size_t * pxSigLen )
 {
     int8_t xReturn = 0;
-    uint8_t * pucSigPtr;
+    uint8_t * pucSigPtr = NULL;
     uint8_t ucTemp[ 64 ] = { 0 }; /* A temporary buffer for the pre-formatted signature. */
 
     if( ( pucSig == NULL ) || ( pxSigLen == NULL ) )

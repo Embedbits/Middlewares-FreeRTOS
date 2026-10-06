@@ -1,5 +1,5 @@
 /*
- * FreeRTOS Kernel V10.3.0
+ * FreeRTOS V202012.00
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -19,14 +19,22 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * http://www.FreeRTOS.org
- * http://aws.amazon.com/freertos
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
  */
 
 /*
  * This demo shows how to use coreMQTT in a multithreaded environment - it does not
  * yet go as far as encapsulating the MQTT library within its own agent (or daemon)
  * task - although the prvCommandLoop() function demonstrates how that might be done.
+ * Also see https://www.freertos.org/mqtt/mqtt-agent-demo.html? for an
+ * example that does use an agent task.  Executing the MQTT protocol in an agent
+ * task removes the need for the application writer to explicitly manage any MQTT
+ * state or call the MQTT_ProcessLoop() API function. Using an agent task
+ * also enables multiple application tasks to more easily share a single
+ * MQTT connection.
+ *
  * In this task prvCommandLoop() is only executed from a single thread and is the
  * only function that is allowed to use the coreMQTT API directly.  Anything else
  * needing to interact with the coreMQTT API does so by posting commands to
@@ -89,7 +97,7 @@
 #include "core_mqtt_state.h"
 
 /* Exponential backoff retry include. */
-#include "exponential_backoff.h"
+#include "backoff_algorithm.h"
 
 /* Transport interface include. */
 #if defined( democonfigUSE_TLS ) && ( democonfigUSE_TLS == 1 )
@@ -109,6 +117,22 @@
     #define mqttexampleNETWORK_BUFFER_SIZE    ( 1024U )
 #endif
 
+/**
+ * @brief The maximum number of retries for network operation with server.
+ */
+#define mqttexampleRETRY_MAX_ATTEMPTS                ( 5U )
+
+/**
+ * @brief The maximum back-off delay (in milliseconds) for retrying failed operation
+ *  with server.
+ */
+#define mqttexampleRETRY_MAX_BACKOFF_DELAY_MS        ( 5000U )
+
+/**
+ * @brief The base back-off delay (in milliseconds) to use for network operation retry
+ * attempts.
+ */
+#define mqttexampleRETRY_BACKOFF_BASE_MS             ( 500U )
 
 /**
  * @brief Timeout for receiving CONNACK packet in milliseconds.
@@ -359,6 +383,24 @@ typedef struct publishElement
 /*-----------------------------------------------------------*/
 
 /**
+ * @brief Each compilation unit that consumes the NetworkContext must define it.
+ * It should contain a single pointer to the type of your desired transport.
+ * When using multiple transports in the same compilation unit, define this pointer as void *.
+ *
+ * @note Transport stacks are defined in FreeRTOS-Plus/Source/Application-Protocols/network_transport.
+ */
+struct NetworkContext
+{
+    #if defined( democonfigUSE_TLS ) && ( democonfigUSE_TLS == 1 )
+        TlsTransportParams_t * pParams;
+    #else
+        PlaintextTransportParams_t * pParams;
+    #endif
+};
+
+/*-----------------------------------------------------------*/
+
+/**
  * @brief Initializes an MQTT context, including transport interface and
  * network buffer.
  *
@@ -392,6 +434,7 @@ static MQTTStatus_t prvMQTTConnect( MQTTContext_t * pxMQTTContext,
  * appropriate error code from `MQTT_Publish()`
  */
 static MQTTStatus_t prvResumeSession( bool xSessionPresent );
+
 
 /**
  * @brief Form a TCP connection to a server.
@@ -667,6 +710,20 @@ static MQTTContext_t globalMqttContext;
  * @brief Global Network context.
  */
 static NetworkContext_t xNetworkContext;
+
+#if defined( democonfigUSE_TLS ) && ( democonfigUSE_TLS == 1 )
+
+/**
+ * @brief The parameters for the network context using a TLS channel.
+ */
+    static TlsTransportParams_t xTlsTransportParams;
+#else
+
+/**
+ * @brief The parameters for the network context using a non-encrypted channel.
+ */
+    static PlaintextTransportParams_t xPlaintextTransportParams;
+#endif
 
 /**
  * @brief List of operations that are awaiting an ack from the broker.
@@ -959,8 +1016,11 @@ static MQTTStatus_t prvResumeSession( bool xSessionPresent )
 static BaseType_t prvSocketConnect( NetworkContext_t * pxNetworkContext )
 {
     BaseType_t xConnected = pdFAIL;
-    RetryUtilsStatus_t xRetryUtilsStatus = RetryUtilsSuccess;
-    RetryUtilsParams_t xReconnectParams;
+    BackoffAlgorithmStatus_t xBackoffAlgStatus = BackoffAlgorithmSuccess;
+    BackoffAlgorithmContext_t xReconnectParams;
+    uint16_t usNextRetryBackOff = 0U;
+
+    configASSERT( pxNetworkContext != NULL && pxNetworkContext->pParams != NULL );
 
     #if defined( democonfigUSE_TLS ) && ( democonfigUSE_TLS == 1 )
         TlsTransportStatus_t xNetworkStatus = TLS_TRANSPORT_CONNECT_FAILURE;
@@ -997,9 +1057,11 @@ static BaseType_t prvSocketConnect( NetworkContext_t * pxNetworkContext )
     #endif /* if defined( democonfigUSE_TLS ) && ( democonfigUSE_TLS == 1 ) */
 
     /* We will use a retry mechanism with an exponential backoff mechanism and
-     * jitter. We initialize reconnect attempts and interval here. */
-    xReconnectParams.maxRetryAttempts = MAX_RETRY_ATTEMPTS;
-    RetryUtils_ParamsReset( &xReconnectParams );
+     * jitter. We initialize the context required for backoff period calculation here. */
+    BackoffAlgorithm_InitializeParams( &xReconnectParams,
+                                       mqttexampleRETRY_BACKOFF_BASE_MS,
+                                       mqttexampleRETRY_MAX_BACKOFF_DELAY_MS,
+                                       mqttexampleRETRY_MAX_ATTEMPTS );
 
     /* Attempt to connect to MQTT broker. If connection fails, retry after a
      * timeout. Timeout value will exponentially increase until the maximum
@@ -1035,20 +1097,30 @@ static BaseType_t prvSocketConnect( NetworkContext_t * pxNetworkContext )
 
         if( !xConnected )
         {
-            LogWarn( ( "Connection to the broker failed. Retrying connection with backoff and jitter." ) );
-            xRetryUtilsStatus = RetryUtils_BackoffAndSleep( &xReconnectParams );
-        }
+            /* Generate a random number and calculate backoff value (in milliseconds) for
+             * the next connection retry.
+             * Note: It is recommended to seed the random number generator with a device-specific
+             * entropy source so that possibility of multiple devices retrying failed network operations
+             * at similar intervals can be avoided. */
+            xBackoffAlgStatus = BackoffAlgorithm_GetNextBackoff( &xReconnectParams, uxRand(), &usNextRetryBackOff );
 
-        if( xRetryUtilsStatus == RetryUtilsRetriesExhausted )
-        {
-            LogError( ( "Connection to the broker failed. All attempts exhausted." ) );
+            if( xBackoffAlgStatus == BackoffAlgorithmRetriesExhausted )
+            {
+                LogError( ( "Connection to the broker failed, all attempts exhausted." ) );
+            }
+            else if( xBackoffAlgStatus == BackoffAlgorithmSuccess )
+            {
+                LogWarn( ( "Connection to the broker failed. "
+                           "Retrying connection with backoff and jitter." ) );
+                vTaskDelay( pdMS_TO_TICKS( usNextRetryBackOff ) );
+            }
         }
-    } while( ( xConnected != pdPASS ) && ( xRetryUtilsStatus == RetryUtilsSuccess ) );
+    } while( ( xConnected != pdPASS ) && ( xBackoffAlgStatus == BackoffAlgorithmSuccess ) );
 
     /* Set the socket wakeup callback. */
     if( xConnected )
     {
-        ( void ) FreeRTOS_setsockopt( pxNetworkContext->tcpSocket,
+        ( void ) FreeRTOS_setsockopt( pxNetworkContext->pParams->tcpSocket,
                                       0, /* Level - Unused. */
                                       FREERTOS_SO_WAKEUP_CALLBACK,
                                       ( void * ) prvMQTTClientSocketWakeupCallback,
@@ -1064,8 +1136,10 @@ static BaseType_t prvSocketDisconnect( NetworkContext_t * pxNetworkContext )
 {
     BaseType_t xDisconnected = pdFAIL;
 
+    configASSERT( pxNetworkContext != NULL && pxNetworkContext->pParams != NULL );
+
     /* Set the wakeup callback to NULL since the socket will disconnect. */
-    ( void ) FreeRTOS_setsockopt( pxNetworkContext->tcpSocket,
+    ( void ) FreeRTOS_setsockopt( pxNetworkContext->pParams->tcpSocket,
                                   0, /* Level - Unused. */
                                   FREERTOS_SO_WAKEUP_CALLBACK,
                                   ( void * ) NULL,
@@ -2031,6 +2105,13 @@ static void prvCleanExistingPersistentSession( void )
 
 /*-----------------------------------------------------------*/
 
+ /* Also see https://www.freertos.org/mqtt/mqtt-agent-demo.html? for an
+  * alternative run time model whereby coreMQTT runs in an autonomous
+  * background agent task.  Executing the MQTT protocol in an agent task
+  * removes the need for the application writer to explicitly manage any MQTT
+  * state or call the MQTT_ProcessLoop() API function. Using an agent task
+  * also enables multiple application tasks to more easily share a single
+  * MQTT connection. */
 static void prvMQTTDemoTask( void * pvParameters )
 {
     BaseType_t xNetworkStatus = pdFAIL;
@@ -2042,6 +2123,13 @@ static void prvMQTTDemoTask( void * pvParameters )
                                        mqttexamplePUBLISHER_ASYNC_COMPLETE_BIT;
 
     ( void ) pvParameters;
+
+    /* Set the pParams member of the network context with desired transport. */
+    #if defined( democonfigUSE_TLS ) && ( democonfigUSE_TLS == 1 )
+        xNetworkContext.pParams = &xTlsTransportParams;
+    #else
+        xNetworkContext.pParams = &xPlaintextTransportParams;
+    #endif
 
     ulGlobalEntryTimeMs = prvGetTimeMs();
 

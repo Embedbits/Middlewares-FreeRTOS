@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.0.0
+ * coreMQTT v1.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -100,12 +100,67 @@
  * If a ping response is not received before this timeout, then
  * #MQTT_ProcessLoop will return #MQTTKeepAliveTimeout.
  *
+ * @note If a dummy implementation of the #MQTTGetCurrentTimeFunc_t timer function,
+ * is supplied to the library, then the keep-alive mechanism is not supported by the
+ * #MQTT_ProcessLoop API function. In that case, the value of #MQTT_PINGRESP_TIMEOUT_MS
+ * is irrelevant to the behavior of the library.
+ *
  * <b>Possible values:</b> Any positive integer up to SIZE_MAX. <br>
  * <b>Default value:</b> `500`
  */
 #ifndef MQTT_PINGRESP_TIMEOUT_MS
     /* Wait 0.5 seconds by default for a ping response. */
     #define MQTT_PINGRESP_TIMEOUT_MS    ( 500U )
+#endif
+
+/**
+ * @brief The maximum duration between non-empty network reads while
+ * receiving an MQTT packet via the #MQTT_ProcessLoop or #MQTT_ReceiveLoop
+ * API functions.
+ *
+ * When an incoming MQTT packet is detected, the transport receive function
+ * may be called multiple times until all of the expected number of bytes of the
+ * packet are received. This timeout represents the maximum polling duration that
+ * is allowed without any data reception from the network for the incoming packet.
+ *
+ * If the timeout expires, the #MQTT_ProcessLoop and #MQTT_ReceiveLoop functions
+ * return #MQTTRecvFailed.
+ *
+ * @note If a dummy implementation of the #MQTTGetCurrentTimeFunc_t timer function,
+ * is supplied to the library, then #MQTT_RECV_POLLING_TIMEOUT_MS MUST be set to 0.
+ *
+ * <b>Possible values:</b> Any positive 32 bit integer. Recommended to use a
+ * small timeout value. <br>
+ * <b>Default value:</b> `10`
+ *
+ */
+#ifndef MQTT_RECV_POLLING_TIMEOUT_MS
+    #define MQTT_RECV_POLLING_TIMEOUT_MS    ( 10U )
+#endif
+
+/**
+ * @brief The maximum duration between non-empty network transmissions while
+ * sending an MQTT packet via the #MQTT_ProcessLoop or #MQTT_ReceiveLoop
+ * API functions.
+ *
+ * When sending an MQTT packet, the transport send function may be called multiple
+ * times until all of the required number of bytes are sent.
+ * This timeout represents the maximum duration that is allowed for no data
+ * transmission over the network through the transport send function.
+ *
+ * If the timeout expires, the #MQTT_ProcessLoop and #MQTT_ReceiveLoop functions
+ * return #MQTTSendFailed.
+ *
+ * @note If a dummy implementation of the #MQTTGetCurrentTimeFunc_t timer function,
+ * is supplied to the library, then #MQTT_SEND_RETRY_TIMEOUT_MS MUST be set to 0.
+ *
+ * <b>Possible values:</b> Any positive 32 bit integer. Recommended to use a small
+ * timeout value. <br>
+ * <b>Default value:</b> `10`
+ *
+ */
+#ifndef MQTT_SEND_RETRY_TIMEOUT_MS
+    #define MQTT_SEND_RETRY_TIMEOUT_MS    ( 10U )
 #endif
 
 /**
@@ -119,7 +174,7 @@
  * double parentheses to be ISO C89/C90 standard compliant. For a reference
  * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
  * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/tree/master).
+ * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C).
  *
  * <b>Default value</b>: Error logging is turned off, and no code is generated for calls
  * to the macro in the MQTT library on compilation.
@@ -139,7 +194,7 @@
  * double parentheses to be ISO C89/C90 standard compliant. For a reference
  * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
  * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/tree/master).
+ * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/).
  *
  * <b>Default value</b>: Warning logs are turned off, and no code is generated for calls
  * to the macro in the MQTT library on compilation.
@@ -159,7 +214,7 @@
  * double parentheses to be ISO C89/C90 standard compliant. For a reference
  * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
  * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/tree/master).
+ * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/).
  *
  * <b>Default value</b>: Info logging is turned off, and no code is generated for calls
  * to the macro in the MQTT library on compilation.
@@ -179,7 +234,7 @@
  * double parentheses to be ISO C89/C90 standard compliant. For a reference
  * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
  * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/tree/master).
+ * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/).
  *
  * <b>Default value</b>: Debug logging is turned off, and no code is generated for calls
  * to the macro in the MQTT library on compilation.

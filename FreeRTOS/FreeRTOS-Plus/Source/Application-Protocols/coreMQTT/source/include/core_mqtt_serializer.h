@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.0.0
+ * coreMQTT v1.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -32,21 +32,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-
-/**
- * @cond DOXYGEN_IGNORE
- * Doxygen should ignore this section.
- */
-
-/* bool is defined in only C99+. */
-#if defined( __cplusplus ) || ( defined( __STDC_VERSION__ ) && ( __STDC_VERSION__ >= 199901L ) )
-    #include <stdbool.h>
-#elif !defined( bool ) && !defined( false ) && !defined( true )
-    #define bool     int8_t
-    #define false    ( int8_t ) 0
-    #define true     ( int8_t ) 1
-#endif
-/** @endcond */
+#include <stdbool.h>
 
 /* MQTT_DO_NOT_USE_CUSTOM_CONFIG allows building the MQTT library
  * without a custom config. If a custom config is provided, the

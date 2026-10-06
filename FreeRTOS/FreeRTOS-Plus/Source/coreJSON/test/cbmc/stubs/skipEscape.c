@@ -1,5 +1,5 @@
 /*
- * coreJSON v1.0.1
+ * coreJSON v3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -27,9 +27,9 @@
  * Please see core_json.c for documentation.
  */
 
-bool_ skipEscape( const char * buf,
-                  size_t * start,
-                  size_t max )
+bool skipEscape( const char * buf,
+                 size_t * start,
+                 size_t max )
 {
     /* min argument is 2, since the smallest proper
     * escape sequence is 2 characters, e.g., \n. */

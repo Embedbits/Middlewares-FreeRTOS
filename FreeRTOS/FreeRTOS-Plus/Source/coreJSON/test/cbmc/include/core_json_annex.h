@@ -1,5 +1,5 @@
 /*
- * coreJSON v1.0.1
+ * coreJSON v3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -27,12 +27,7 @@
 
 #include "core_json.h"
 
-typedef enum
-{
-    true = 1, false = 0
-} bool_;
-
-#define boolEnum( x )         ( ( x == true ) || ( x == false ) )
+#define isBool( x )           ( ( x == true ) || ( x == false ) )
 
 /* parameter check fail values for JSON API functions */
 #define parameterEnum( x )    ( ( x == JSONNullParameter ) || ( x == JSONBadParameter ) )
@@ -50,6 +45,21 @@ typedef enum
 /* All possible return values for JSON_Search() */
 #define jsonSearchEnum( x )        ( jsonValidateEnum( x ) || ( x == JSONNotFound ) )
 
+/* All possible return values for JSON_Iterate() */
+#define jsonIterateEnum( x )                                \
+    ( parameterEnum( x ) || ( x == JSONIllegalDocument ) || \
+      ( x == JSONNotFound ) || ( x == JSONSuccess ) )
+
+/* All possible type values output from JSON_SearchT() */
+#define jsonTypesEnum( x )   \
+    ( ( x == JSONString ) || \
+      ( x == JSONNumber ) || \
+      ( x == JSONTrue ) ||   \
+      ( x == JSONFalse ) ||  \
+      ( x == JSONNull ) ||   \
+      ( x == JSONObject ) || \
+      ( x == JSONArray ) )
+
 /*
  * These are declarations for the (normally) static functions from core_json.c.
  * Please see core_json.c for documentation.
@@ -59,38 +69,38 @@ void skipSpace( const char * buf,
                 size_t * start,
                 size_t max );
 
-bool_ skipUTF8( const char * buf,
-                size_t * start,
-                size_t max );
+bool skipUTF8( const char * buf,
+               size_t * start,
+               size_t max );
 
-bool_ skipEscape( const char * buf,
-                  size_t * start,
-                  size_t max );
+bool skipEscape( const char * buf,
+                 size_t * start,
+                 size_t max );
 
-bool_ skipString( const char * buf,
-                  size_t * start,
-                  size_t max );
+bool skipString( const char * buf,
+                 size_t * start,
+                 size_t max );
 
-bool_ skipAnyLiteral( const char * buf,
-                      size_t * start,
-                      size_t max );
-
-bool_ skipDigits( const char * buf,
-                  size_t * start,
-                  size_t max,
-                  int32_t * outValue );
-
-bool_ skipNumber( const char * buf,
-                  size_t * start,
-                  size_t max );
-
-bool_ skipSpaceAndComma( const char * buf,
-                         size_t * start,
-                         size_t max );
-
-bool_ skipAnyScalar( const char * buf,
+bool skipAnyLiteral( const char * buf,
                      size_t * start,
                      size_t max );
+
+bool skipDigits( const char * buf,
+                 size_t * start,
+                 size_t max,
+                 int32_t * outValue );
+
+bool skipNumber( const char * buf,
+                 size_t * start,
+                 size_t max );
+
+bool skipSpaceAndComma( const char * buf,
+                        size_t * start,
+                        size_t max );
+
+bool skipAnyScalar( const char * buf,
+                    size_t * start,
+                    size_t max );
 
 JSONStatus_t skipCollection( const char * buf,
                              size_t * start,

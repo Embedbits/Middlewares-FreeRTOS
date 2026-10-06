@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V2.0.0
+ * corePKCS11 V3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -55,7 +55,7 @@ static CK_RV prvOpenSession( CK_SESSION_HANDLE * pxSession,
 
     xResult = C_GetFunctionList( &pxFunctionList );
 
-    if( xResult == CKR_OK )
+    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_OpenSession != NULL ) )
     {
         xResult = pxFunctionList->C_OpenSession( xSlotId,
                                                  CKF_SERIAL_SESSION | CKF_RW_SESSION,
@@ -73,10 +73,30 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
                     CK_ULONG * pxSlotCount )
 {
     CK_RV xResult = CKR_OK;
-    CK_FUNCTION_LIST_PTR pxFunctionList;
+    CK_FUNCTION_LIST_PTR pxFunctionList = NULL;
     CK_SLOT_ID * pxSlotId = NULL;
 
-    xResult = C_GetFunctionList( &pxFunctionList );
+    if( ( ppxSlotId == NULL ) || ( pxSlotCount == NULL ) )
+    {
+        xResult = CKR_ARGUMENTS_BAD;
+    }
+    else
+    {
+        xResult = C_GetFunctionList( &pxFunctionList );
+
+        if( pxFunctionList == NULL )
+        {
+            xResult = CKR_FUNCTION_FAILED;
+        }
+        else if( pxFunctionList->C_GetSlotList == NULL )
+        {
+            xResult = CKR_FUNCTION_FAILED;
+        }
+        else
+        {
+            /* MISRA */
+        }
+    }
 
     if( xResult == CKR_OK )
     {
@@ -87,16 +107,22 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
 
     if( xResult == CKR_OK )
     {
-        /* Allocate memory for the slot list. */
-        pxSlotId = PKCS11_MALLOC( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) );
-
-        if( pxSlotId == NULL )
+        if( *pxSlotCount == ( ( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) ) / ( sizeof( CK_SLOT_ID ) ) ) )
         {
-            xResult = CKR_HOST_MEMORY;
+            pxSlotId = PKCS11_MALLOC( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) );
+
+            if( pxSlotId == NULL )
+            {
+                xResult = CKR_HOST_MEMORY;
+            }
+            else
+            {
+                *ppxSlotId = pxSlotId;
+            }
         }
         else
         {
-            *ppxSlotId = pxSlotId;
+            xResult = CKR_HOST_MEMORY;
         }
     }
 
@@ -138,7 +164,7 @@ CK_RV xInitializePKCS11( void )
     xResult = C_GetFunctionList( &pxFunctionList );
 
     /* Initialize the PKCS #11 module. */
-    if( xResult == CKR_OK )
+    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_Initialize != NULL ) )
     {
         xResult = pxFunctionList->C_Initialize( &xInitArgs );
     }
@@ -159,6 +185,11 @@ CK_RV xInitializePkcs11Token( void )
     CK_TOKEN_INFO_PTR pxTokenInfo = NULL;
 
     xResult = C_GetFunctionList( &pxFunctionList );
+
+    if( ( pxFunctionList == NULL ) || ( pxFunctionList->C_GetTokenInfo == NULL ) || ( pxFunctionList->C_InitToken == NULL ) )
+    {
+        xResult = CKR_FUNCTION_FAILED;
+    }
 
     if( xResult == CKR_OK )
     {
@@ -252,7 +283,7 @@ CK_RV xInitializePkcs11Session( CK_SESSION_HANDLE * pxSession )
     }
 
     /* Open a PKCS #11 session. */
-    if( xResult == CKR_OK )
+    if( ( xResult == CKR_OK ) && ( pxSlotId != NULL ) && ( xSlotCount >= 1UL ) )
     {
         /* We will take the first slot available.
          * If your application has multiple slots, insert logic
@@ -264,7 +295,7 @@ CK_RV xInitializePkcs11Session( CK_SESSION_HANDLE * pxSession )
         PKCS11_FREE( pxSlotId );
     }
 
-    if( ( xResult == CKR_OK ) && ( pxFunctionList->C_Login != NULL ) )
+    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_Login != NULL ) )
     {
         xResult = pxFunctionList->C_Login( *pxSession,
                                            CKU_USER,
@@ -278,6 +309,7 @@ CK_RV xInitializePkcs11Session( CK_SESSION_HANDLE * pxSession )
 
 CK_RV xFindObjectWithLabelAndClass( CK_SESSION_HANDLE xSession,
                                     char * pcLabelName,
+                                    CK_ULONG ulLabelNameLen,
                                     CK_OBJECT_CLASS xClass,
                                     CK_OBJECT_HANDLE_PTR pxHandle )
 {
@@ -294,13 +326,19 @@ CK_RV xFindObjectWithLabelAndClass( CK_SESSION_HANDLE xSession,
     {
         xTemplate[ 0 ].type = CKA_LABEL;
         xTemplate[ 0 ].pValue = ( CK_VOID_PTR ) pcLabelName;
-        xTemplate[ 0 ].ulValueLen = strlen( pcLabelName );
+        xTemplate[ 0 ].ulValueLen = ulLabelNameLen;
 
         xTemplate[ 1 ].type = CKA_CLASS;
         xTemplate[ 1 ].pValue = &xClass;
         xTemplate[ 1 ].ulValueLen = sizeof( CK_OBJECT_CLASS );
 
         xResult = C_GetFunctionList( &pxFunctionList );
+
+        if( ( pxFunctionList == NULL ) || ( pxFunctionList->C_FindObjectsInit == NULL ) ||
+            ( pxFunctionList->C_FindObjects == NULL ) || ( pxFunctionList->C_FindObjectsFinal == NULL ) )
+        {
+            xResult = CKR_FUNCTION_FAILED;
+        }
     }
 
     /* Initialize the FindObject state in the underlying PKCS #11 module based
@@ -315,7 +353,7 @@ CK_RV xFindObjectWithLabelAndClass( CK_SESSION_HANDLE xSession,
         /* Find the first matching object, if any. */
         xResult = pxFunctionList->C_FindObjects( xSession,
                                                  pxHandle,
-                                                 1,
+                                                 1UL,
                                                  &ulCount );
     }
 

@@ -6,7 +6,15 @@
 2. Make (tested on version 3.82)
 4. Linux OS (tested on Ubuntu 18.04)
 
-## How to build
+## How to download
+Navigate to a parent directory of your choice and run the following command
+```
+$ git clone https://github.com/FreeRTOS/FreeRTOS.git --recurse-submodules --depth 1
+```
+The previous command should create a directory named **FreeRTOS**
+
+## Blinky Demo
+### How to build blinky demo
 Navigate with the command line to FreeRTOS/Demo/CORTEX\_M3\_MPS2\_QEMU\_GCC
 For a release build run:
 
@@ -14,21 +22,26 @@ For a release build run:
 $ export PATH=/path/to/arm/toolchain:$PATH
 $ make
 ```
-and for a versions with debugging symbols and no optimizations activated, run:
+For a versions with debugging symbols and no optimizations **-O0**, run:
 ```
 $ make DEBUG=1
 ```
 
-## How to run
+### How to run the blinky demo
 run:
 ```
-$ qemu-system-arm -machine mps2-an385 -monitor null -semihosting \
+$ sudo qemu-system-arm -machine mps2-an385 -monitor null -semihosting \
         --semihosting-config enable=on,target=native \
         -kernel ./build/RTOSDemo.axf \
         -serial stdio -nographic
 ```
+### Blinky Demo Expectations
+after running the blinky demo you shoud see on the screen the word blinking
+printed continuously
 
-## How to start debugging (gdb)
+
+## How to start debugging
+1. gdb
 <P>
 Append the -s and -S switches to the previous command (qemu-system-arm)<br>
 -s: allow gdb to be attached to the process remotely at port 1234 <br>
@@ -42,6 +55,3 @@ $ arm-none-eabi-gdb -q ./build/RTOSDemo.axf
 (gdb) break main
 (gdb) c
 ```
-## Demo
-This Demo implements the blinky demo, the user should expect the word 
-"blinking" to be repeatedly printed on the screen.

@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.0.0
+ * coreMQTT v1.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -93,10 +93,18 @@
 #define MQTT_OVERFLOW_OFFSET                   ( 3 )
 
 /**
- * @brief Subtract this value from max value of global entry time
- * for the timer overflow test.
+ * @brief The number of times the "getTime()" function is called
+ * within a single iteration of the #MQTT_ProcessLoop.
+ *
+ * This constant is used for the timer overflow test which checks
+ * that the API can support normal behavior even if the timer
+ * overflows.
+ *
+ * @note Currently, there are 5 calls within a single iteration.
+ * This can change when the implementation changes which would be
+ * caught through unit test failure.
  */
-#define MQTT_TIMER_CALLS_PER_ITERATION         ( 4 )
+#define MQTT_TIMER_CALLS_PER_ITERATION         ( 5 )
 
 /**
  * @brief Timeout for the timer overflow test.
@@ -132,6 +140,7 @@ typedef struct ProcessLoopReturns
     MQTTStatus_t processLoopStatus;           /**< @brief Return value of the process loop. */
     bool incomingPublish;                     /**< @brief Whether the incoming packet is a publish. */
     MQTTPublishInfo_t * pPubInfo;             /**< @brief Publish information to be returned by the deserializer. */
+    uint32_t timeoutMs;                       /**< @brief The timeout value to call MQTT_ProcessLoop API with. */
 } ProcessLoopReturns_t;
 
 /**
@@ -300,6 +309,19 @@ static int32_t transportSendFailure( NetworkContext_t * pNetworkContext,
 }
 
 /**
+ * @brief Mocked transport send that always returns 0 bytes sent.
+ */
+static int32_t transportSendNoBytes( NetworkContext_t * pNetworkContext,
+                                     const void * pBuffer,
+                                     size_t bytesToWrite )
+{
+    ( void ) pNetworkContext;
+    ( void ) pBuffer;
+    ( void ) bytesToWrite;
+    return 0;
+}
+
+/**
  * @brief Mocked transport send that succeeds then fails.
  */
 static int32_t transportSendSucceedThenFail( NetworkContext_t * pNetworkContext,
@@ -366,6 +388,20 @@ static int32_t transportRecvOneByte( NetworkContext_t * pNetworkContext,
 }
 
 /**
+ * @brief Mocked transport returning zero bytes to simulate reception
+ * of no data over network.
+ */
+static int32_t transportRecvNoData( NetworkContext_t * pNetworkContext,
+                                    void * pBuffer,
+                                    size_t bytesToRead )
+{
+    ( void ) pNetworkContext;
+    ( void ) pBuffer;
+    ( void ) bytesToRead;
+    return 0;
+}
+
+/**
  * @brief Initialize the transport interface with the mocked functions for
  * send and receive.
  *
@@ -405,6 +441,7 @@ static void resetProcessLoopParams( ProcessLoopReturns_t * pExpectParams )
     pExpectParams->processLoopStatus = MQTTSuccess;
     pExpectParams->incomingPublish = false;
     pExpectParams->pPubInfo = NULL;
+    pExpectParams->timeoutMs = MQTT_NO_TIMEOUT_MS;
 }
 
 /**
@@ -548,7 +585,7 @@ static void expectProcessLoopCalls( MQTTContext_t * const pContext,
     }
 
     /* Expect the above calls when running MQTT_ProcessLoop. */
-    mqttStatus = MQTT_ProcessLoop( pContext, MQTT_NO_TIMEOUT_MS );
+    mqttStatus = MQTT_ProcessLoop( pContext, pExpectParams->timeoutMs );
     TEST_ASSERT_EQUAL( processLoopStatus, mqttStatus );
 
     /* Any final assertions to end the test. */
@@ -685,6 +722,16 @@ void test_MQTT_Connect_sendConnect( void )
     packetSize = 13;
     remainingLength = 11;
     mqttContext.transportInterface.send = transportSendFailure;
+    MQTT_GetConnectPacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetConnectPacketSize_IgnoreArg_pPacketSize();
+    MQTT_GetConnectPacketSize_IgnoreArg_pRemainingLength();
+    MQTT_GetConnectPacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetConnectPacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    status = MQTT_Connect( &mqttContext, &connectInfo, NULL, timeout, &sessionPresent );
+    TEST_ASSERT_EQUAL_INT( MQTTSendFailed, status );
+
+    /* Test network send failure from timeout in calling transport send. */
+    mqttContext.transportInterface.send = transportSendNoBytes; /* Use mock send that always returns zero bytes. */
     MQTT_GetConnectPacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
     MQTT_GetConnectPacketSize_IgnoreArg_pPacketSize();
     MQTT_GetConnectPacketSize_IgnoreArg_pRemainingLength();
@@ -853,7 +900,7 @@ void test_MQTT_Connect_partial_receive()
 
     setupTransportInterface( &transport );
     setupNetworkBuffer( &networkBuffer );
-    transport.recv = transportRecvOneByte;
+    transport.recv = transportRecvNoData;
 
     memset( &mqttContext, 0x0, sizeof( mqttContext ) );
     MQTT_Init( &mqttContext, &transport, getTime, eventCallback, &networkBuffer );
@@ -864,14 +911,16 @@ void test_MQTT_Connect_partial_receive()
     incomingPacket.type = MQTT_PACKET_TYPE_CONNACK;
     incomingPacket.remainingLength = 2;
 
-    /* Not enough time to receive entire packet, for branch coverage. This is due
-     * to the fact the mocked receive function reads only one byte at a time. */
-    timeout = 1;
+    /* Timeout in receiving entire packet, for branch coverage. This is due to the fact that the mocked
+     * receive function always returns 0 bytes read. */
     MQTT_GetIncomingPacketTypeAndLength_ExpectAnyArgsAndReturn( MQTTSuccess );
     MQTT_GetIncomingPacketTypeAndLength_ReturnThruPtr_pIncomingPacket( &incomingPacket );
     status = MQTT_Connect( &mqttContext, &connectInfo, NULL, timeout, &sessionPresent );
     TEST_ASSERT_EQUAL_INT( MQTTRecvFailed, status );
 
+    /* Update to use mock receive function that receives one byte at a time for the
+     * rest of the test. */
+    mqttContext.transportInterface.recv = transportRecvOneByte;
     timeout = 10;
 
     /* Not enough space for packet, discard it. */
@@ -1309,6 +1358,47 @@ void test_MQTT_Publish( void )
     TEST_ASSERT_EQUAL_INT( MQTTSuccess, status );
 }
 
+/**
+ * @brief Test that verifies that the MQTT_Publish API detects a timeout
+ * and returns failure when the transport send function is unable to send any data
+ * over the network.
+ */
+void test_MQTT_Publish_Send_Timeout( void )
+{
+    MQTTContext_t mqttContext;
+    MQTTPublishInfo_t publishInfo;
+    TransportInterface_t transport;
+    MQTTFixedBuffer_t networkBuffer;
+    MQTTStatus_t status;
+    size_t headerSize;
+
+    setupNetworkBuffer( &networkBuffer );
+    setupTransportInterface( &transport );
+
+    /* Set the transport send function to the mock that always returns zero
+     * bytes for the test. */
+    transport.send = transportSendNoBytes;
+
+    /* Initialize the MQTT context. */
+    MQTT_Init( &mqttContext, &transport, getTime, eventCallback, &networkBuffer );
+
+    /* Setup for making sure that the test results in calling sendPacket function
+     * where calls to transport send function are made (repeatedly to send packet
+     * over the network).*/
+    memset( &publishInfo, 0, sizeof( MQTTPublishInfo_t ) );
+    headerSize = 1;
+    publishInfo.pPayload = "Test";
+    publishInfo.payloadLength = 4;
+    MQTT_GetPublishPacketSize_IgnoreAndReturn( MQTTSuccess );
+    MQTT_SerializePublishHeader_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_SerializePublishHeader_ReturnThruPtr_pHeaderSize( &headerSize );
+
+    /* Call the API function under test and expect that it detects a timeout in sending
+     * MQTT packet over the network. */
+    status = MQTT_Publish( &mqttContext, &publishInfo, 0 );
+    TEST_ASSERT_EQUAL_INT( MQTTSendFailed, status );
+}
+
 /* ========================================================================== */
 
 /**
@@ -1341,6 +1431,14 @@ void test_MQTT_Disconnect( void )
     TEST_ASSERT_EQUAL_INT( MQTTBadParameter, status );
 
     /* Send failure with network error. */
+    MQTT_GetDisconnectPacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetDisconnectPacketSize_ReturnThruPtr_pPacketSize( &disconnectSize );
+    MQTT_SerializeDisconnect_ExpectAnyArgsAndReturn( MQTTSuccess );
+    status = MQTT_Disconnect( &mqttContext );
+    TEST_ASSERT_EQUAL( MQTTSendFailed, status );
+
+    /* Send failure with timeout in calling transport send. */
+    transport.send = transportSendNoBytes;
     MQTT_GetDisconnectPacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
     MQTT_GetDisconnectPacketSize_ReturnThruPtr_pPacketSize( &disconnectSize );
     MQTT_SerializeDisconnect_ExpectAnyArgsAndReturn( MQTTSuccess );
@@ -1571,6 +1669,53 @@ void test_MQTT_ProcessLoop_handleIncomingPublish_Error_Paths( void )
     /* The other loop parameter fields are irrelevant. */
     expectProcessLoopCalls( &context, &expectParams );
     TEST_ASSERT_FALSE( isEventCallbackInvoked );
+}
+
+/**
+ * @brief This test checks that the ProcessLoop API function is able to
+ * support receiving an entire incoming MQTT packet over the network when
+ * the transport recv function only reads less than requested bytes at a
+ * time, and the timeout passed to the API is "0ms".
+ */
+void test_MQTT_ProcessLoop_Zero_Duration_And_Partial_Network_Read( void )
+{
+    MQTTStatus_t mqttStatus;
+    MQTTContext_t context;
+    TransportInterface_t transport;
+    MQTTFixedBuffer_t networkBuffer;
+    ProcessLoopReturns_t expectParams = { 0 };
+
+    setupNetworkBuffer( &networkBuffer );
+
+    transport.send = transportSendSuccess;
+
+    /* Set the transport recv function for the test to the mock function that represents
+     * partial read of data from network (i.e. less than requested number of bytes)
+     * at a time. */
+    transport.recv = transportRecvOneByte;
+
+    /* Initialize the context. */
+    mqttStatus = MQTT_Init( &context, &transport, getTime, eventCallback, &networkBuffer );
+    TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
+
+    /* Set flag required for configuring behavior of expectProcessLoopCalls()
+     * helper function. */
+    modifyIncomingPacketStatus = MQTTSuccess;
+
+    /* Test the ProcessLoop() call with zero duration timeout to verify that it
+     * will be able to support reading the packet over network over multiple calls to
+     * the transport receive function. */
+    expectParams.timeoutMs = MQTT_NO_TIMEOUT_MS;
+
+    /* Test with an incoming PUBLISH packet whose payload is read only one byte
+     * per call to the transport recv function. */
+    currentPacketType = MQTT_PACKET_TYPE_PUBLISH;
+    /* Set expected return values during the loop. */
+    resetProcessLoopParams( &expectParams );
+    expectParams.stateAfterDeserialize = MQTTPubAckSend;
+    expectParams.stateAfterSerialize = MQTTPublishDone;
+    expectParams.incomingPublish = true;
+    expectProcessLoopCalls( &context, &expectParams );
 }
 
 /**
@@ -1884,17 +2029,27 @@ void test_MQTT_ProcessLoop_Timer_Overflow( void )
     MQTTPublishState_t publishState = MQTTPubAckSend;
     MQTTPublishState_t ackState = MQTTPublishDone;
     uint8_t i = 0;
-    uint8_t numIterations = ( MQTT_TIMER_OVERFLOW_TIMEOUT_MS / MQTT_TIMER_CALLS_PER_ITERATION ) + 1;
+
+    /* Calculate the number of iterations that the loop within the MQTT_ProcessLoop call
+     * will be executed for the time duration value in the test.
+     * The number of iterations is ceiling( Time Duration / Number of timer calls per iteration ) . */
+    uint8_t numIterations = ( MQTT_TIMER_OVERFLOW_TIMEOUT_MS + MQTT_TIMER_CALLS_PER_ITERATION - 1 ) /
+                            MQTT_TIMER_CALLS_PER_ITERATION;
+
     uint32_t expectedFinalTime;
 
     setupTransportInterface( &transport );
+    setupNetworkBuffer( &networkBuffer );
 
     networkBuffer.size = 1000;
     incomingPacket.type = MQTT_PACKET_TYPE_PUBLISH;
     incomingPacket.remainingLength = MQTT_SAMPLE_REMAINING_LENGTH;
 
     globalEntryTime = UINT32_MAX - MQTT_OVERFLOW_OFFSET;
-    expectedFinalTime = MQTT_TIMER_CALLS_PER_ITERATION * numIterations - MQTT_OVERFLOW_OFFSET;
+
+    /* Calculate the expected time counter value after the MQTT_ProcessLoop API call.
+     * Note: The "+ 1" is for the call to getTime() function before the loop iterations. */
+    expectedFinalTime = globalEntryTime + ( numIterations * MQTT_TIMER_CALLS_PER_ITERATION ) + 1;
 
     mqttStatus = MQTT_Init( &context, &transport, getTime, eventCallback, &networkBuffer );
     TEST_ASSERT_EQUAL( MQTTSuccess, mqttStatus );
@@ -2064,8 +2219,8 @@ void test_MQTT_Subscribe_error_paths( void )
     setupNetworkBuffer( &networkBuffer );
     setupSubscriptionInfo( &subscribeInfo );
 
+    setupTransportInterface( &transport );
     transport.send = transportSendFailure;
-    transport.recv = transportRecvFailure;
 
     /* Initialize context. */
     mqttStatus = MQTT_Init( &context, &transport, getTime, eventCallback, &networkBuffer );
@@ -2076,6 +2231,15 @@ void test_MQTT_Subscribe_error_paths( void )
     MQTT_GetSubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
     MQTT_SerializeSubscribe_ExpectAnyArgsAndReturn( MQTTSuccess );
     /* Expect the above calls when running MQTT_Subscribe. */
+    mqttStatus = MQTT_Subscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
+    TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+
+    /* Case when there is timeout in sending data through transport send. */
+    transport.send = transportSendNoBytes; /* Use the mock function that returns zero bytes sent. */
+    MQTT_GetSubscribePacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetSubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    MQTT_SerializeSubscribe_ExpectAnyArgsAndReturn( MQTTSuccess );
     mqttStatus = MQTT_Subscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
     TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
 }
@@ -2174,6 +2338,16 @@ void test_MQTT_Unsubscribe_error_path( void )
     /* Expect the above calls when running MQTT_Unsubscribe. */
     mqttStatus = MQTT_Unsubscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
     TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+
+    /* Case when there is timeout in sending data through transport send. */
+    transport.send = transportSendNoBytes; /* Use the mock function that returns zero bytes sent. */
+    MQTT_GetUnsubscribePacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetUnsubscribePacketSize_ReturnThruPtr_pPacketSize( &packetSize );
+    MQTT_GetUnsubscribePacketSize_ReturnThruPtr_pRemainingLength( &remainingLength );
+    MQTT_SerializeUnsubscribe_ExpectAnyArgsAndReturn( MQTTSuccess );
+    /* Expect the above calls when running MQTT_Unsubscribe. */
+    mqttStatus = MQTT_Unsubscribe( &context, &subscribeInfo, 1, MQTT_FIRST_VALID_PACKET_ID );
+    TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
 }
 
 /* ========================================================================== */
@@ -2251,6 +2425,17 @@ void test_MQTT_Ping_error_path( void )
     /* Expect the above calls when running MQTT_Ping. */
     mqttStatus = MQTT_Ping( &context );
     TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+
+    /* Case when there is timeout in sending data through transport send. */
+    transport.recv = transportRecvSuccess;
+    transport.send = transportSendNoBytes; /* Use the mock function that returns zero bytes sent. */
+    MQTT_GetPingreqPacketSize_ExpectAnyArgsAndReturn( MQTTSuccess );
+    MQTT_GetPingreqPacketSize_ReturnThruPtr_pPacketSize( &pingreqSize );
+    MQTT_SerializePingreq_ExpectAnyArgsAndReturn( MQTTSuccess );
+    /* Verify that the API returns failure. */
+    mqttStatus = MQTT_Ping( &context );
+    TEST_ASSERT_EQUAL( MQTTSendFailed, mqttStatus );
+
 
     /* Initialize context. */
     mqttStatus = MQTT_Init( &context, &transport, getTime, eventCallback, &networkBuffer );

@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.0.0
+ * coreMQTT v1.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -46,6 +46,13 @@
 #include "transport_interface.h"
 
 /**
+ * @cond DOXYGEN_IGNORE
+ * The current version of this library.
+ */
+#define MQTT_LIBRARY_VERSION    "v1.1.0"
+/** @endcond */
+
+/**
  * @ingroup mqtt_constants
  * @brief Invalid packet identifier.
  *
@@ -60,7 +67,7 @@ struct MQTTDeserializedInfo;
 
 /**
  * @ingroup mqtt_callback_types
- * @brief Application provided callback to retrieve the current time in
+ * @brief Application provided function to query the current time in
  * milliseconds.
  *
  * @return The current time in milliseconds.
@@ -228,11 +235,13 @@ typedef struct MQTTDeserializedInfo
  *
  * This function must be called on a #MQTTContext_t before any other function.
  *
- * @note The #MQTTGetCurrentTimeFunc_t callback function must be defined. If
+ * @note The #MQTTGetCurrentTimeFunc_t function for querying time must be defined. If
  * there is no time implementation, it is the responsibility of the application
- * to provide a dummy function to always return 0, and provide 0 timeouts for
- * functions. This will ensure all time based functions will run for a single
- * iteration.
+ * to provide a dummy function to always return 0, provide 0 timeouts for
+ * all calls to #MQTT_Connect, #MQTT_ProcessLoop, and #MQTT_ReceiveLoop and configure
+ * the #MQTT_RECV_POLLING_TIMEOUT_MS and #MQTT_SEND_RETRY_TIMEOUT_MS configurations
+ * to be 0. This will result in loop functions running for a single iteration, and
+ * #MQTT_Connect relying on #MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT to receive the CONNACK packet.
  *
  * @param[in] pContext The context to initialize.
  * @param[in] pTransportInterface The transport interface to use with the context.
@@ -308,6 +317,10 @@ MQTTStatus_t MQTT_Init( MQTTContext_t * pContext,
  * 2. If @p timeoutMs is 0:
  *    The network receive for CONNACK is retried up to the number of times
  *    configured by #MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT.
+ *
+ * @note If a dummy #MQTTGetCurrentTimeFunc_t was passed to #MQTT_Init, then a
+ * timeout value of 0 MUST be passed to the API, and the #MQTT_RECV_POLLING_TIMEOUT_MS
+ * and #MQTT_SEND_RETRY_TIMEOUT_MS timeout configurations MUST be set to 0.
  *
  * @param[in] pContext Initialized MQTT context.
  * @param[in] pConnectInfo MQTT CONNECT packet information.
@@ -556,7 +569,7 @@ MQTTStatus_t MQTT_Ping( MQTTContext_t * pContext );
  * // Obtain a new packet id for the unsubscribe request.
  * packetId = MQTT_GetPacketId( pContext );
  *
- * status = MQTT_Subscribe( pContext, &unsubscribeList[ 0 ], NUMBER_OF_SUBSCRIPTIONS, packetId );
+ * status = MQTT_Unsubscribe( pContext, &unsubscribeList[ 0 ], NUMBER_OF_SUBSCRIPTIONS, packetId );
  *
  * if( status == MQTTSuccess )
  * {
@@ -591,9 +604,23 @@ MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext );
  * @brief Loop to receive packets from the transport interface. Handles keep
  * alive.
  *
+ * @note Passing a timeout value of 0 will run the loop for a single iteration.
+ *
+ * @note If a dummy timer function, #MQTTGetCurrentTimeFunc_t, is passed to the library,
+ * then the keep-alive mechanism is not supported by the #MQTT_ProcessLoop API.
+ * In that case, the #MQTT_ReceiveLoop API function should be used instead.
+ *
  * @param[in] pContext Initialized and connected MQTT context.
  * @param[in] timeoutMs Minimum time in milliseconds that the receive loop will
  * run, unless an error occurs.
+ *
+ * @note Calling this function blocks the calling context for a time period that
+ * depends on the passed @p timeoutMs, the configuration macros, #MQTT_RECV_POLLING_TIMEOUT_MS
+ * and #MQTT_SEND_RETRY_TIMEOUT_MS, and the underlying transport interface implementation
+ * timeouts, unless an error occurs. The blocking period also depends on the execution time of the
+ * #MQTTEventCallback_t callback supplied to the library. It is recommended that the supplied
+ * #MQTTEventCallback_t callback does not contain blocking operations to prevent potential
+ * non-deterministic blocking period of the #MQTT_ProcessLoop API call.
  *
  * @return #MQTTBadParameter if context is NULL;
  * #MQTTRecvFailed if a network error occurs during reception;
@@ -640,10 +667,21 @@ MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
  * keep alive.
  *
  * @note Passing a timeout value of 0 will run the loop for a single iteration.
+ * If a dummy #MQTTGetCurrentTimeFunc_t was passed to #MQTT_Init, then the timeout
+ * value passed to the API MUST be 0, and the #MQTT_RECV_POLLING_TIMEOUT_MS
+ * and #MQTT_SEND_RETRY_TIMEOUT_MS timeout configurations MUST be set to 0.
  *
  * @param[in] pContext Initialized and connected MQTT context.
  * @param[in] timeoutMs Minimum time in milliseconds that the receive loop will
  * run, unless an error occurs.
+ *
+ * @note Calling this function blocks the calling context for a time period that
+ * depends on the passed @p timeoutMs, the configuration macros, #MQTT_RECV_POLLING_TIMEOUT_MS
+ * and #MQTT_SEND_RETRY_TIMEOUT_MS, and the underlying transport interface implementation
+ * timeouts, unless an error occurs. The blocking period also depends on the execution time of the
+ * #MQTTEventCallback_t callback supplied to the library. It is recommended that the supplied
+ * #MQTTEventCallback_t callback does not contain blocking operations to prevent potential
+ * non-deterministic blocking period of the #MQTT_ReceiveLoop API call.
  *
  * @return #MQTTBadParameter if context is NULL;
  * #MQTTRecvFailed if a network error occurs during reception;

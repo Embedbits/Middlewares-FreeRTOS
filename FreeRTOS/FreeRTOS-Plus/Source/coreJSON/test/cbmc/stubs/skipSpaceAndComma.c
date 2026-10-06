@@ -1,5 +1,5 @@
 /*
- * coreJSON v1.0.1
+ * coreJSON v3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -27,9 +27,9 @@
  * Please see core_json.c for documentation.
  */
 
-bool_ skipSpaceAndComma( const char * buf,
-                         size_t * start,
-                         size_t max )
+bool skipSpaceAndComma( const char * buf,
+                        size_t * start,
+                        size_t max )
 {
     /* The original function will match 0 or more spaces, followed by a comma,
      * followed by 0 or more spaces. The spaces are still skipped if there is no comma.

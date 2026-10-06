@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.3.1
+ * FreeRTOS+TCP V2.3.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -916,7 +916,7 @@
                             /* The reply was received.  Process it. */
                             #if ( ipconfigDNS_USE_CALLBACKS == 0 )
 
-                                /* It is useless to analyze the unexpected reply
+                                /* It is useless to analyse the unexpected reply
                                  * unless asynchronous look-ups are enabled. */
                                 if( xExpected != pdFALSE )
                             #endif /* ipconfigDNS_USE_CALLBACKS == 0 */

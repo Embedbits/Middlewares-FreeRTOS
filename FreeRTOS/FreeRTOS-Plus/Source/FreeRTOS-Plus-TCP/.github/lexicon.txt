@@ -16,6 +16,7 @@ addtogroup
 afe
 ahb
 amba
+analyse
 ap
 api
 apis
@@ -209,10 +210,12 @@ eestabl
 eestablished
 eevent
 eeventtype
+eexpectedstate
 eframeconsumed
 eg
 egetlinklayeraddress
 ehertype
+einitialwait
 einprogress
 einvalidchecksum
 einvaliddata
@@ -249,6 +252,7 @@ ereturned
 ereturnethernetframe
 errbuf
 errno
+esenddhcprequest
 esocketbindevent
 esocketcloseevent
 esocketselectevent
@@ -792,6 +796,7 @@ quickstart
 ra
 ramfunc
 randomised
+randomiser
 rbus
 rcomp
 rcv
@@ -1274,7 +1279,9 @@ vsocketwakeupuser
 vtasklist
 vtasknotifygivefromisr
 vtcpnetstat
+vtcpstatechange
 vtcpwindowinit
+vtcpwindowdestroy
 wasn
 wcast
 wdwfcr

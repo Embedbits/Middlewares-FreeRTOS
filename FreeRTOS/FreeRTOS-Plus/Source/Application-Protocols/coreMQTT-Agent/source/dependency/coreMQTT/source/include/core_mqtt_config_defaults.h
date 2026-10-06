@@ -1,6 +1,8 @@
 /*
- * coreMQTT v1.2.0
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * coreMQTT v2.1.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -41,6 +43,14 @@
 #endif
 /* *INDENT-ON* */
 
+/* MQTT_DO_NOT_USE_CUSTOM_CONFIG allows building the MQTT library
+ * without a custom config. If a custom config is provided, the
+ * MQTT_DO_NOT_USE_CUSTOM_CONFIG macro should not be defined. */
+#ifndef MQTT_DO_NOT_USE_CUSTOM_CONFIG
+/* Include custom config file before other headers. */
+    #include "core_mqtt_config.h"
+#endif
+
 /* The macro definition for MQTT_DO_NOT_USE_CUSTOM_CONFIG is for Doxygen
  * documentation only. */
 
@@ -59,27 +69,11 @@
 #endif
 
 /**
- * @brief Determines the maximum number of MQTT PUBLISH messages, pending
- * acknowledgment at a time, that are supported for incoming and outgoing
- * direction of messages, separately.
- *
- * QoS 1 and 2 MQTT PUBLISHes require acknowledgment from the server before
- * they can be completed. While they are awaiting the acknowledgment, the
- * client must maintain information about their state. The value of this
- * macro sets the limit on how many simultaneous PUBLISH states an MQTT
- * context maintains, separately, for both incoming and outgoing direction of
- * PUBLISHes.
- *
- * @note The MQTT context maintains separate state records for outgoing
- * and incoming PUBLISHes, and thus, 2 * MQTT_STATE_ARRAY_MAX_COUNT amount
- * of memory is statically allocated for the state records.
- *
- * <b>Possible values:</b> Any positive 32 bit integer. <br>
- * <b>Default value:</b> `10`
+ * @ingroup mqtt_constants
+ * @brief Maximum number of vectors in subscribe and unsubscribe packet.
  */
-#ifndef MQTT_STATE_ARRAY_MAX_COUNT
-    /* Default value for the maximum acknowledgment pending PUBLISH messages. */
-    #define MQTT_STATE_ARRAY_MAX_COUNT    ( 10U )
+#ifndef MQTT_SUB_UNSUB_MAX_VECTORS
+    #define MQTT_SUB_UNSUB_MAX_VECTORS    ( 4U )
 #endif
 
 /**
@@ -95,7 +89,7 @@
  * <b>Default value:</b> `5`
  */
 #ifndef MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT
-    /* Default value for the CONNACK receive retries. */
+/* Default value for the CONNACK receive retries. */
     #define MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT    ( 5U )
 #endif
 
@@ -119,8 +113,34 @@
  * <b>Default value:</b> `5000`
  */
 #ifndef MQTT_PINGRESP_TIMEOUT_MS
-    /* Wait 5 seconds by default for a ping response. */
+/* Wait 5 seconds by default for a ping response. */
     #define MQTT_PINGRESP_TIMEOUT_MS    ( 5000U )
+#endif
+
+/**
+ * @brief Maximum number of milliseconds of TX inactivity to wait
+ * before initiating a PINGREQ
+ *
+ * @note If this value is less than the keep alive interval than
+ * it will be used instead.
+ *
+ * <b>Possible values:</b> Any positive integer up to SIZE_MAX. <br>
+ * <b>Default value:</b> '30000'
+ */
+#ifndef PACKET_TX_TIMEOUT_MS
+    #define PACKET_TX_TIMEOUT_MS    ( 30000U )
+#endif
+
+/**
+ * @brief Maximum number of milliseconds of RX inactivity to wait
+ * before initiating a PINGREQ
+ *
+ * <b>Possible values:</b> Any positive integer up to SIZE_MAX. <br>
+ * <b>Default value:</b> '30000'
+ *
+ */
+#ifndef PACKET_RX_TIMEOUT_MS
+    #define PACKET_RX_TIMEOUT_MS    ( 30000U )
 #endif
 
 /**
@@ -149,108 +169,30 @@
 #endif
 
 /**
- * @brief The maximum duration between non-empty network transmissions while
- * sending an MQTT packet via the #MQTT_ProcessLoop or #MQTT_ReceiveLoop
- * API functions.
+ * @brief The maximum duration allowed to send an MQTT packet over the transport
+ * interface.
  *
- * When sending an MQTT packet, the transport send function may be called multiple
- * times until all of the required number of bytes are sent.
- * This timeout represents the maximum duration that is allowed for no data
- * transmission over the network through the transport send function.
+ * When sending an MQTT packet, the transport send or writev functions may be
+ * called multiple times until all of the required number of bytes are sent.
+ * This timeout represents the maximum duration that is allowed to send the MQTT
+ * packet while calling the transport send or writev functions.
  *
- * If the timeout expires, the #MQTT_ProcessLoop and #MQTT_ReceiveLoop functions
- * return #MQTTSendFailed.
+ * If the timeout expires, #MQTTSendFailed will be returned by the public API
+ * functions.
  *
  * @note If a dummy implementation of the #MQTTGetCurrentTimeFunc_t timer function,
- * is supplied to the library, then #MQTT_SEND_RETRY_TIMEOUT_MS MUST be set to 0.
+ * is supplied to the library, then #MQTT_SEND_TIMEOUT_MS MUST be set to 0.
  *
- * <b>Possible values:</b> Any positive 32 bit integer. Recommended to use a small
- * timeout value. <br>
- * <b>Default value:</b> `10`
+ * <b>Possible values:</b> Any positive 32 bit integer. <br>
+ * <b>Default value:</b> `20000`
  *
  */
-#ifndef MQTT_SEND_RETRY_TIMEOUT_MS
-    #define MQTT_SEND_RETRY_TIMEOUT_MS    ( 10U )
+#ifndef MQTT_SEND_TIMEOUT_MS
+    #define MQTT_SEND_TIMEOUT_MS    ( 20000U )
 #endif
 
-/**
- * @brief Macro that is called in the MQTT library for logging "Error" level
- * messages.
- *
- * To enable error level logging in the MQTT library, this macro should be mapped to the
- * application-specific logging implementation that supports error logging.
- *
- * @note This logging macro is called in the MQTT library with parameters wrapped in
- * double parentheses to be ISO C89/C90 standard compliant. For a reference
- * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
- * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C).
- *
- * <b>Default value</b>: Error logging is turned off, and no code is generated for calls
- * to the macro in the MQTT library on compilation.
- */
-#ifndef LogError
-    #define LogError( message )
-#endif
-
-/**
- * @brief Macro that is called in the MQTT library for logging "Warning" level
- * messages.
- *
- * To enable warning level logging in the MQTT library, this macro should be mapped to the
- * application-specific logging implementation that supports warning logging.
- *
- * @note This logging macro is called in the MQTT library with parameters wrapped in
- * double parentheses to be ISO C89/C90 standard compliant. For a reference
- * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
- * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/).
- *
- * <b>Default value</b>: Warning logs are turned off, and no code is generated for calls
- * to the macro in the MQTT library on compilation.
- */
-#ifndef LogWarn
-    #define LogWarn( message )
-#endif
-
-/**
- * @brief Macro that is called in the MQTT library for logging "Info" level
- * messages.
- *
- * To enable info level logging in the MQTT library, this macro should be mapped to the
- * application-specific logging implementation that supports info logging.
- *
- * @note This logging macro is called in the MQTT library with parameters wrapped in
- * double parentheses to be ISO C89/C90 standard compliant. For a reference
- * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
- * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/).
- *
- * <b>Default value</b>: Info logging is turned off, and no code is generated for calls
- * to the macro in the MQTT library on compilation.
- */
-#ifndef LogInfo
-    #define LogInfo( message )
-#endif
-
-/**
- * @brief Macro that is called in the MQTT library for logging "Debug" level
- * messages.
- *
- * To enable debug level logging from MQTT library, this macro should be mapped to the
- * application-specific logging implementation that supports debug logging.
- *
- * @note This logging macro is called in the MQTT library with parameters wrapped in
- * double parentheses to be ISO C89/C90 standard compliant. For a reference
- * POSIX implementation of the logging macros, refer to core_mqtt_config.h files, and the
- * logging-stack in demos folder of the
- * [AWS IoT Embedded C SDK repository](https://github.com/aws/aws-iot-device-sdk-embedded-C/).
- *
- * <b>Default value</b>: Debug logging is turned off, and no code is generated for calls
- * to the macro in the MQTT library on compilation.
- */
-#ifndef LogDebug
-    #define LogDebug( message )
+#ifdef MQTT_SEND_RETRY_TIMEOUT_MS
+    #error MQTT_SEND_RETRY_TIMEOUT_MS is deprecated. Instead use MQTT_SEND_TIMEOUT_MS.
 #endif
 
 /* *INDENT-OFF* */

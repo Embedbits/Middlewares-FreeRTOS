@@ -1,6 +1,8 @@
 /*
- * corePKCS11 v3.4.0
+ * corePKCS11 v3.5.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +28,7 @@
  */
 
 #include <stddef.h>
+#include <string.h>
 
 #include "core_pkcs11.h"
 #include "pkcs11.h"
@@ -56,10 +59,13 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
     return CKR_OK;
 }
 
+static CK_FUNCTION_LIST prvP11FunctionList = { NULL };
+
 CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunctionList )
 {
     CK_RV xResult;
-    static CK_FUNCTION_LIST prvP11FunctionList =
+
+    CK_FUNCTION_LIST xP11FunctionList =
     {
         { CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR },
         nondet_bool() ? C_Initialize : NULL,
@@ -100,7 +106,7 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunc
         NULL, /*C_Decrypt*/
         NULL, /*C_DecryptUpdate*/
         NULL, /*C_DecryptFinal*/
-        nondet_bool() ? C_FindObjectsFinal : NULL,
+        nondet_bool() ? C_DigestInit : NULL,
         NULL, /*C_Digest*/
         nondet_bool() ? C_DigestUpdate : NULL,
         NULL, /* C_DigestKey*/
@@ -132,6 +138,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunc
         NULL, /*C_CancelFunction*/
         NULL  /*C_WaitForSlotEvent*/
     };
+
+    ( void ) memcpy( &prvP11FunctionList, &xP11FunctionList, sizeof( CK_FUNCTION_LIST ) );
 
     if( xResult == CKR_OK )
     {

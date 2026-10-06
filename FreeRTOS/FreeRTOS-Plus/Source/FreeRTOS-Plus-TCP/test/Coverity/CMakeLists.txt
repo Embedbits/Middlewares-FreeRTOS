@@ -8,6 +8,7 @@ project ( "FreeRTOS+TCP Static analysis"
 
 # Allow the project to be organized into folders.
 set_property( GLOBAL PROPERTY USE_FOLDERS ON )
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Use C90.
 set( CMAKE_C_STANDARD 90 )
@@ -39,7 +40,7 @@ file( GLOB KERNEL_SOURCES
 
 # Add TCP sources to a list
 file( GLOB TCP_SOURCES
-           ${MODULE_ROOT_DIR}/*.c )
+           ${MODULE_ROOT_DIR}/source/*.c )
 
 # A better way would be to create a library such that all other dependencies are
 # ignored by the static analysis tool. But, since +TCP is very closely linked
@@ -49,13 +50,13 @@ file( GLOB TCP_SOURCES
 add_executable( StaticAnalysis ${TCP_SOURCES}
                                ${KERNEL_SOURCES}
                                ${CMAKE_CURRENT_LIST_DIR}/Portable.c
-                               ${MODULE_ROOT_DIR}/portable/BufferManagement/BufferAllocation_2.c )
+                               ${MODULE_ROOT_DIR}/source/portable/BufferManagement/BufferAllocation_2.c )
 
 # Link the include directories with the target
 target_include_directories( StaticAnalysis
                             PUBLIC "${KERNEL_DIRECTORY}/include"
                             PUBLIC "${MODULE_ROOT_DIR}/test/Coverity/ConfigFiles"
-                            PUBLIC "${MODULE_ROOT_DIR}/include" )
+                            PUBLIC "${MODULE_ROOT_DIR}/source/include" )
 
 # Uncomment the below line if the desired platform is 32-bit
-# set_target_properties( StaticAnalysis PROPERTIES COMPILE_FLAGS "-m32" LINK_FLAGS "-m32" )
+set_target_properties( StaticAnalysis PROPERTIES COMPILE_FLAGS "-m32" LINK_FLAGS "-m32" )

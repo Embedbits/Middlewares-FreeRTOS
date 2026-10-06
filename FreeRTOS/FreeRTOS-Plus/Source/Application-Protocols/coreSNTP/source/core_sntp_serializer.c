@@ -1,6 +1,8 @@
 /*
- * coreSNTP v1.1.0
+ * coreSNTP v1.2.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -32,6 +34,8 @@
 
 /* Include API header. */
 #include "core_sntp_serializer.h"
+
+#include "core_sntp_config_defaults.h"
 
 /**
  * @brief The version of SNTP supported by the coreSNTP library by complying
@@ -628,6 +632,9 @@ SntpStatus_t Sntp_SerializeRequest( SntpTimestamp_t * pRequestTime,
     }
     else
     {
+        /* MISRA Ref 11.5.1 [Void pointer assignment] */
+        /* More details at: https://github.com/FreeRTOS/coreSNTP/blob/main/MISRA.md#rule-115 */
+        /* coverity[misra_c_2012_rule_11_5_violation] */
         SntpPacket_t * pRequestPacket = ( SntpPacket_t * ) pBuffer;
 
         /* Fill the buffer with zero as most fields are zero for a standard SNTP
@@ -670,6 +677,9 @@ SntpStatus_t Sntp_DeserializeResponse( const SntpTimestamp_t * pRequestTime,
                                        SntpResponseData_t * pParsedResponse )
 {
     SntpStatus_t status = SntpSuccess;
+    /* MISRA Ref 11.5.1 [Void pointer assignment] */
+    /* More details at: https://github.com/FreeRTOS/coreSNTP/blob/main/MISRA.md#rule-115 */
+    /* coverity[misra_c_2012_rule_11_5_violation] */
     const SntpPacket_t * pResponsePacket = ( const SntpPacket_t * ) pResponseBuffer;
 
     if( ( pRequestTime == NULL ) || ( pResponseRxTime == NULL ) ||

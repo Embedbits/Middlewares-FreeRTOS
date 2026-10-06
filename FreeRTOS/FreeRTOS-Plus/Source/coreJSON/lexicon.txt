@@ -32,8 +32,10 @@ fd
 fe
 ff
 ffff
+freertos
 foo
 gcc
+github
 html
 https
 ifndef
@@ -68,6 +70,7 @@ md
 microcontrollers
 min
 misra
+mit
 msb
 multibyte
 nb
@@ -104,6 +107,7 @@ skipspace
 skipspaceandcomma
 skipstring
 skiputf
+spdx
 stderr
 struct
 sublicense

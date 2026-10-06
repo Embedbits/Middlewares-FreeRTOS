@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -324,7 +324,8 @@ typedef enum CellularSocketOption
     CELLULAR_SOCKET_OPTION_MAX_IP_PACKET_SIZE, /**< Set Max IP packet size. */
     CELLULAR_SOCKET_OPTION_SEND_TIMEOUT,       /**< Set send timeout (in milliseconds). */
     CELLULAR_SOCKET_OPTION_RECV_TIMEOUT,       /**< Set receive timeout (in milliseconds). */
-    CELLULAR_SOCKET_OPTION_PDN_CONTEXT_ID      /**< Set PDN Context ID to use for the socket. */
+    CELLULAR_SOCKET_OPTION_PDN_CONTEXT_ID,     /**< Set PDN Context ID to use for the socket. */
+    CELLULAR_SOCKET_OPTION_SET_LOCAL_PORT      /**< Set local port. */
 } CellularSocketOption_t;
 
 /**

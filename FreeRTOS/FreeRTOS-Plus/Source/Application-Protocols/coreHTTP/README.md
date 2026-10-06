@@ -2,7 +2,7 @@
 
 This repository contains a C language HTTP client library designed for embedded
 platforms. It has no dependencies on any additional libraries other than the
-standard C library, [http-parser](https://github.com/nodejs/http-parser), and
+standard C library, [llhttp](https://github.com/nodejs/llhttp), and
 a customer-implemented transport interface. This library is distributed under
 the [MIT Open Source License](LICENSE).
 
@@ -14,6 +14,8 @@ safety and data structure invariance through the
 [CBMC automated reasoning tool](https://www.cprover.org/cbmc/).
 
 See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
+
+**coreHTTP v3.0.0 [source code](https://github.com/FreeRTOS/coreHTTP/tree/v3.0.0/source) is part of the [FreeRTOS 202210.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202210.00-LTS) release.**
 
 **coreHTTP v2.0.0 [source code](https://github.com/FreeRTOS/coreHTTP/tree/v2.0.0/source) is part of the [FreeRTOS 202012.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.00-LTS) release.**
 
@@ -75,6 +77,14 @@ file, refer to the `coverity_analysis` library target in
 1. The generated test executables will be present in `build/bin/tests` folder.
 
 1. Run `cd build && ctest` to execute all tests and view the test run summary.
+
+## CBMC
+
+ To learn more about CBMC and proofs specifically, review the training material [here](https://model-checking.github.io/cbmc-training).
+
+The `test/cbmc/proofs` directory contains CBMC proofs.
+
+In order to run these proofs you will need to install CBMC and other tools by following the instructions [here](https://model-checking.github.io/cbmc-training/installation.html).
 
 ## Reference examples
 

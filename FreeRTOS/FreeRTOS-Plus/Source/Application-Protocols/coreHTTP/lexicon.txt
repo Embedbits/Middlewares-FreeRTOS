@@ -25,6 +25,7 @@ chk
 chunked
 colspan
 com
+cond
 config
 configpagestyle
 const
@@ -42,6 +43,7 @@ defgroup
 doesn
 doxygen
 endcode
+endcond
 endif
 enums
 eof
@@ -57,6 +59,7 @@ findheaderinresponse
 findheaderonheadercompletecallback
 findheadervalueparsercallback
 firstpartbytes
+freertos
 gcc
 getfinalresponsestatus
 gettime
@@ -102,17 +105,19 @@ httpsecurityalertinvalidcharacter
 httpsecurityalertinvalidchunkheader
 httpsecurityalertinvalidprotocolversion
 httpsecurityalertinvalidstatuscode
-httpsecurityalertresponseheaderssizelimitexceeded
 httpstatus
 httpsuccess
 ietf
 ifndef
+inbetween
 inc
 ingroup
 init
 initializerequestheaders
 int
 iot
+ioveccount
+ip
 isfield
 isheaderresponse
 isheadresponse
@@ -122,6 +127,9 @@ lastheadervaluelen
 latin
 len
 linux
+llhttp
+llhttpparser
+llhttpsettings
 logdebug
 logerror
 loginfo
@@ -134,6 +142,7 @@ memmove
 methodlen
 min
 misra
+mit
 mqtt
 msg
 mynetworkrecvimplementation
@@ -179,6 +188,7 @@ pheaders
 phost
 phttpparser
 phttpparsingcontext
+piovec
 plaintext
 plastheaderfield
 plastheadervalue
@@ -201,7 +211,7 @@ prequestbodybuf
 prequestheaders
 prequestinfo
 presponse
-processhttpparsererror
+processllhttperror
 ptransport
 ptransportinterface
 pvalue
@@ -237,11 +247,13 @@ sendpartialcall
 sensitivity
 sizeof
 snprintf
+spdx
 statuscode
 strchr
 strerror
 strncpy
 struct
+structs
 sublicense
 tcp
 tcpsocketcontext
@@ -272,4 +284,5 @@ url
 valuefound
 valuelen
 valueloc
+writev
 xxxx

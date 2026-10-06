@@ -1,6 +1,8 @@
 /*
- * coreHTTP v2.1.0
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * coreHTTP v3.0.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,8 +30,17 @@
 #ifndef CORE_HTTP_CLIENT_PRIVATE_H_
 #define CORE_HTTP_CLIENT_PRIVATE_H_
 
-/* Third-party http-parser include. */
-#include "http_parser.h"
+/**
+ * @cond DOXYGEN_IGNORE
+ * http-parser defaults this to 1, llhttp to 0.
+ */
+#ifndef LLHTTP_STRICT_MODE
+    #define LLHTTP_STRICT_MODE    0
+#endif
+/** @endcond */
+
+/* Third-party llhttp include. */
+#include "llhttp.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
@@ -94,41 +105,35 @@
 
 /* Constants for header values added based on flags. */
 
-/* MISRA Rule 5.4 flags the following macro's name as ambiguous from the
- * one postfixed with _LEN. This rule is suppressed for naming consistency with
- * other HTTP header field and value string and length macros in this file.*/
+/* MISRA Ref 5.4.1 [Macro identifiers] */
+/* More details at: https://github.com/FreeRTOS/coreHTTP/blob/main/MISRA.md#rule-54 */
 /* coverity[other_declaration] */
 #define HTTP_CONNECTION_KEEP_ALIVE_VALUE    "keep-alive" /**< HTTP header value "keep-alive" for the "Connection" header field. */
 
-/* MISRA Rule 5.4 flags the following macro's name as ambiguous from the one
- * above it. This rule is suppressed for naming consistency with other HTTP
- * header field and value string and length macros in this file.*/
+/* MISRA Ref 5.4.2 [Macro identifiers] */
+/* More details at: https://github.com/FreeRTOS/coreHTTP/blob/main/MISRA.md#rule-54 */
 /* coverity[misra_c_2012_rule_5_4_violation] */
 #define HTTP_CONNECTION_KEEP_ALIVE_VALUE_LEN    ( sizeof( HTTP_CONNECTION_KEEP_ALIVE_VALUE ) - 1U ) /**< The length of #HTTP_CONNECTION_KEEP_ALIVE_VALUE. */
 
 /* Constants relating to Range Requests. */
 
-/* MISRA Rule 5.4 flags the following macro's name as ambiguous from the
- * one postfixed with _LEN. This rule is suppressed for naming consistency with
- * other HTTP header field and value string and length macros in this file.*/
+/* MISRA Ref 5.4.3 [Macro identifiers] */
+/* More details at: https://github.com/FreeRTOS/coreHTTP/blob/main/MISRA.md#rule-54 */
 /* coverity[other_declaration] */
 #define HTTP_RANGE_REQUEST_HEADER_FIELD    "Range" /**< HTTP header field "Range". */
 
-/* MISRA Rule 5.4 flags the following macro's name as ambiguous from the one
- * above it. This rule is suppressed for naming consistency with other HTTP
- * header field and value string and length macros in this file.*/
+/* MISRA Ref 5.4.4 [Macro identifiers] */
+/* More details at: https://github.com/FreeRTOS/coreHTTP/blob/main/MISRA.md#rule-54 */
 /* coverity[misra_c_2012_rule_5_4_violation] */
 #define HTTP_RANGE_REQUEST_HEADER_FIELD_LEN    ( sizeof( HTTP_RANGE_REQUEST_HEADER_FIELD ) - 1U ) /**< The length of #HTTP_RANGE_REQUEST_HEADER_FIELD. */
 
-/* MISRA Rule 5.4 flags the following macro's name as ambiguous from the
- * one postfixed with _LEN. This rule is suppressed for naming consistency with
- * other HTTP header field and value string and length macros in this file.*/
+/* MISRA Ref 5.4.5 [Macro identifiers] */
+/* More details at: https://github.com/FreeRTOS/coreHTTP/blob/main/MISRA.md#rule-54 */
 /* coverity[other_declaration] */
 #define HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX    "bytes=" /**< HTTP required header value prefix when specifying a byte range for partial content. */
 
-/* MISRA Rule 5.4 flags the following macro's name as ambiguous from the one
- * above it. This rule is suppressed for naming consistency with other HTTP
- * header field and value string and length macros in this file.*/
+/* MISRA Ref 5.4.6 [Macro identifiers] */
+/* More details at: https://github.com/FreeRTOS/coreHTTP/blob/main/MISRA.md#rule-54 */
 /* coverity[misra_c_2012_rule_5_4_violation] */
 #define HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX_LEN    ( sizeof( HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX ) - 1U ) /**< The length of #HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX. */
 
@@ -150,16 +155,31 @@
       1U /* Dash character '-' */ + MAX_INT32_NO_OF_DECIMAL_DIGITS )
 
 /**
- * @brief Return value for the http-parser registered callback to signal halting
- * further execution.
+ * @brief Return value for llhttp registered callback to signal
+ * continuation of HTTP response parsing. Equal to HPE_OK.
  */
-#define HTTP_PARSER_STOP_PARSING            1
+#define LLHTTP_CONTINUE_PARSING             0
 
 /**
- * @brief Return value for http_parser registered callback to signal
- * continuation of HTTP response parsing.
+ * @brief Return value for llhttp registered callback to signal halting
+ * further execution.
  */
-#define HTTP_PARSER_CONTINUE_PARSING        0
+#define LLHTTP_STOP_PARSING                 HPE_USER
+
+/**
+ * @brief Return value for llhttp_t.on_headers_complete to signal
+ * that the HTTP response has no body and to halt further execution.
+ */
+#define LLHTTP_STOP_PARSING_NO_BODY         1
+
+/**
+ * @brief Return value for llhttp_t.on_headers_complete to signal
+ * halting further execution. This is the same return value that
+ * indicates the HTTP response has no body, but unlike the -1 error
+ * code, gives consistent return values for llhttp_execute in both
+ * strict and non-strict modes.
+ */
+#define LLHTTP_STOP_PARSING_NO_HEADER       1
 
 /**
  * @brief The minimum request-line in the headers has a possible one character
@@ -261,16 +281,17 @@ typedef struct findHeaderContext
  */
 typedef struct HTTPParsingContext
 {
-    http_parser httpParser;        /**< Third-party http-parser context. */
-    HTTPParsingState_t state;      /**< The current state of the HTTP response parsed. */
-    HTTPResponse_t * pResponse;    /**< HTTP response associated with this parsing context. */
-    uint8_t isHeadResponse;        /**< HTTP response is for a HEAD request. */
+    llhttp_t llhttpParser;            /**< Third-party llhttp context. */
+    llhttp_settings_t llhttpSettings; /**< Third-party parser settings. */
+    HTTPParsingState_t state;         /**< The current state of the HTTP response parsed. */
+    HTTPResponse_t * pResponse;       /**< HTTP response associated with this parsing context. */
+    uint8_t isHeadResponse;           /**< HTTP response is for a HEAD request. */
 
-    const char * pBufferCur;       /**< The current location of the parser in the response buffer. */
-    const char * pLastHeaderField; /**< Holds the last part of the header field parsed. */
-    size_t lastHeaderFieldLen;     /**< The length of the last header field parsed. */
-    const char * pLastHeaderValue; /**< Holds the last part of the header value parsed. */
-    size_t lastHeaderValueLen;     /**< The length of the last value field parsed. */
+    const char * pBufferCur;          /**< The current location of the parser in the response buffer. */
+    const char * pLastHeaderField;    /**< Holds the last part of the header field parsed. */
+    size_t lastHeaderFieldLen;        /**< The length of the last header field parsed. */
+    const char * pLastHeaderValue;    /**< Holds the last part of the header value parsed. */
+    size_t lastHeaderValueLen;        /**< The length of the last value field parsed. */
 } HTTPParsingContext_t;
 
 /* *INDENT-OFF* */

@@ -1,6 +1,8 @@
 /*
- * coreMQTT v1.2.0
+ * coreMQTT v2.1.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -33,6 +35,8 @@ void harness()
 
     pContext = allocateMqttContext( NULL );
     __CPROVER_assume( isValidMqttContext( pContext ) );
+    __CPROVER_assume( pContext != NULL );
+    __CPROVER_assume( pContext->networkBuffer.pBuffer != NULL );
 
     MQTT_Disconnect( pContext );
 }

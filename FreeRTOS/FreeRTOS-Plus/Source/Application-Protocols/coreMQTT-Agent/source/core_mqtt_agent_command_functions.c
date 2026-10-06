@@ -1,5 +1,5 @@
 /*
- * coreMQTT Agent v1.1.0
+ * coreMQTT Agent v1.2.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -35,6 +35,9 @@
 
 /* Header include. */
 #include "core_mqtt_agent_command_functions.h"
+
+/* MQTT Agent default logging configuration include. */
+#include "core_mqtt_agent_default_logging.h"
 
 /*-----------------------------------------------------------*/
 

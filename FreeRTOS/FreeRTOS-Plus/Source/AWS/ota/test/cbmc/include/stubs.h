@@ -1,6 +1,8 @@
 /*
- * AWS IoT Over-the-air Update v3.3.0
+ * AWS IoT Over-the-air Update v3.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -109,3 +111,6 @@ OtaPalStatus_t createFilePalStub( OtaFileContext_t * const pFileContext );
 
 /* Stub to request a fileblock from the Data plane. */
 OtaErr_t requestFileBlockStub( OtaAgentContext_t * pAgentCtx );
+
+/* Stub to delete timer. */
+OtaOsStatus_t deleteTimerStub( OtaTimerId_t otaTimerId );

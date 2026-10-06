@@ -24,6 +24,8 @@ memory safety with the [CBMC bounded model checker](https://www.cprover.org/cbmc
 
 See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
+**AWS IoT Jobs  v1.3.0 [source code](https://github.com/aws/Jobs-for-AWS-IoT-embedded-sdk/tree/v1.3.0/source) is part of the [FreeRTOS 202210.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202210.00-LTS) release.**
+
 **AWS IoT Jobs  v1.1.0 [source code](https://github.com/aws/Jobs-for-AWS-IoT-embedded-sdk/tree/v1.1.0/source) is part of the [FreeRTOS 202012.01 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.01-LTS) release.**
 
 ## Building the Jobs library
@@ -39,6 +41,14 @@ gcc -I source/include example.c source/jobs.c -o example
 ```bash
 gcc -I source/include -c source/jobs.c
 ```
+
+## CBMC
+
+To learn more about CBMC and proofs specifically, review the training material [here](https://model-checking.github.io/cbmc-training).
+
+The `test/cbmc/proofs` directory contains CBMC proofs.
+
+In order to run these proofs you will need to install CBMC and other tools by following the instructions [here](https://model-checking.github.io/cbmc-training/installation.html).
 
 ## Reference example
 

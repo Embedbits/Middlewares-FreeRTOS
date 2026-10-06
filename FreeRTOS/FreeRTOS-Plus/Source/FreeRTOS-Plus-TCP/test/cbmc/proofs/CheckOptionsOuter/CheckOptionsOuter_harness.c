@@ -24,10 +24,10 @@
 * Signature of the function under test
 ****************************************************************/
 
-int32_t __CPROVER_file_local_FreeRTOS_TCP_IP_c_prvSingleStepTCPHeaderOptions( const uint8_t * const pucPtr,
-                                                                              size_t uxTotalLength,
-                                                                              FreeRTOS_Socket_t * const pxSocket,
-                                                                              BaseType_t xHasSYNFlag );
+int32_t __CPROVER_file_local_FreeRTOS_TCP_Reception_c_prvSingleStepTCPHeaderOptions( const uint8_t * const pucPtr,
+                                                                                     size_t uxTotalLength,
+                                                                                     FreeRTOS_Socket_t * const pxSocket,
+                                                                                     BaseType_t xHasSYNFlag );
 
 /****************************************************************
 * Declare the buffer size external to the harness so it can be
@@ -41,9 +41,9 @@ size_t buffer_size;
 * Function contract proved correct by CheckOptionsInner
 ****************************************************************/
 
-void prvReadSackOption( const uint8_t * const pucPtr,
-                        size_t uxIndex,
-                        FreeRTOS_Socket_t * const pxSocket )
+void __CPROVER_file_local_FreeRTOS_TCP_Reception_c_prvReadSackOption( const uint8_t * const pucPtr,
+                                                                      size_t uxIndex,
+                                                                      FreeRTOS_Socket_t * const pxSocket )
 {
     /* Preconditions */
     __CPROVER_assert( buffer_size < CBMC_MAX_OBJECT_SIZE,
@@ -89,10 +89,10 @@ void harness()
     __CPROVER_assume( uxTotalLength <= buffer_size );
     __CPROVER_assume( pxSocket != NULL );
 
-    int32_t index = __CPROVER_file_local_FreeRTOS_TCP_IP_c_prvSingleStepTCPHeaderOptions( pucPtr,
-                                                                                          uxTotalLength,
-                                                                                          pxSocket,
-                                                                                          xHasSYNFlag );
+    int32_t index = __CPROVER_file_local_FreeRTOS_TCP_Reception_c_prvSingleStepTCPHeaderOptions( pucPtr,
+                                                                                                 uxTotalLength,
+                                                                                                 pxSocket,
+                                                                                                 xHasSYNFlag );
 
     /* Postconditions */
     __CPROVER_assert( ( ( index == -1 ) || ( index == 1 ) || ( index <= uxTotalLength ) ),

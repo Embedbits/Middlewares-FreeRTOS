@@ -1,6 +1,6 @@
 /*
- * FreeRTOS Kernel V10.4.0
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS+TCP V3.1.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -48,7 +48,9 @@
 #define configMINIMAL_STACK_SIZE                   ( ( unsigned short ) 60 ) /* In this simulated case, the stack only has to hold one small structure as the real stack is part of the Win32 thread. */
 #define configTOTAL_HEAP_SIZE                      ( ( size_t ) ( 2048U * 1024U ) )
 #define configMAX_TASK_NAME_LEN                    ( 15 )
-#define configUSE_16_BIT_TICKS                     0
+#ifndef configUSE_16_BIT_TICKS
+    #define configUSE_16_BIT_TICKS                 0
+#endif
 #define configIDLE_SHOULD_YIELD                    1
 #define configUSE_CO_ROUTINES                      0
 #ifndef configUSE_MUTEXES

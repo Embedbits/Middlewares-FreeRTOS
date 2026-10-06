@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -113,8 +113,8 @@ struct CellularContext
     CellularTokenTable_t tokenTable;
 
     /* Packet handler. */
-    PlatformMutex_t pktRequestMutex;
-    PlatformMutex_t PktRespMutex;
+    PlatformMutex_t pktRequestMutex; /* The mutex for sending request. */
+    PlatformMutex_t PktRespMutex;    /* The mutex for parsing the response from modem. */
     QueueHandle_t pktRespQueue;
     CellularATCommandResponseReceivedCallback_t pktRespCB;
     CellularATCommandDataPrefixCallback_t pktDataPrefixCB;         /* Data prefix callback function for socket receive function. */
@@ -135,8 +135,11 @@ struct CellularContext
     char pktioReadBuf[ PKTIO_READ_BUFFER_SIZE + 1 ];
     char * pPktioReadPtr;
     const char * pRespPrefix;
+    char pktRespPrefixBuf[ CELLULAR_CONFIG_MAX_PREFIX_STRING_LENGTH ];
     CellularATCommandType_t PktioAtCmdType;
     _atRespType_t recvdMsgType;
+    CellularUndefinedRespCallback_t undefinedRespCallback;
+    void * pUndefinedRespCBContext;
 
     /* PktIo data handling. */
     uint32_t dataLength;

@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -129,7 +129,7 @@ CellularPktStatus_t _Cellular_PktioSendAtCmd( CellularContext_t * pContext,
  *
  * @return The data actually send to the comm interface.
  */
-uint32_t _Cellular_PktioSendData( const CellularContext_t * pContext,
+uint32_t _Cellular_PktioSendData( CellularContext_t * pContext,
                                   const uint8_t * pData,
                                   uint32_t dataLen );
 

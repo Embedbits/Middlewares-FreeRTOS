@@ -1,6 +1,8 @@
 /*
- * AWS IoT Device Defender Client v1.2.0
+ * AWS IoT Device Defender Client v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,12 +32,30 @@
 
 #include <stdio.h>
 
-#define LogError( message )    printf( "Error: " ); printf message; printf( "\n" )
+#ifdef DISABLE_LOGGING
+    #ifndef LogError
+        #define LogError( message )
+    #endif
+    #ifndef LogWarn
+        #define LogWarn( message )
+    #endif
 
-#define LogWarn( message )     printf( "Warn: " ); printf message; printf( "\n" )
+    #ifndef LogInfo
+        #define LogInfo( message )
+    #endif
 
-#define LogInfo( message )     printf( "Info: " ); printf message; printf( "\n" )
+    #ifndef LogDebug
+        #define LogDebug( message )
+    #endif
 
-#define LogDebug( message )    printf( "Debug: " ); printf message; printf( "\n" )
+#else /* ! DISABLE_LOGGING */
+    #define LogError( message )    printf( "Error: " ); printf message; printf( "\n" )
+
+    #define LogWarn( message )     printf( "Warn: " ); printf message; printf( "\n" )
+
+    #define LogInfo( message )     printf( "Info: " ); printf message; printf( "\n" )
+
+    #define LogDebug( message )    printf( "Debug: " ); printf message; printf( "\n" )
+#endif /* DISABLE_LOGGING */
 
 #endif /* DEFENDER_CONFIG_H_ */

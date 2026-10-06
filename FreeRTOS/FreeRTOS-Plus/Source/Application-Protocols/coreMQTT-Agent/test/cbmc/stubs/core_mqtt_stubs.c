@@ -1,5 +1,5 @@
 /*
- * coreMQTT Agent v1.1.0
+ * coreMQTT Agent v1.2.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -80,8 +80,7 @@ MQTTStatus_t MQTT_Init( MQTTContext_t * pContext,
     return status;
 }
 
-MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
-                               uint32_t timeoutMs )
+MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext )
 {
     MQTTStatus_t status;
     MQTTPacketInfo_t * pPacketInfo;

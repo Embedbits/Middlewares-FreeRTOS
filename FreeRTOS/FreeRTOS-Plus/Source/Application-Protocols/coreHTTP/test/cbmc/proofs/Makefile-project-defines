@@ -15,7 +15,7 @@ COMPILE_FLAGS += -fPIC
 COMPILE_FLAGS += -std=gnu90
 
 # Path to litani executable, used for running proofs and displaying report
-LITANI ?= $(SRCDIR)/test/cbmc/litani/litani
+LITANI ?= litani
 PROJECT_NAME = "FreeRTOS coreHTTP"
 
 # Flags to pass to goto-cc for linking (typically those passed to gcc)
@@ -26,7 +26,7 @@ INCLUDES += -I$(SRCDIR)/test/cbmc/include
 INCLUDES += -I$(SRCDIR)/source/include
 INCLUDES += -I$(SRCDIR)/source/interface
 INCLUDES += -I$(SRCDIR)/source
-INCLUDES += -I$(SRCDIR)/source/dependency/3rdparty/http_parser
+INCLUDES += -I$(SRCDIR)/source/dependency/3rdparty/llhttp/include
 
 # Preprocessor definitions -D...
 DEFINES += -Dhttp_EXPORTS

@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -1097,6 +1097,40 @@ CellularPktStatus_t _Cellular_TimeoutAtcmdRequestWithCallback( CellularContext_t
                                                                uint32_t timeoutMS )
 {
     return _Cellular_PktHandler_AtcmdRequestWithCallback( pContext, atReq, timeoutMS );
+}
+
+/*-----------------------------------------------------------*/
+
+CellularError_t _Cellular_RegisterUndefinedRespCallback( CellularContext_t * pContext,
+                                                         CellularUndefinedRespCallback_t undefinedRespCallback,
+                                                         void * pCallbackContext )
+{
+    CellularError_t cellularStatus = CELLULAR_SUCCESS;
+
+    if( pContext == NULL )
+    {
+        LogError( ( "_Cellular_RegisterUndefinedRespCallback: invalid context" ) );
+        cellularStatus = CELLULAR_INVALID_HANDLE;
+    }
+    else
+    {
+        /* undefinedRespCallback can be set to NULL to unregister the callback. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
+        pContext->undefinedRespCallback = undefinedRespCallback;
+
+        if( pContext->undefinedRespCallback != NULL )
+        {
+            pContext->pUndefinedRespCBContext = pCallbackContext;
+        }
+        else
+        {
+            pContext->pUndefinedRespCBContext = NULL;
+        }
+
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+    }
+
+    return cellularStatus;
 }
 
 /*-----------------------------------------------------------*/

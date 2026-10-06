@@ -1,6 +1,8 @@
 /*
- * coreSNTP v1.1.0
+ * coreSNTP v1.2.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -31,6 +33,8 @@
 
 /* SNTP client library API include. */
 #include "core_sntp_client.h"
+
+#include "core_sntp_config_defaults.h"
 
 /**
  * @brief Utility to convert fractions part of SNTP timestamp to milliseconds.

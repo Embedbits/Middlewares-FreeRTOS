@@ -1,6 +1,6 @@
 /*
- * FreeRTOS Kernel V10.4.0
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS+TCP V3.1.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -37,7 +37,9 @@
 /* Set to 1 to print out debug messages.  If ipconfigHAS_DEBUG_PRINTF is set to
  * 1 then FreeRTOS_debug_printf should be defined to the function used to print
  * out the debugging messages. */
-#define ipconfigHAS_DEBUG_PRINTF    0
+#ifndef ipconfigHAS_DEBUG_PRINTF
+    #define ipconfigHAS_DEBUG_PRINTF    0
+#endif
 #if ( ipconfigHAS_DEBUG_PRINTF == 1 )
     #define FreeRTOS_debug_printf( X )    configPRINTF( X )
 #endif
@@ -230,14 +232,16 @@ extern uint32_t ulRand();
 #endif
 
 /* USE_WIN: Let TCP use windowing mechanism. */
-#define ipconfigUSE_TCP_WIN                ( 1 )
+#ifndef ipconfigUSE_TCP_WIN
+    #define ipconfigUSE_TCP_WIN    ( 1 )
+#endif
 
 /* The MTU is the maximum number of bytes the payload of a network frame can
  * contain.  For normal Ethernet V2 frames the maximum MTU is 1500.  Setting a
  * lower value can save RAM, depending on the buffer management scheme used.  If
  * ipconfigCAN_FRAGMENT_OUTGOING_PACKETS is 1 then (ipconfigNETWORK_MTU - 28) must
  * be divisible by 8. */
-#define ipconfigNETWORK_MTU                1200U
+#define ipconfigNETWORK_MTU                1500U
 
 /* Set ipconfigUSE_DNS to 1 to include a basic DNS client/resolver.  DNS is used
  * through the FreeRTOS_gethostbyname() API function. */
@@ -255,7 +259,9 @@ extern uint32_t ulRand();
 
 /* If ipconfigSUPPORT_SELECT_FUNCTION is set to 1 then the FreeRTOS_select()
  * (and associated) API function is available. */
-#define ipconfigSUPPORT_SELECT_FUNCTION                0
+#ifndef ipconfigSUPPORT_SELECT_FUNCTION
+    #define ipconfigSUPPORT_SELECT_FUNCTION    0
+#endif
 
 /* If ipconfigFILTER_OUT_NON_ETHERNET_II_FRAMES is set to 1 then Ethernet frames
  * that are not in Ethernet II format will be dropped.  This option is included for
@@ -300,17 +306,21 @@ extern uint32_t ulRand();
 #define ipconfigIS_VALID_PROG_ADDRESS( x )    ( ( x ) != NULL )
 
 /* Include support for TCP keep-alive messages. */
-#define ipconfigTCP_KEEP_ALIVE                   ( 1 )
-#define ipconfigTCP_KEEP_ALIVE_INTERVAL          ( 20 ) /* Seconds. */
+#define ipconfigTCP_KEEP_ALIVE             ( 1 )
+#define ipconfigTCP_KEEP_ALIVE_INTERVAL    ( 20 )       /* Seconds. */
 
 /* The socket semaphore is used to unblock the MQTT task. */
-#define ipconfigSOCKET_HAS_USER_SEMAPHORE        ( 0 )
+#ifndef ipconfigSOCKET_HAS_USER_SEMAPHORE
+    #define ipconfigSOCKET_HAS_USER_SEMAPHORE    ( 0 )
+#endif
 
-#define ipconfigSOCKET_HAS_USER_WAKE_CALLBACK    ( 1 )
-#define ipconfigUSE_CALLBACKS                    ( 0 )
+#ifndef ipconfigSOCKET_HAS_USER_WAKE_CALLBACK
+    #define ipconfigSOCKET_HAS_USER_WAKE_CALLBACK    ( 1 )
+#endif
+#define ipconfigUSE_CALLBACKS                        ( 0 )
 
 
-#define portINLINE                               __inline
+#define portINLINE                                   __inline
 
 void vApplicationMQTTGetKeys( const char ** ppcRootCA,
                               const char ** ppcClientCert,

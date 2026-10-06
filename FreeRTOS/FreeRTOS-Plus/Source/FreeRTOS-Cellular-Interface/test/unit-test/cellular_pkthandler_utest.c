@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -28,6 +28,7 @@
  * @brief Unit tests for functions in cellular_pkthandler_internal.h.
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -55,10 +56,15 @@
 #define CELLULAR_SAMPLE_PREFIX_STRING_LARGE_INPUT       "+CPIN:Story for Littel Red Riding Hood: Once upon a time there was a dear little girl who was loved by every one who looked at her, but most of all by her grandmother, and there was nothing that she would not have given to the child. Once she gave her a little cap of red velvet, which suited her so well that she would never wear anything else. So she was always called Little Red Riding Hood."
 #define CELLULAR_AT_CMD_TYPICAL_MAX_SIZE                ( 32U )
 
+#define CELLULAR_AT_UNDEFINED_STRING_RESP               "undefined_string"
+
 static uint16_t queueData = CELLULAR_PKT_STATUS_BAD_PARAM;
 static int32_t queueReturnFail = 0;
 static int32_t queueCreateFail = 0;
 static int32_t pktRespCBReturn = 0;
+static bool passCompareString = false;
+static char * pCompareString = NULL;
+static int32_t undefinedCallbackContext = 0;
 
 void cellularAtParseTokenHandler( CellularContext_t * pContext,
                                   char * pInputStr );
@@ -356,13 +362,63 @@ CellularATError_t _CMOCK_Cellular_ATStrDup_CALLBACK( char ** ppDst,
     return atStatus;
 }
 
+static void _CMOCK_Cellular_Generic_CALLBACK( const CellularContext_t * pContext,
+                                              const char * pRawData,
+                                              int cmock_num_calls )
+{
+    ( void ) pRawData;
+    ( void ) pContext;
+    ( void ) cmock_num_calls;
+
+    if( strcmp( pCompareString, pRawData ) == 0 )
+    {
+        passCompareString = true;
+    }
+}
+
 /* Empty callback function for test. */
 void cellularAtParseTokenHandler( CellularContext_t * pContext,
                                   char * pInputStr )
 {
     ( void ) pContext;
     ( void ) pInputStr;
+
+    if( strcmp( pCompareString, pInputStr ) == 0 )
+    {
+        passCompareString = true;
+    }
 }
+
+static char * getStringAfterColon( char * pInputStr )
+{
+    char * ret = memchr( pInputStr, ':', strlen( pInputStr ) );
+
+    return ret ? ret + 1 : pInputStr + strlen( pInputStr );
+}
+
+static CellularPktStatus_t undefinedRespCallback( void * pCallbackContext,
+                                                  const char * pLine )
+{
+    CellularPktStatus_t undefineReturnStatus = CELLULAR_PKT_STATUS_OK;
+
+    /* Verify pCallbackContext. */
+    TEST_ASSERT_EQUAL_PTR( &undefinedCallbackContext, pCallbackContext );
+
+    /* Verify pLine. */
+    if( strcmp( CELLULAR_AT_UNDEFINED_STRING_RESP, pLine ) == 0 )
+    {
+        *( ( int32_t * ) pCallbackContext ) = 1;
+        undefineReturnStatus = CELLULAR_PKT_STATUS_OK;
+    }
+    else
+    {
+        *( ( int32_t * ) pCallbackContext ) = 0;
+        undefineReturnStatus = CELLULAR_PKT_STATUS_FAILURE;
+    }
+
+    return undefineReturnStatus;
+}
+
 
 /* ========================================================================== */
 
@@ -513,7 +569,7 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Start_Plus_No_Token_String( void
 
     memset( &context, 0, sizeof( CellularContext_t ) );
     Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
-    _Cellular_GenericCallback_Ignore();
+
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_PLUS_TOKEN_ONLY_STRING );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_BAD_REQUEST, pktStatus );
 }
@@ -527,9 +583,8 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Too_Large_String( void )
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
 
     memset( &context, 0, sizeof( CellularContext_t ) );
-
     Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
-    _Cellular_GenericCallback_Ignore();
+
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_SAMPLE_PREFIX_STRING_LARGE_INPUT );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_FAILURE, pktStatus );
 }
@@ -546,7 +601,7 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Null_Parse_Function( void )
     /* copy the token table. */
     ( void ) memcpy( &context.tokenTable, &tokenTableWoParseFunc, sizeof( CellularTokenTable_t ) );
     Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
-    _Cellular_GenericCallback_Ignore();
+
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_URC_TOKEN_STRING_INPUT );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_FAILURE, pktStatus );
 }
@@ -563,9 +618,14 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Happy_Path( void )
     /* copy the token table. */
     ( void ) memcpy( &context.tokenTable, &tokenTable, sizeof( CellularTokenTable_t ) );
     Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
-    _Cellular_GenericCallback_Ignore();
+
+    /* set for cellularAtParseTokenHandler function */
+    passCompareString = false;
+    pCompareString = getStringAfterColon( CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS );
+
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_URC_TOKEN_STRING_INPUT_START_PLUS );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+    TEST_ASSERT_EQUAL( true, passCompareString );
 }
 
 /**
@@ -581,9 +641,15 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Input_String_Greater_Than_Urc_To
     /* Test the greater string size in comparison function. */
     ( void ) memcpy( &context.tokenTable, &tokenTable, sizeof( CellularTokenTable_t ) );
     Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
-    _Cellular_GenericCallback_Ignore();
+
+    /* set for generic callback function */
+    passCompareString = false;
+    pCompareString = CELLULAR_URC_TOKEN_STRING_GREATER_INPUT;
+    _Cellular_GenericCallback_Stub( _CMOCK_Cellular_Generic_CALLBACK );
+
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_URC_TOKEN_STRING_GREATER_INPUT );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+    TEST_ASSERT_EQUAL( true, passCompareString );
 }
 
 /**
@@ -600,13 +666,19 @@ void test__Cellular_HandlePacket_AT_UNSOLICITED_Input_String_Less_Than_Urc_Token
 
     /* Test the smaller string size in comparison function. */
     Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
-    _Cellular_GenericCallback_Ignore();
+
+    /* set for generic callback function */
+    passCompareString = false;
+    pCompareString = CELLULAR_URC_TOKEN_STRING_SMALLER_INPUT;
+    _Cellular_GenericCallback_Stub( _CMOCK_Cellular_Generic_CALLBACK );
+
     pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_URC_TOKEN_STRING_SMALLER_INPUT );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+    TEST_ASSERT_EQUAL( true, passCompareString );
 }
 
 /**
- * @brief Test that null buffer AT_UNDEFINED case for _Cellular_HandlePacket.
+ * @brief Test that null buffer invalid message type case for _Cellular_HandlePacket.
  */
 void test__Cellular_HandlePacket_Wrong_RespType( void )
 {
@@ -615,9 +687,113 @@ void test__Cellular_HandlePacket_Wrong_RespType( void )
 
     memset( &context, 0, sizeof( CellularContext_t ) );
 
-    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED, NULL );
+    /* Send invalid message type. */
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED + 1, NULL );
 
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_BAD_PARAM, pktStatus );
+}
+
+/**
+ * @brief Test _Cellular_HandlePacket function with AT_UNDEFINED message type.
+ *
+ * AT_UNDEFINED message type is received. A callback function handles the message
+ * without problem. CELLULAR_PKT_STATUS_OK should be returned.
+ */
+void test__Cellular_HandlePacket_AT_UNDEFINED_with_undefined_callback_okay( void )
+{
+    CellularContext_t context;
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    char undefinedCallbackStr[] = CELLULAR_AT_UNDEFINED_STRING_RESP;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+
+    /* Set undefined response callback. */
+    undefinedCallbackContext = 0;
+    context.undefinedRespCallback = undefinedRespCallback;
+    context.pUndefinedRespCBContext = &undefinedCallbackContext;
+
+    /* Send AT_UNDEFINED message. */
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED, undefinedCallbackStr );
+
+    /* CELLULAR_PKT_STATUS_OK should be returned, since it is handled. */
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+
+    /* Verify undefinedRespCallback is called and the expected string is received. */
+    TEST_ASSERT_EQUAL_INT32( 1, undefinedCallbackContext );
+}
+
+/**
+ * @brief Test _Cellular_HandlePacket function with AT_UNDEFINED message type.
+ *
+ * AT_UNDEFINED message type is received. A callback function handles the message
+ * but fail to recognized the undefined response. CELLULAR_PKT_STATUS_INVALID_DATA
+ * should be returned.
+ */
+void test__Cellular_HandlePacket_AT_UNDEFINED_with_undefined_callback_fail( void )
+{
+    CellularContext_t context;
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    char undefinedCallbackStr[] = "RandomString";
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+
+    /* Set undefined response callback. */
+    undefinedCallbackContext = 1;
+    context.undefinedRespCallback = undefinedRespCallback;
+    context.pUndefinedRespCBContext = &undefinedCallbackContext;
+
+    /* Send AT_UNDEFINED message. */
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED, undefinedCallbackStr );
+
+    /* CELLULAR_PKT_STATUS_INVALID_DATA should be returned. */
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_INVALID_DATA, pktStatus );
+
+    /* Verify undefinedRespCallback is called and the expected string is received. */
+    TEST_ASSERT_EQUAL_INT32( 0, undefinedCallbackContext );
+}
+
+/**
+ * @brief Test _Cellular_HandlePacket function with AT_UNDEFINED message type.
+ *
+ * AT_UNDEFINED message type is received. No callback function is registered to handle
+ * the undefined message. CELLULAR_PKT_STATUS_INVALID_DATA should be returned.
+ */
+void test__Cellular_HandlePacket_AT_UNDEFINED_without_undefined_callback( void )
+{
+    CellularContext_t context;
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    char undefinedCallbackStr[] = CELLULAR_AT_UNDEFINED_STRING_RESP;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+
+    /* Send AT_UNDEFINED message. */
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNDEFINED, undefinedCallbackStr );
+
+    /* CELLULAR_PKT_STATUS_INVALID_DATA should be returned. */
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_INVALID_DATA, pktStatus );
+}
+
+/**
+ * @brief Test that URC with colon for _Cellular_HandlePacket when token is not in the token table.
+ */
+void test__Cellular_HandlePacket_AT_UNSOLICITED_Input_String_With_Colon_Not_In_Urc_Token_Path( void )
+{
+    CellularContext_t context;
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+    /* copy the token table. */
+    ( void ) memcpy( &context.tokenTable, &tokenTableWoParseFunc, sizeof( CellularTokenTable_t ) );
+    Cellular_ATStrDup_StubWithCallback( _CMOCK_Cellular_ATStrDup_CALLBACK );
+
+    /* set for generic callback function */
+    passCompareString = false;
+    pCompareString = CELLULAR_AT_MULTI_DATA_WO_PREFIX_STRING_RESP;
+    _Cellular_GenericCallback_Stub( _CMOCK_Cellular_Generic_CALLBACK );
+
+    pktStatus = _Cellular_HandlePacket( &context, AT_UNSOLICITED, CELLULAR_AT_MULTI_DATA_WO_PREFIX_STRING_RESP );
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
+    TEST_ASSERT_EQUAL( true, passCompareString );
 }
 
 /**
@@ -1362,6 +1538,7 @@ void test__Cellular_AtParseInit_Happy_Path( void )
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
 }
 
+
 /**
  * @brief Test that sort fail case case for _Cellular_AtParseInit.
  */
@@ -1399,4 +1576,60 @@ void test__Cellular_AtParseInit_Check_TokenTable_Fail( void )
     ( void ) memcpy( &context.tokenTable, &tokenTable, sizeof( CellularTokenTable_t ) );
     pktStatus = _Cellular_AtParseInit( &context );
     TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_BAD_PARAM, pktStatus );
+}
+
+/**
+ * @brief Test that null Context case for _Cellular_AtcmdRequestSuccessToken.
+ */
+void test__Cellular_AtcmdRequestSuccessToken_NULL_Context( void )
+{
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    CellularAtReq_t atReq;
+    const char * successTokenTable[] = { "1, CONNECT CLOSE" };
+
+    memset( &atReq, 0, sizeof( CellularAtReq_t ) );
+
+    pktStatus = _Cellular_AtcmdRequestSuccessToken( NULL, atReq, PACKET_REQ_TIMEOUT_MS, successTokenTable, 1 );
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_INVALID_HANDLE, pktStatus );
+}
+
+/**
+ * @brief Test that null atReq case for _Cellular_AtcmdRequestSuccessToken.
+ */
+void test__Cellular_AtcmdRequestSuccessToken_NULL_pCellularSrcTokenSuccessTable( void )
+{
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    CellularAtReq_t atReq;
+    CellularContext_t context;
+
+    memset( &context, 0, sizeof( CellularContext_t ) );
+    memset( &atReq, 0, sizeof( CellularAtReq_t ) );
+    pktStatus = _Cellular_AtcmdRequestSuccessToken( &context, atReq, PACKET_REQ_TIMEOUT_MS, NULL, 1 );
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_BAD_PARAM, pktStatus );
+}
+
+/**
+ * @brief Test that _Cellular_PktioSendAtCmd return OK case for _Cellular_PktHandler_AtcmdRequestWithCallback.
+ */
+void test__Cellular_AtcmdRequestSuccessToken_Cellular_PktioSendAtCmd_Return_OK( void )
+{
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    CellularAtReq_t atReqGetMccMnc =
+    {
+        "AT+COPS?",
+        CELLULAR_AT_WITH_PREFIX,
+        "+COPS",
+        NULL,
+        NULL,
+        sizeof( int32_t ),
+    };
+    CellularContext_t context = { 0 };
+    const char * successTokenTable[] = { "1, CONNECT CLOSE" };
+
+    _Cellular_PktioSendAtCmd_IgnoreAndReturn( CELLULAR_PKT_STATUS_OK );
+
+    /* xQueueReceive true, and the data is CELLULAR_PKT_STATUS_OK. */
+    queueData = CELLULAR_PKT_STATUS_OK;
+    pktStatus = _Cellular_AtcmdRequestSuccessToken( &context, atReqGetMccMnc, PACKET_REQ_TIMEOUT_MS, successTokenTable, 1 );
+    TEST_ASSERT_EQUAL( CELLULAR_PKT_STATUS_OK, pktStatus );
 }

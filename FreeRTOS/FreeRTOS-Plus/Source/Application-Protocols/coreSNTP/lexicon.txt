@@ -34,6 +34,7 @@ configs
 const
 copydoc
 coresntp
+coverity
 css
 currenttimelist
 de
@@ -99,6 +100,7 @@ mainpage
 md
 mdash
 misra
+mit
 mtu
 networkcontext
 networkinterfacereceivestub
@@ -232,6 +234,7 @@ sntpsuccess
 sntptimestamp
 sntpv
 sntpzeropollinterval
+spdx
 startingpos
 startingpos
 struct

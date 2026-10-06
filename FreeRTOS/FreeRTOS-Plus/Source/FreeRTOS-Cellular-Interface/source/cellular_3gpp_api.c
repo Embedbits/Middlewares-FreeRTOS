@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -150,6 +150,7 @@ static CellularPktStatus_t _Cellular_RecvFuncGetManufactureId( CellularContext_t
                                                                const CellularATCommandResponse_t * pAtResp,
                                                                void * pData,
                                                                uint16_t dataLen );
+static bool regResponseIsUrc( char * pRegLine );
 static CellularPktStatus_t _Cellular_RecvFuncGetNetworkReg( CellularContext_t * pContext,
                                                             const CellularATCommandResponse_t * pAtResp,
                                                             void * pData,
@@ -738,6 +739,50 @@ static CellularPktStatus_t _Cellular_RecvFuncGetManufactureId( CellularContext_t
 
 /*-----------------------------------------------------------*/
 
+
+static bool regResponseIsUrc( char * pRegLine )
+{
+    bool isUrcResponse = false;
+    char * pSeparator = NULL;
+
+    /* CREG, CEREG, CGREG has the same prefix for AT command response and URC.
+     * There will be cases that the URC code is regarded as AT command response.
+     * The response content can be used to distinguish them.
+     *
+     * Take AT+CREG for example, CREG has the following response format.
+     * Read response : +CREG: <n>,<stat>[,<lac>,<ci>[,<AcTStatus>]]
+     * URC : +CREG: <stat>[,[<lac>],[<ci>][,[<AcTStatus>][,<cause_type>, <reject_cause>]]]
+     *
+     * Not registered searching response:
+     * Read response : +CREG: 2,2
+     * URC : +CREG: 2
+     *
+     * Registered, home network response
+     * Read response : +CREG: 2,1,"FFFE","341B50D",8
+     * URC : +CREG: 1,"FFFE","341B50D", 8
+     */
+    pSeparator = strstr( pRegLine, "," );
+
+    if( pSeparator == NULL )
+    {
+        /* Not registered searching response case. */
+        isUrcResponse = true;
+    }
+    else if( pSeparator[ 1 ] == '"' )
+    {
+        /* Registered case, the second token start with '"' */
+        isUrcResponse = true;
+    }
+    else
+    {
+        isUrcResponse = false;
+    }
+
+    return isUrcResponse;
+}
+
+/*-----------------------------------------------------------*/
+
 static CellularPktStatus_t _Cellular_RecvFuncGetNetworkReg( CellularContext_t * pContext,
                                                             const CellularATCommandResponse_t * pAtResp,
                                                             void * pData,
@@ -747,6 +792,7 @@ static CellularPktStatus_t _Cellular_RecvFuncGetNetworkReg( CellularContext_t * 
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
     CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
     CellularNetworkRegType_t regType = CELLULAR_REG_TYPE_UNKNOWN;
+    CellularATCommandLine_t * pCommandLine = NULL;
 
     if( pContext == NULL )
     {
@@ -764,17 +810,34 @@ static CellularPktStatus_t _Cellular_RecvFuncGetNetworkReg( CellularContext_t * 
     }
     else
     {
+        pCommandLine = pAtResp->pItm;
         regType = *( ( CellularNetworkRegType_t * ) pData );
-        pPregLine = pAtResp->pItm->pLine;
-        atCoreStatus = Cellular_ATRemoveLeadingWhiteSpaces( &pPregLine );
-        pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
 
-        if( pktStatus == CELLULAR_PKT_STATUS_OK )
+        while( ( pCommandLine != NULL ) && ( pktStatus == CELLULAR_PKT_STATUS_OK ) )
         {
+            pPregLine = pCommandLine->pLine;
+
             /* Assumption is that the data is null terminated so we don't need the dataLen. */
             _Cellular_LockAtDataMutex( pContext );
-            pktStatus = _Cellular_ParseRegStatus( pContext, pPregLine, false, regType );
+
+            if( regResponseIsUrc( pPregLine ) == true )
+            {
+                /* Remove the prefix for URC handler. */
+                atCoreStatus = Cellular_ATRemovePrefix( &pPregLine );
+                pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
+
+                if( pktStatus == CELLULAR_PKT_STATUS_OK )
+                {
+                    pktStatus = _Cellular_ParseRegStatus( pContext, pPregLine, true, regType );
+                }
+            }
+            else
+            {
+                pktStatus = _Cellular_ParseRegStatus( pContext, pPregLine, false, regType );
+            }
+
             _Cellular_UnlockAtDataMutex( pContext );
+            pCommandLine = pCommandLine->pNext;
         }
 
         LogDebug( ( "atcmd network register status %d pktStatus:%d", regType, pktStatus ) );
@@ -831,9 +894,8 @@ static bool _parseCopsRegModeToken( char * pToken,
         {
             if( ( var >= 0 ) && ( var < ( int32_t ) REGISTRATION_MODE_MAX ) )
             {
-                /* Variable "var" is ensured that it is valid and within
-                 * a valid range. Hence, assigning the value of the variable to
-                 * networkRegMode with a enum cast. */
+                /* MISRA Ref 10.5.1 [Essential type casting] */
+                /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-105 */
                 /* coverity[misra_c_2012_rule_10_5_violation] */
                 pOperatorInfo->networkRegMode = ( CellularNetworkRegistrationMode_t ) var;
             }
@@ -871,9 +933,8 @@ static bool _parseCopsNetworkNameFormatToken( const char * pToken,
             if( ( var >= 0 ) &&
                 ( var < ( int32_t ) OPERATOR_NAME_FORMAT_MAX ) )
             {
-                /* Variable "var" is ensured that it is valid and within
-                 * a valid range. Hence, assigning the value of the variable to
-                 * operatorNameFormat with a enum cast. */
+                /* MISRA Ref 10.5.1 [Essential type casting] */
+                /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-105 */
                 /* coverity[misra_c_2012_rule_10_5_violation] */
                 pOperatorInfo->operatorNameFormat = ( CellularOperatorNameFormat_t ) var;
             }
@@ -959,9 +1020,8 @@ static bool _parseCopsRatToken( const char * pToken,
         {
             if( ( var < ( int32_t ) CELLULAR_RAT_MAX ) && ( var >= 0 ) )
             {
-                /* Variable "var" is ensured that it is valid and within
-                 * a valid range. Hence, assigning the value of the variable to
-                 * rat with a enum cast. */
+                /* MISRA Ref 10.5.1 [Essential type casting] */
+                /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-105 */
                 /* coverity[misra_c_2012_rule_10_5_violation] */
                 pOperatorInfo->rat = ( CellularRat_t ) var;
             }
@@ -1402,12 +1462,14 @@ static CellularError_t atcmdQueryRegStatus( CellularContext_t * pContext,
         _Cellular_UnlockAtDataMutex( pContext );
     #endif /* ifndef CELLULAR_MODEM_NO_GSM_NETWORK */
 
-    if( ( cellularStatus == CELLULAR_SUCCESS ) &&
-        ( psRegStatus != REGISTRATION_STATUS_REGISTERED_HOME ) &&
-        ( psRegStatus != REGISTRATION_STATUS_ROAMING_REGISTERED ) )
-    {
-        cellularStatus = queryNetworkStatus( pContext, "AT+CEREG?", "+CEREG", CELLULAR_REG_TYPE_CEREG );
-    }
+    #ifndef CELLULAR_MODEM_NO_EPS_NETWORK
+        if( ( cellularStatus == CELLULAR_SUCCESS ) &&
+            ( psRegStatus != REGISTRATION_STATUS_REGISTERED_HOME ) &&
+            ( psRegStatus != REGISTRATION_STATUS_ROAMING_REGISTERED ) )
+        {
+            cellularStatus = queryNetworkStatus( pContext, "AT+CEREG?", "+CEREG", CELLULAR_REG_TYPE_CEREG );
+        }
+    #endif
 
     /* Get the service status from lib AT data. */
     if( cellularStatus == CELLULAR_SUCCESS )
@@ -1632,8 +1694,8 @@ CellularError_t Cellular_CommonSetEidrxSettings( CellularHandle_t cellularHandle
     {
         /* Form the AT command. */
 
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
+        /* MISRA Ref 21.6.1 [Use of snprintf] */
+        /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-216 */
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_MAX_SIZE, "%s%d,%d,\"" PRINTF_BINARY_PATTERN_INT4 "\"",
                            "AT+CEDRXS=",
@@ -1985,10 +2047,12 @@ CellularError_t Cellular_CommonGetIPAddress( CellularHandle_t cellularHandle,
     {
         /* Form the AT command. */
 
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
+
+        /* MISRA Ref 21.6.1 [Use of snprintf] */
+        /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-216 */
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_TYPICAL_MAX_SIZE, "%s%d", "AT+CGPADDR=", contextId );
+
         pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetIp );
 
         if( pktStatus != CELLULAR_PKT_STATUS_OK )
@@ -2131,8 +2195,8 @@ CellularError_t Cellular_CommonSetPdnConfig( CellularHandle_t cellularHandle,
     {
         /* Form the AT command. */
 
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
+        /* MISRA Ref 21.6.1 [Use of snprintf] */
+        /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-216 */
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_MAX_SIZE, "%s%d,\"%s\",\"%s\"",
                            "AT+CGDCONT=",
@@ -2717,16 +2781,16 @@ static uint32_t appendBinaryPattern( char * cmdBuf,
 
     if( value != 0U )
     {
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
+        /* MISRA Ref 21.6.1 [Use of snprintf] */
+        /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-216 */
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, cmdLen, "\"" PRINTF_BINARY_PATTERN_INT8 "\"%c",
                            PRINTF_BYTE_TO_BINARY_INT8( value ), endOfString ? '\0' : ',' );
     }
     else
     {
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
+        /* MISRA Ref 21.6.1 [Use of snprintf] */
+        /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-216 */
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, cmdLen, "%c", endOfString ? '\0' : ',' );
     }
@@ -2770,8 +2834,8 @@ CellularError_t Cellular_CommonSetPsmSettings( CellularHandle_t cellularHandle,
     {
         /* Form the AT command. */
 
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
+        /* MISRA Ref 21.6.1 [Use of snprintf] */
+        /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-216 */
         /* coverity[misra_c_2012_rule_21_6_violation]. */
         ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_MAX_SIZE, "AT+CPSMS=%d,", pPsmSettings->mode );
         cmdBufLen = ( uint32_t ) strlen( cmdBuf );

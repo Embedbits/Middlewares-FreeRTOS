@@ -17,6 +17,7 @@ bytesreceived
 bytesrecvd
 bytesremaining
 bytessent
+bytessentthisvector
 bytestoread
 bytestoreceive
 bytestorecv
@@ -43,6 +44,7 @@ connectpacketsize
 const
 copydoc
 coremqtt
+coverity
 csdk
 css
 currentstate
@@ -73,8 +75,10 @@ enums
 eventcallback
 expectprocessloopcalls
 filterindex
+findinrecord
 fixedbuffer
 fn
+freertos
 gcc
 getconnectpacketsize
 getdisconnectpacketsize
@@ -99,11 +103,13 @@ headersize
 html
 http
 https
+ifdef
 ifndef
 img
 inc
 incomingpacket
 incomingpublish
+incomingpublishcount
 incomingpublishrecords
 ingroup
 init
@@ -111,13 +117,16 @@ initializeconnectinfo
 initializesubscribeinfo
 initializewillinfo
 int
+io
 iot
+ioveccount
+ip
 isn
 iso
 keepaliveintervalsec
 keepalivems
 keepaliveseconds
-lastpackettime
+lastpackettxtime
 linux
 logdebug
 logerror
@@ -129,6 +138,7 @@ mainpage
 malloc
 managekeepalive
 matchtopic
+maxrecordcount
 md
 mdash
 memcpy
@@ -138,6 +148,7 @@ mib
 min
 minimise
 misra
+mit
 modifyincomingpacket
 mq
 mqtt
@@ -152,6 +163,7 @@ mqttfixedbuffer
 mqttgetcurrenttimefunc
 mqttillegalstate
 mqttkeepalivetimeout
+mqttneedmorebytes
 mqttnodataavailable
 mqttnomemory
 mqttnotconnected
@@ -189,6 +201,7 @@ mqttsubacksuccessqos
 mqttsubscribeinfo
 mqttsuccess
 msb
+mutex
 mynetworkrecvimplementation
 mynetworksendimplementation
 mytcpsocketcontext
@@ -206,6 +219,8 @@ numcodes
 optype
 org
 os
+outgoingpublishes
+outgoingpublishcount
 outgoingpublishrecords
 packetid
 packetidentifier
@@ -232,16 +247,20 @@ pfilterindex
 pfixedbuffer
 pheadersize
 pincomingpacket
+pincomingpublishrecords
+pindex
 pingreq
 pingreqs
 pingreqsendtimems
 pingresp
 pingresps
+piovec
 pismatch
 plaintext
 pmatch
 pmessage
 pmqttcontext
+pmqttheader
 pnameindex
 pnetworkbuffer
 pnetworkcontext
@@ -249,6 +268,7 @@ pnetworkinterface
 pnewstate
 png
 posix
+poutgoingpublishrecords
 ppacketid
 ppacketidentifier
 ppacketinfo
@@ -276,10 +296,12 @@ psuback
 psubackpacket
 psubscribeinfo
 psubscribes
+psubscription
 psubscriptionlist
 ptopic
 ptopicfilter
 ptopicname
+ptotalmessagelength
 ptr
 ptransport
 ptransportinterface
@@ -317,6 +339,7 @@ resending
 reservestate
 responsecode
 rm
+rx
 sdk
 searchstates
 sendpacket
@@ -326,6 +349,11 @@ serializeack
 serializeconnect
 serializeconnectpacket
 serializedisconnect
+serailizedlength
+serializedpasswordlength
+serializedpayloadlength
+serializedtopiclength
+serializedusernamelength
 serializepayload
 serializepingreq
 serializepublish
@@ -343,6 +371,7 @@ somepassword
 sometransportcontext
 someusername
 sourcelength
+spdx
 src
 stateafterdeserialize
 stateafterserialize
@@ -372,6 +401,7 @@ tlssend
 toolchain
 topicfilterlength
 topicnamelength
+totalmessagelength
 tr
 transportcallback
 transportinterface
@@ -386,8 +416,10 @@ tx
 typename
 uint
 un
+unacked
 unsuback
 unsubscribelist
+updatedlength
 updatestateack
 updatestatepublish
 updatestatestatus
@@ -398,6 +430,7 @@ validatesubscribeunsubscribeparams
 validator
 waitingforpingresp
 willinfo
+writev
 xa
 xb
 xc

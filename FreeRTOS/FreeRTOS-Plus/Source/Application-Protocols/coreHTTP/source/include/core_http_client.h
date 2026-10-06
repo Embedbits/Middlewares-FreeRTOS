@@ -1,6 +1,8 @@
 /*
- * coreHTTP v2.1.0
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * coreHTTP v3.0.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -222,15 +224,6 @@ typedef enum HTTPStatus
      * - #HTTPClient_Send
      */
     HTTPInsufficientMemory,
-
-    /**
-     * @brief The server sent more headers than the configured
-     * #HTTP_MAX_RESPONSE_HEADERS_SIZE_BYTES.
-     *
-     * Functions that may return this value:
-     * - #HTTPClient_Send
-     */
-    HTTPSecurityAlertResponseHeadersSizeLimitExceeded,
 
     /**
      * @brief A response contained the "Connection: close" header, but there
@@ -741,7 +734,6 @@ HTTPStatus_t HTTPClient_AddRangeHeader( HTTPRequestHeaders_t * pRequestHeaders,
  *
  * The application should close the connection with the server if any of the
  * following errors are returned:
- * - #HTTPSecurityAlertResponseHeadersSizeLimitExceeded
  * - #HTTPSecurityAlertExtraneousResponseData
  * - #HTTPSecurityAlertInvalidChunkHeader
  * - #HTTPSecurityAlertInvalidProtocolVersion
@@ -773,7 +765,6 @@ HTTPStatus_t HTTPClient_AddRangeHeader( HTTPRequestHeaders_t * pRequestHeaders,
  * or extra headers could not be sent in the request.)
  * - #HTTPParserInternalError (Internal parsing error.)\n\n
  * Security alerts are listed below, please see #HTTPStatus_t for more information:
- * - #HTTPSecurityAlertResponseHeadersSizeLimitExceeded
  * - #HTTPSecurityAlertExtraneousResponseData
  * - #HTTPSecurityAlertInvalidChunkHeader
  * - #HTTPSecurityAlertInvalidProtocolVersion

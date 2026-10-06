@@ -1,6 +1,8 @@
 /*
- * coreHTTP v2.1.0
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * coreHTTP v3.0.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,21 +42,6 @@
     extern "C" {
 #endif
 /* *INDENT-ON* */
-
-/**
- * @brief Maximum size, in bytes, of headers allowed from the server.
- *
- * If the total size in bytes of the headers received from the server exceeds
- * this configuration, then the status code
- * #HTTPSecurityAlertResponseHeadersSizeLimitExceeded is returned from
- * #HTTPClient_Send.
- *
- * <b>Possible values:</b> Any positive 32 bit integer. <br>
- * <b>Default value:</b> `2048`
- */
-#ifndef HTTP_MAX_RESPONSE_HEADERS_SIZE_BYTES
-    #define HTTP_MAX_RESPONSE_HEADERS_SIZE_BYTES    2048U
-#endif
 
 /**
  * @brief The HTTP header "User-Agent" value.

@@ -1,6 +1,8 @@
 /*
- * coreMQTT v1.2.0
+ * coreMQTT v2.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,16 +32,9 @@
 void harness()
 {
     MQTTContext_t * pContext;
-    uint32_t timeoutMs;
 
     pContext = allocateMqttContext( NULL );
     __CPROVER_assume( isValidMqttContext( pContext ) );
 
-    /* The MQTT_RECEIVE_TIMEOUT is used here to control the number of loops
-     * when receiving on the network. The default is used here because memory
-     * safety can be proven in only a few iterations. Please see this proof's
-     * Makefile for more information. */
-    __CPROVER_assume( timeoutMs < MQTT_RECEIVE_TIMEOUT );
-
-    MQTT_ProcessLoop( pContext, timeoutMs );
+    MQTT_ProcessLoop( pContext );
 }

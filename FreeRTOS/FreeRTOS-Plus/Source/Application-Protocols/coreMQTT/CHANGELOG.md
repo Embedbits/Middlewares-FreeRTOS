@@ -1,5 +1,32 @@
 # Changelog for coreMQTT Client Library
 
+## v2.1.1 (November 2022)
+
+### Changes
+- [#230](https://github.com/FreeRTOS/coreMQTT/pull/230) Fixed broken link in MISRA.md.
+- [#229](https://github.com/FreeRTOS/coreMQTT/pull/229) Fixed multiple Subscribe Unsubscribe request sending logic.
+
+## v2.1.0 (October 2022)
+
+### Changes
+- [#224](https://github.com/FreeRTOS/coreMQTT/pull/224) Update timeout duration to be constant for all transmit functions. Timeout shall occur if the whole packet is not sent within the configured timeout value.
+- [#225](https://github.com/FreeRTOS/coreMQTT/pull/225) Updated the documentation of ReceiveLoop and ProcessLoop.
+- [#223](https://github.com/FreeRTOS/coreMQTT/pull/223) Modify a check to make sure that keep alive is sent even when data is in the buffer.
+
+## v2.0.0 (September 2022)
+
+### Changes
+- [#221](https://github.com/FreeRTOS/coreMQTT/pull/221) Remove LWT payload non-zero restriction.
+- [#219](https://github.com/FreeRTOS/coreMQTT/pull/219) Fix MISRA deviations in the source.
+- [#218](https://github.com/FreeRTOS/coreMQTT/pull/218) Fix bugs in receiveSingleIteration and optimize sendMessageVector.
+- [#213](https://github.com/FreeRTOS/coreMQTT/pull/213) Fix MISRA deviations in the source.
+- [#200](https://github.com/FreeRTOS/coreMQTT/pull/200) Add hooks to the code.
+- [#205](https://github.com/FreeRTOS/coreMQTT/pull/205) Update logging and add MQTT_InitStatefulQoS to prevent log leaks.
+- [#199](https://github.com/FreeRTOS/coreMQTT/pull/199) Make use of user provided buffer only for packet reception. Stack space will be used for sending packets.
+- [#198](https://github.com/FreeRTOS/coreMQTT/pull/198) Remove timeout from MQTT\_ProcessLoop and MQTT\_ReceiveLoop and make the implementations non-blocking.
+- [#196](https://github.com/FreeRTOS/coreMQTT/pull/196) Add a cancel callback API to cancel sent publish packets.
+- [#191](https://github.com/FreeRTOS/coreMQTT/pull/191) Generate PINGREQ packets on idle input or output.
+
 ## v1.2.0 (November 2021)
 
 ### Changes

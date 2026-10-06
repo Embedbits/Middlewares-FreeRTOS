@@ -10,19 +10,20 @@ FreeRTOS Cellular Library use communication interface to communicate with cellul
 This library contains the following three components in three folders.
 | FreeRTOS Cellular Library folders | High Level Description |
 | :--------------------| :--------------------- |
-| include              | FreeRTOS Cellular Library APIs definitions help to abstract the control of cellular module. |
-| common               | FreeRTOS Cellular Library APIs implemenation with 3GPP TS v27.007 AT commands. |
-| modules              | FreeRTOS Cellular Library APIs implemenation with cellular module specific AT commands. |
+| source               | Reusable common code that implements the standard AT commands defined by 3GPP TS v27.007. |
+| docs                 | Documentations. |
+| test                 | Unit test and cbmc. |
+| tools                | tools for Coverity static analysis and CMock. |
 
 - <b>Supported cellular modules</b><br>
 Three cellular modules are supported in this library.
 | Cellular module |
 | :--------------------|
-| quectel BG96         |
-| Sierra HL7802        |
-| Ublox SARA R4 series |
+| [Quectel BG96](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface-Reference-Quectel-BG96)         |
+| [Sierra HL7802](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface-Reference-Sierra-Wireless-HL7802)        |
+| [Ublox SARA R4 series](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface-Reference-ublox-SARA-R4) |
 New cellular module can reference these module porting to be integrated into FreeRTOS Cellular Library.<br>
-Please reference cellular common library document for detail information about porting new cellular module.
+Please reference [Porting module Guide](https://www.freertos.org/Documentation/api-ref/cellular/cellular_porting_module_guide.html) document for detail information about porting new cellular module.
 - <b>Currently Supported Features in FreeRTOS Cellular Library</b>
  - User of FreeRTOS Cellular Library is able to use Cat-M1 cellular technology to connect to network.
  - User of FreeRTOS Cellular Library is able to perform control plane operations like (initialize modem, register on a network etc.) in a vendor agnostic way.
@@ -39,8 +40,9 @@ Please reference cellular common library document for detail information about p
  */
 
 /**
-@page cellular_design Design
-@brief FreeRTOS Cellular Library Design
+@page Design
+
+@section FreeRTOS_Cellular_Library_Design Cellular Interface Design
 
 FreeRTOS Cellular Library uses communication interface to communicate with cellular modules.<br>
 Users of FreeRTOS Cellular Library should create a instance of CellularCommInterface and pass it
@@ -53,6 +55,25 @@ The following communication interface implementation can be used as reference.
 - <a href="https://github.com/aws/amazon-freertos/blob/feature/cellular/vendors/st/boards/stm32l475_discovery/ports/comm_if/comm_if_st.c"> STM32 L475 discovery board comm interface </a>
 - <a href="https://github.com/aws/amazon-freertos/blob/feature/cellular/vendors/sierra/boards/sensorhub/ports/comm_if/comm_if_sierra.c"> Sierra sensorhub board comm interface </a>
 <b></b>
+
+@section cellular_socket_api_desing Cellular Socket API Design
+
+FreeRTOS Cellular Interface offloads the TCP/IP stacks to cellular module. The implementation
+of the socket APIs use module specific AT commands. Cellular socket APIs abstract the differences
+between different cellular module. The following are cellular socket APIs:
+- @function_name{Cellular_CreateSocket}
+- @function_name{Cellular_SocketSetSockOpt}
+- @function_name{Cellular_SocketSend}
+- @function_name{Cellular_SocketRecv}
+- @function_name{Cellular_SocketClose}
+- @function_name{Cellular_GetHostByName}
+- @function_name{Cellular_SocketRegisterDataReadyCallback}
+- @function_name{Cellular_SocketRegisterClosedCallback}
+- @function_name{Cellular_SocketRegisterSocketOpenCallback}
+
+Cellular socket APIs and cellular modem events change cellular socket state.
+See the below graph for the socket state transitions:
+@image html cellular_socket_state.png width=70%
 */
 
 /**
@@ -165,6 +186,13 @@ Some configuration settings are C pre-processor constants, and some are function
 
 @section cellular_logdebug LogDebug
 @copydoc LogDebug
+
+@section CELLULAR_MODEM_NO_EPS_NETWORK
+@brief Macro to disable querying evolved packet system (EPS) network registration status in Cellular_CommonGetServiceStatus.<br>
+@note Cellular modem porting can define this macro in cellular_config.h to disable this function.<br>
+
+<b>Default value:</b> undefined
+
 */
 
 /**

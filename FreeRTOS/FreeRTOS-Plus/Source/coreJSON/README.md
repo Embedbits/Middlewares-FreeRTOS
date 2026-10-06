@@ -6,6 +6,8 @@ This library has gone through code quality checks including verification that no
 
 See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
+**coreJSON v3.2.0 [source code](https://github.com/FreeRTOS/coreJSON/tree/v3.2.0/source) is part of the [FreeRTOS 202210.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202210.00-LTS) release.**
+
 **coreJSON v3.0.0 [source code](https://github.com/FreeRTOS/coreJSON/tree/v3.0.0/source) is part of the [FreeRTOS 202012.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.00-LTS) release.**
 
 ## Reference example
@@ -120,6 +122,14 @@ git submodule update --checkout --init --recursive test/unit-test/Unity
 1. The generated test executables will be present in `build/bin/tests` folder.
 
 1. Run `ctest` to execute all tests and view the test run summary.
+
+## CBMC
+
+To learn more about CBMC and proofs specifically, review the training material [here](https://model-checking.github.io/cbmc-training).
+
+The `test/cbmc/proofs` directory contains CBMC proofs.
+
+In order to run these proofs you will need to install CBMC and other tools by following the instructions [here](https://model-checking.github.io/cbmc-training/installation.html).
 
 ## Contributing
 

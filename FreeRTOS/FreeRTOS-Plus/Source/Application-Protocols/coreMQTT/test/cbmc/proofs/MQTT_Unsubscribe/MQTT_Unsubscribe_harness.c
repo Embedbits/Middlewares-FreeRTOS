@@ -1,6 +1,8 @@
 /*
- * coreMQTT v1.2.0
+ * coreMQTT v2.1.1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +29,31 @@
 #include "core_mqtt.h"
 #include "mqtt_cbmc_state.h"
 
+/**
+ * @brief Implement a get time function to return timeout after certain
+ * iterations have been made in the code. This ensures that we do not hit
+ * unwinding error in CBMC. In real life scenarios, the send function will
+ * not just keep accepting 1 byte at a time for a long time since it just
+ * gets added to the TCP buffer.
+ *
+ * @return The global system time.
+ */
+static uint32_t ulGetTimeFunction( void )
+{
+    static uint32_t systemTime = 0;
+
+    if( systemTime >= MAX_NETWORK_SEND_TRIES )
+    {
+        systemTime = systemTime + MQTT_SEND_TIMEOUT_MS + 1;
+    }
+    else
+    {
+        systemTime = systemTime + 1;
+    }
+
+    return systemTime;
+}
+
 void harness()
 {
     MQTTContext_t * pContext;
@@ -37,12 +64,17 @@ void harness()
     pContext = allocateMqttContext( NULL );
     __CPROVER_assume( isValidMqttContext( pContext ) );
 
+    if( pContext != NULL )
+    {
+        pContext->getTime = ulGetTimeFunction;
+    }
+
     /* Please see the default bound description on SUBSCRIPTION_COUNT_MAX in
      * mqtt_cbmc_state.c for more information. */
     __CPROVER_assume( subscriptionCount < SUBSCRIPTION_COUNT_MAX );
 
-    pSubscriptionList = allocateMqttSubscriptionList( NULL, subscriptionCount );
-    __CPROVER_assume( isValidMqttSubscriptionList( pSubscriptionList, subscriptionCount ) );
+    pSubscriptionList = allocateMqttSubscriptionList( NULL, 1U );
+    __CPROVER_assume( isValidMqttSubscriptionList( pSubscriptionList, 1U ) );
 
     MQTT_Unsubscribe( pContext, pSubscriptionList, subscriptionCount, packetId );
 }

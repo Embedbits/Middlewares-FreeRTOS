@@ -1,6 +1,8 @@
 /*
- * AWS IoT Over-the-air Update v3.3.0
+ * AWS IoT Over-the-air Update v3.4.0
  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +28,7 @@
  */
 /*  Ota Agent includes. */
 #include "ota.h"
+#include "stubs.h"
 
 extern OtaAgentContext_t otaAgent;
 
@@ -34,6 +37,7 @@ void OTA_Shutdown_harness()
     OtaState_t state;
     uint32_t ticksToWait;
     uint8_t unsubscribeFlag;
+    OtaInterfaces_t otaInterface;
 
     otaAgent.state = state;
 

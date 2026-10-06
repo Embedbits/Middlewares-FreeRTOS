@@ -1,6 +1,8 @@
 /*
- * FreeRTOS+TCP V2.4.0
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS+TCP V3.1.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -46,7 +48,8 @@ extern List_t xBoundUDPSocketsList;
     extern List_t xBoundTCPSocketsList;
 #endif /* ipconfigUSE_TCP == 1 */
 
-IOCounters_t xInputCounters, xOutputCounters;
+IOCounters_t xInputCounters = { 0U };
+IOCounters_t xOutputCounters = { 0U };
 
 BaseType_t vGetMetrics( MetricsType_t * pxMetrics )
 {

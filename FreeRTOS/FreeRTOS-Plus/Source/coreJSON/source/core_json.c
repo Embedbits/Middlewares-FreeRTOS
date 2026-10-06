@@ -1,6 +1,8 @@
 /*
- * coreJSON v3.1.0
+ * coreJSON v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -335,6 +337,9 @@ static bool skipOneHexEscape( const char * buf,
 
     i = *start;
 #define HEX_ESCAPE_LENGTH    ( 6U )   /* e.g., \u1234 */
+    /* MISRA Ref 14.3.1 [Configuration dependent invariant] */
+    /* More details at: https://github.com/FreeRTOS/coreJSON/blob/main/MISRA.md#rule-143 */
+    /* coverity[misra_c_2012_rule_14_3_violation] */
     end = ( i <= ( SIZE_MAX - HEX_ESCAPE_LENGTH ) ) ? ( i + HEX_ESCAPE_LENGTH ) : SIZE_MAX;
 
     if( ( end < max ) && ( buf[ i ] == '\\' ) && ( buf[ i + 1U ] == 'u' ) )
@@ -1090,7 +1095,8 @@ static JSONStatus_t skipCollection( const char * buf,
                     break;
                 }
 
-                ret = ( depth == 0 ) ? JSONSuccess : JSONIllegalDocument;
+                ret = ( ( depth == 0 ) && isMatchingBracket_( stack[ depth ], c ) ) ?
+                      JSONSuccess : JSONIllegalDocument;
                 break;
 
             default:
@@ -1676,9 +1682,8 @@ JSONStatus_t JSON_SearchT( char * buf,
                            size_t * outValueLength,
                            JSONTypes_t * outType )
 {
-    /* MISRA Rule 11.3 prohibits casting a pointer to a different type.
-     * This instance is a false positive, as the rule permits the
-     * addition of a type qualifier. */
+    /* MISRA Ref 11.3.1 [Misaligned access] */
+    /* More details at: https://github.com/FreeRTOS/coreJSON/blob/main/MISRA.md#rule-113 */
     /* coverity[misra_c_2012_rule_11_3_violation] */
     return JSON_SearchConst( ( const char * ) buf, max, query, queryLength,
                              ( const char ** ) outValue, outValueLength, outType );

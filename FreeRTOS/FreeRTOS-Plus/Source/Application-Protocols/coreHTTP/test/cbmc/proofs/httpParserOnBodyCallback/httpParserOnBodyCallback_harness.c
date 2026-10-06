@@ -1,6 +1,8 @@
 /*
- * coreHTTP v2.1.0
+ * coreHTTP v3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,15 +28,15 @@
  */
 
 #include "http_cbmc_state.h"
-#include "http_parser.h"
+#include "llhttp.h"
 
-int __CPROVER_file_local_core_http_client_c_httpParserOnBodyCallback( http_parser * pHttpParser,
+int __CPROVER_file_local_core_http_client_c_httpParserOnBodyCallback( llhttp_t * pHttpParser,
                                                                       const char * pLoc,
                                                                       size_t length );
 
 void httpParserOnBodyCallback_harness()
 {
-    http_parser * pHttpParser;
+    llhttp_t * pHttpParser;
     HTTPParsingContext_t * pParsingContext;
     HTTPResponse_t * pResponse;
     size_t length;

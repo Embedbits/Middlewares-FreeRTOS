@@ -1,6 +1,8 @@
 /*
- * coreMQTT v1.2.0
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * coreMQTT v2.1.1
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,6 +32,44 @@
 #include "core_mqtt.h"
 #include "core_mqtt_state.h"
 
+/* Include config defaults header to get default values of configs. */
+#include "core_mqtt_config_defaults.h"
+
+#include "core_mqtt_default_logging.h"
+
+#ifndef MQTT_PRE_SEND_HOOK
+
+/**
+ * @brief Hook called before a 'send' operation is executed.
+ */
+    #define MQTT_PRE_SEND_HOOK( pContext )
+#endif /* !MQTT_PRE_SEND_HOOK */
+
+#ifndef MQTT_POST_SEND_HOOK
+
+/**
+ * @brief Hook called after the 'send' operation is complete.
+ */
+    #define MQTT_POST_SEND_HOOK( pContext )
+#endif /* !MQTT_POST_SEND_HOOK */
+
+#ifndef MQTT_PRE_STATE_UPDATE_HOOK
+
+/**
+ * @brief Hook called just before an update to the MQTT state is made.
+ */
+    #define MQTT_PRE_STATE_UPDATE_HOOK( pContext )
+#endif /* !MQTT_PRE_STATE_UPDATE_HOOK */
+
+#ifndef MQTT_POST_STATE_UPDATE_HOOK
+
+/**
+ * @brief Hook called just after an update to the MQTT state has
+ * been made.
+ */
+    #define MQTT_POST_STATE_UPDATE_HOOK( pContext )
+#endif /* !MQTT_POST_STATE_UPDATE_HOOK */
+
 /*-----------------------------------------------------------*/
 
 /**
@@ -43,16 +83,125 @@
  * repeatedly to send bytes over the network until either:
  * 1. The requested number of bytes @a bytesToSend have been sent.
  *                    OR
- * 2. No byte cannot be sent over the network for the MQTT_SEND_RETRY_TIMEOUT_MS
- * duration.
+ * 2. MQTT_SEND_TIMEOUT_MS milliseconds have gone by since entering this
+ * function.
  *                    OR
  * 3. There is an error in sending data over the network.
  *
  * @return Total number of bytes sent, or negative value on network error.
  */
-static int32_t sendPacket( MQTTContext_t * pContext,
+static int32_t sendBuffer( MQTTContext_t * pContext,
                            const uint8_t * pBufferToSend,
                            size_t bytesToSend );
+
+/**
+ * @brief Sends MQTT connect without copying the users data into any buffer.
+ *
+ * @brief param[in] pContext Initialized MQTT context.
+ * @brief param[in] pConnectInfo MQTT CONNECT packet information.
+ * @brief param[in] pWillInfo Last Will and Testament. Pass NULL if Last Will and
+ * Testament is not used.
+ * @brief param[in] remainingLength the length of the connect packet.
+ *
+ * @note This operation may call the transport send function
+ * repeatedly to send bytes over the network until either:
+ * 1. The requested number of bytes @a remainingLength have been sent.
+ *                    OR
+ * 2. MQTT_SEND_TIMEOUT_MS milliseconds have gone by since entering this
+ * function.
+ *                    OR
+ * 3. There is an error in sending data over the network.
+ *
+ * @return #MQTTSendFailed or #MQTTSuccess.
+ */
+static MQTTStatus_t sendConnectWithoutCopy( MQTTContext_t * pContext,
+                                            const MQTTConnectInfo_t * pConnectInfo,
+                                            const MQTTPublishInfo_t * pWillInfo,
+                                            size_t remainingLength );
+
+/**
+ * @brief Sends the vector array passed through the parameters over the network.
+ *
+ * @note The preference is given to 'writev' function if it is present in the
+ * transport interface. Otherwise, a send call is made repeatedly to achieve the
+ * result.
+ *
+ * @param[in] pContext Initialized MQTT context.
+ * @param[in] pIoVec The vector array to be sent.
+ * @param[in] ioVecCount The number of elements in the array.
+ *
+ * @note This operation may call the transport send or writev functions
+ * repeatedly to send bytes over the network until either:
+ * 1. The requested number of bytes have been sent.
+ *                    OR
+ * 2. MQTT_SEND_TIMEOUT_MS milliseconds have gone by since entering this
+ * function.
+ *                    OR
+ * 3. There is an error in sending data over the network.
+ *
+ * @return The total number of bytes sent or the error code as received from the
+ * transport interface.
+ */
+static int32_t sendMessageVector( MQTTContext_t * pContext,
+                                  TransportOutVector_t * pIoVec,
+                                  size_t ioVecCount );
+
+/**
+ * @brief Add a string and its length after serializing it in a manner outlined by
+ * the MQTT specification.
+ *
+ * @param[in] serailizedLength Array of two bytes to which the vector will point.
+ * The array must remain in scope until the message has been sent.
+ * @param[in] string The string to be serialized.
+ * @param[in] length The length of the string to be serialized.
+ * @param[in] iterator The iterator pointing to the first element in the
+ * transport interface IO array.
+ * @param[out] updatedLength This parameter will be added to with the number of
+ * bytes added to the vector.
+ *
+ * @return The number of vectors added.
+ */
+static size_t addEncodedStringToVector( uint8_t serailizedLength[ 2 ],
+                                        const char * const string,
+                                        uint16_t length,
+                                        TransportOutVector_t * iterator,
+                                        size_t * updatedLength );
+
+/**
+ * @brief Send MQTT SUBSCRIBE message without copying the user data into a buffer and
+ * directly sending it.
+ *
+ * @param[in] pContext Initialized MQTT context.
+ * @param[in] pSubscriptionList List of MQTT subscription info.
+ * @param[in] subscriptionCount The count of elements in the list.
+ * @param[in] packetId The packet ID of the subscribe packet
+ * @param[in] remainingLength The remaining length of the subscribe packet.
+ *
+ * @return #MQTTSuccess or #MQTTSendFailed.
+ */
+static MQTTStatus_t sendSubscribeWithoutCopy( MQTTContext_t * pContext,
+                                              const MQTTSubscribeInfo_t * pSubscriptionList,
+                                              size_t subscriptionCount,
+                                              uint16_t packetId,
+                                              size_t remainingLength );
+
+/**
+ * @brief Send MQTT UNSUBSCRIBE message without copying the user data into a buffer and
+ * directly sending it.
+ *
+ * @param[in] pContext Initialized MQTT context.
+ * @param[in] pSubscriptionList MQTT subscription info.
+ * @param[in] subscriptionCount The count of elements in the list.
+ * @param[in] packetId The packet ID of the unsubscribe packet.
+ * @param[in] remainingLength The remaining length of the unsubscribe packet.
+ *
+ * @return #MQTTSuccess or #MQTTSendFailed.
+ */
+static MQTTStatus_t sendUnsubscribeWithoutCopy( MQTTContext_t * pContext,
+                                                const MQTTSubscribeInfo_t * pSubscriptionList,
+                                                size_t subscriptionCount,
+                                                uint16_t packetId,
+                                                size_t remainingLength );
 
 /**
  * @brief Calculate the interval between two millisecond timestamps, including
@@ -112,6 +261,17 @@ static int32_t recvExact( const MQTTContext_t * pContext,
 static MQTTStatus_t discardPacket( const MQTTContext_t * pContext,
                                    size_t remainingLength,
                                    uint32_t timeoutMs );
+
+/**
+ * @brief Discard a packet from the MQTT buffer and the transport interface.
+ *
+ * @param[in] pContext MQTT Connection context.
+ * @param[in] pPacketInfo Information struct of the packet to be discarded.
+ *
+ * @return #MQTTRecvFailed or #MQTTNoDataAvailable.
+ */
+static MQTTStatus_t discardStoredPacket( MQTTContext_t * pContext,
+                                         const MQTTPacketInfo_t * pPacketInfo );
 
 /**
  * @brief Receive a packet from the transport interface.
@@ -199,7 +359,6 @@ static MQTTStatus_t handleIncomingAck( MQTTContext_t * pContext,
  * @brief Run a single iteration of the receive loop.
  *
  * @param[in] pContext MQTT Connection context.
- * @param[in] remainingTimeMs Remaining time for the loop in milliseconds.
  * @param[in] manageKeepAlive Flag indicating if keep alive should be handled.
  *
  * @return #MQTTRecvFailed if a network error occurs during reception;
@@ -212,7 +371,6 @@ static MQTTStatus_t handleIncomingAck( MQTTContext_t * pContext,
  * #MQTTSuccess on success.
  */
 static MQTTStatus_t receiveSingleIteration( MQTTContext_t * pContext,
-                                            uint32_t remainingTimeMs,
                                             bool manageKeepAlive );
 
 /**
@@ -230,20 +388,6 @@ static MQTTStatus_t validateSubscribeUnsubscribeParams( const MQTTContext_t * pC
                                                         const MQTTSubscribeInfo_t * pSubscriptionList,
                                                         size_t subscriptionCount,
                                                         uint16_t packetId );
-
-/**
- * @brief Send serialized publish packet using transport send.
- *
- * @brief param[in] pContext Initialized MQTT context.
- * @brief param[in] pPublishInfo MQTT PUBLISH packet parameters.
- * @brief param[in] headerSize Header size of the PUBLISH packet.
- *
- * @return #MQTTSendFailed if transport write failed;
- * #MQTTSuccess otherwise.
- */
-static MQTTStatus_t sendPublish( MQTTContext_t * pContext,
-                                 const MQTTPublishInfo_t * pPublishInfo,
-                                 size_t headerSize );
 
 /**
  * @brief Receives a CONNACK MQTT packet.
@@ -279,22 +423,26 @@ static MQTTStatus_t receiveConnack( const MQTTContext_t * pContext,
 static MQTTStatus_t handleSessionResumption( MQTTContext_t * pContext,
                                              bool sessionPresent );
 
+
 /**
- * @brief Serializes a PUBLISH message.
+ * @brief Send the publish packet without copying the topic string and payload in
+ * the buffer.
  *
  * @brief param[in] pContext Initialized MQTT context.
  * @brief param[in] pPublishInfo MQTT PUBLISH packet parameters.
+ * @brief param[in] pMqttHeader the serialized MQTT header with the header byte;
+ * the encoded length of the packet; and the encoded length of the topic string.
+ * @brief param[in] headerSize Size of the serialized PUBLISH header.
  * @brief param[in] packetId Packet Id of the publish packet.
- * @brief param[out] pHeaderSize Size of the serialized PUBLISH header.
  *
- * @return #MQTTNoMemory if pBuffer is too small to hold the MQTT packet;
- * #MQTTBadParameter if invalid parameters are passed;
+ * @return #MQTTSendFailed if transport send during resend failed;
  * #MQTTSuccess otherwise.
  */
-static MQTTStatus_t serializePublish( const MQTTContext_t * pContext,
-                                      const MQTTPublishInfo_t * pPublishInfo,
-                                      uint16_t packetId,
-                                      size_t * const pHeaderSize );
+static MQTTStatus_t sendPublishWithoutCopy( MQTTContext_t * pContext,
+                                            const MQTTPublishInfo_t * pPublishInfo,
+                                            const uint8_t * pMqttHeader,
+                                            size_t headerSize,
+                                            uint16_t packetId );
 
 /**
  * @brief Function to validate #MQTT_Publish parameters.
@@ -388,7 +536,7 @@ static bool matchEndWildcardsSpecialCases( const char * pTopicFilter,
     bool matchFound = false;
 
     assert( pTopicFilter != NULL );
-    assert( topicFilterLength != 0 );
+    assert( topicFilterLength != 0U );
 
     /* Check if the topic filter has 2 remaining characters and it ends in
      * "/#". This check handles the case to match filter "sport/#" with topic
@@ -413,8 +561,8 @@ static bool matchEndWildcardsSpecialCases( const char * pTopicFilter,
         ( pTopicFilter[ filterIndex ] == '/' ) )
     {
         /* Check that the last character is a wildcard. */
-        matchFound = ( ( pTopicFilter[ filterIndex + 1U ] == '+' ) ||
-                       ( pTopicFilter[ filterIndex + 1U ] == '#' ) ) ? true : false;
+        matchFound = ( pTopicFilter[ filterIndex + 1U ] == '+' ) ||
+                     ( pTopicFilter[ filterIndex + 1U ] == '#' );
     }
 
     return matchFound;
@@ -434,18 +582,17 @@ static bool matchWildcards( const char * pTopicName,
     bool locationIsValidForWildcard;
 
     assert( pTopicName != NULL );
-    assert( topicNameLength != 0 );
+    assert( topicNameLength != 0U );
     assert( pTopicFilter != NULL );
-    assert( topicFilterLength != 0 );
+    assert( topicFilterLength != 0U );
     assert( pNameIndex != NULL );
     assert( pFilterIndex != NULL );
     assert( pMatch != NULL );
 
     /* Wild card in a topic filter is only valid either at the starting position
      * or when it is preceded by a '/'.*/
-    locationIsValidForWildcard = ( ( *pFilterIndex == 0u ) ||
-                                   ( pTopicFilter[ *pFilterIndex - 1U ] == '/' )
-                                   ) ? true : false;
+    locationIsValidForWildcard = ( *pFilterIndex == 0u ) ||
+                                 ( pTopicFilter[ *pFilterIndex - 1U ] == '/' );
 
     if( ( pTopicFilter[ *pFilterIndex ] == '+' ) && ( locationIsValidForWildcard == true ) )
     {
@@ -584,8 +731,8 @@ static bool matchTopicFilter( const char * pTopicName,
          * case when the topic filter contains the '+' wildcard at a non-starting position.
          * For example, when matching either of "sport/+/player" OR "sport/hockey/+" topic
          * filters with "sport/hockey/player" topic name. */
-        matchFound = ( ( nameIndex == topicNameLength ) &&
-                       ( filterIndex == topicFilterLength ) ) ? true : false;
+        matchFound = ( nameIndex == topicNameLength ) &&
+                     ( filterIndex == topicFilterLength );
     }
 
     return matchFound;
@@ -593,80 +740,163 @@ static bool matchTopicFilter( const char * pTopicName,
 
 /*-----------------------------------------------------------*/
 
-static int32_t sendPacket( MQTTContext_t * pContext,
+static int32_t sendMessageVector( MQTTContext_t * pContext,
+                                  TransportOutVector_t * pIoVec,
+                                  size_t ioVecCount )
+{
+    int32_t sendResult;
+    uint32_t timeoutMs;
+    TransportOutVector_t * pIoVectIterator;
+    size_t vectorsToBeSent = ioVecCount;
+    size_t bytesToSend = 0U;
+    int32_t bytesSentOrError = 0;
+
+    assert( pContext != NULL );
+    assert( pIoVec != NULL );
+    assert( pContext->getTime != NULL );
+    /* Send must always be defined */
+    assert( pContext->transportInterface.send != NULL );
+
+    /* Count the total number of bytes to be sent as outlined in the vector. */
+    for( pIoVectIterator = pIoVec; pIoVectIterator <= &( pIoVec[ ioVecCount - 1U ] ); pIoVectIterator++ )
+    {
+        bytesToSend += pIoVectIterator->iov_len;
+    }
+
+    /* Reset the iterator to point to the first entry in the array. */
+    pIoVectIterator = pIoVec;
+
+    /* Set the timeout. */
+    timeoutMs = pContext->getTime() + MQTT_SEND_TIMEOUT_MS;
+
+    while( ( bytesSentOrError < ( int32_t ) bytesToSend ) && ( bytesSentOrError >= 0 ) )
+    {
+        if( pContext->transportInterface.writev != NULL )
+        {
+            sendResult = pContext->transportInterface.writev( pContext->transportInterface.pNetworkContext,
+                                                              pIoVectIterator,
+                                                              vectorsToBeSent );
+        }
+        else
+        {
+            sendResult = pContext->transportInterface.send( pContext->transportInterface.pNetworkContext,
+                                                            pIoVectIterator->iov_base,
+                                                            pIoVectIterator->iov_len );
+        }
+
+        if( sendResult > 0 )
+        {
+            /* It is a bug in the application's transport send implementation if
+             * more bytes than expected are sent. */
+            assert( sendResult <= ( ( int32_t ) bytesToSend - bytesSentOrError ) );
+
+            bytesSentOrError += sendResult;
+
+            /* Set last transmission time. */
+            pContext->lastPacketTxTime = pContext->getTime();
+
+            LogDebug( ( "sendMessageVector: Bytes Sent=%ld, Bytes Remaining=%lu",
+                        ( long int ) sendResult,
+                        ( unsigned long ) ( bytesToSend - ( size_t ) bytesSentOrError ) ) );
+        }
+        else if( sendResult < 0 )
+        {
+            bytesSentOrError = sendResult;
+            LogError( ( "sendMessageVector: Unable to send packet: Network Error." ) );
+        }
+        else
+        {
+            /* MISRA Empty body */
+        }
+
+        /* Check for timeout. */
+        if( pContext->getTime() >= timeoutMs )
+        {
+            LogError( ( "sendMessageVector: Unable to send packet: Timed out." ) );
+            break;
+        }
+
+        /* Update the send pointer to the correct vector and offset. */
+        while( ( pIoVectIterator <= &( pIoVec[ ioVecCount - 1U ] ) ) &&
+               ( sendResult >= ( int32_t ) pIoVectIterator->iov_len ) )
+        {
+            sendResult -= ( int32_t ) pIoVectIterator->iov_len;
+            pIoVectIterator++;
+            /* Update the number of vector which are yet to be sent. */
+            vectorsToBeSent--;
+        }
+
+        /* Some of the bytes from this vector were sent as well, update the length
+         * and the pointer to data in this vector. */
+        if( ( sendResult > 0 ) &&
+            ( pIoVectIterator <= &( pIoVec[ ioVecCount - 1U ] ) ) )
+        {
+            pIoVectIterator->iov_base = ( const void * ) &( ( ( const uint8_t * ) pIoVectIterator->iov_base )[ sendResult ] );
+            pIoVectIterator->iov_len -= ( size_t ) sendResult;
+        }
+    }
+
+    return bytesSentOrError;
+}
+
+static int32_t sendBuffer( MQTTContext_t * pContext,
                            const uint8_t * pBufferToSend,
                            size_t bytesToSend )
 {
+    int32_t sendResult;
+    uint32_t timeoutMs;
+    int32_t bytesSentOrError = 0;
     const uint8_t * pIndex = pBufferToSend;
-    size_t bytesRemaining = bytesToSend;
-    int32_t totalBytesSent = 0, bytesSent;
-    uint32_t lastSendTimeMs = 0U, timeSinceLastSendMs = 0U;
-    bool sendError = false;
 
     assert( pContext != NULL );
     assert( pContext->getTime != NULL );
     assert( pContext->transportInterface.send != NULL );
     assert( pIndex != NULL );
 
-    bytesRemaining = bytesToSend;
+    /* Set the timeout. */
+    timeoutMs = pContext->getTime() + MQTT_SEND_TIMEOUT_MS;
 
-    /* Record the most recent time of successful transmission. */
-    lastSendTimeMs = pContext->getTime();
-
-    /* Loop until the entire packet is sent. */
-    while( ( bytesRemaining > 0UL ) && ( sendError == false ) )
+    while( ( bytesSentOrError < ( int32_t ) bytesToSend ) && ( bytesSentOrError >= 0 ) )
     {
-        bytesSent = pContext->transportInterface.send( pContext->transportInterface.pNetworkContext,
-                                                       pIndex,
-                                                       bytesRemaining );
+        sendResult = pContext->transportInterface.send( pContext->transportInterface.pNetworkContext,
+                                                        pIndex,
+                                                        bytesToSend - ( size_t ) bytesSentOrError );
 
-        if( bytesSent < 0 )
+        if( sendResult > 0 )
         {
-            LogError( ( "Transport send failed. Error code=%ld.", ( long int ) bytesSent ) );
-            totalBytesSent = bytesSent;
-            sendError = true;
-        }
-        else if( bytesSent > 0 )
-        {
-            /* Record the most recent time of successful transmission. */
-            lastSendTimeMs = pContext->getTime();
-
             /* It is a bug in the application's transport send implementation if
-             * more bytes than expected are sent. To avoid a possible overflow
-             * in converting bytesRemaining from unsigned to signed, this assert
-             * must exist after the check for bytesSent being negative. */
-            assert( ( size_t ) bytesSent <= bytesRemaining );
+             * more bytes than expected are sent. */
+            assert( sendResult <= ( ( int32_t ) bytesToSend - bytesSentOrError ) );
 
-            bytesRemaining -= ( size_t ) bytesSent;
-            totalBytesSent += bytesSent;
-            pIndex += bytesSent;
-            LogDebug( ( "BytesSent=%ld, BytesRemaining=%lu",
-                        ( long int ) bytesSent,
-                        ( unsigned long ) bytesRemaining ) );
+            bytesSentOrError += sendResult;
+            pIndex = &pIndex[ sendResult ];
+
+            /* Set last transmission time. */
+            pContext->lastPacketTxTime = pContext->getTime();
+
+            LogDebug( ( "sendBuffer: Bytes Sent=%ld, Bytes Remaining=%lu",
+                        ( long int ) sendResult,
+                        ( unsigned long ) ( bytesToSend - ( size_t ) bytesSentOrError ) ) );
+        }
+        else if( sendResult < 0 )
+        {
+            bytesSentOrError = sendResult;
+            LogError( ( "sendBuffer: Unable to send packet: Network Error." ) );
         }
         else
         {
-            /* No bytes were sent over the network. */
-            timeSinceLastSendMs = calculateElapsedTime( pContext->getTime(), lastSendTimeMs );
+            /* MISRA Empty body */
+        }
 
-            /* Check for timeout if we have been waiting to send any data over the network. */
-            if( timeSinceLastSendMs >= MQTT_SEND_RETRY_TIMEOUT_MS )
-            {
-                LogError( ( "Unable to send packet: Timed out in transport send." ) );
-                sendError = true;
-            }
+        /* Check for timeout. */
+        if( pContext->getTime() >= timeoutMs )
+        {
+            LogError( ( "sendBuffer: Unable to send packet: Timed out." ) );
+            break;
         }
     }
 
-    /* Update time of last transmission if the entire packet is successfully sent. */
-    if( totalBytesSent > 0 )
-    {
-        pContext->lastPacketTime = lastSendTimeMs;
-        LogDebug( ( "Successfully sent packet at time %lu.",
-                    ( unsigned long ) lastSendTimeMs ) );
-    }
-
-    return totalBytesSent;
+    return bytesSentOrError;
 }
 
 /*-----------------------------------------------------------*/
@@ -763,7 +993,8 @@ static int32_t recvExact( const MQTTContext_t * pContext,
 
             bytesRemaining -= ( size_t ) bytesRecvd;
             totalBytesRecvd += ( int32_t ) bytesRecvd;
-            pIndex += bytesRecvd;
+            /* Increment the index. */
+            pIndex = &pIndex[ bytesRecvd ];
             LogDebug( ( "BytesReceived=%ld, BytesRemaining=%lu, TotalBytesReceived=%ld.",
                         ( long int ) bytesRecvd,
                         ( unsigned long ) bytesRemaining,
@@ -795,7 +1026,9 @@ static MQTTStatus_t discardPacket( const MQTTContext_t * pContext,
     MQTTStatus_t status = MQTTRecvFailed;
     int32_t bytesReceived = 0;
     size_t bytesToReceive = 0U;
-    uint32_t totalBytesReceived = 0U, entryTimeMs = 0U, elapsedTimeMs = 0U;
+    uint32_t totalBytesReceived = 0U;
+    uint32_t entryTimeMs = 0U;
+    uint32_t elapsedTimeMs = 0U;
     MQTTGetCurrentTimeFunc_t getTimeStampMs = NULL;
     bool receiveError = false;
 
@@ -846,6 +1079,76 @@ static MQTTStatus_t discardPacket( const MQTTContext_t * pContext,
         /* Packet dumped, so no data is available. */
         status = MQTTNoDataAvailable;
     }
+
+    return status;
+}
+
+/*-----------------------------------------------------------*/
+
+static MQTTStatus_t discardStoredPacket( MQTTContext_t * pContext,
+                                         const MQTTPacketInfo_t * pPacketInfo )
+{
+    MQTTStatus_t status = MQTTRecvFailed;
+    int32_t bytesReceived = 0;
+    size_t bytesToReceive = 0U;
+    uint32_t totalBytesReceived = 0U;
+    bool receiveError = false;
+    size_t mqttPacketSize = 0;
+    size_t remainingLength;
+
+    assert( pContext != NULL );
+    assert( pPacketInfo != NULL );
+
+    mqttPacketSize = pPacketInfo->remainingLength + pPacketInfo->headerLength;
+
+    /* Assert that the packet being discarded is bigger than the
+     * receive buffer. */
+    assert( mqttPacketSize > pContext->networkBuffer.size );
+
+    /* Discard these many bytes at a time. */
+    bytesToReceive = pContext->networkBuffer.size;
+
+    /* Number of bytes depicted by 'index' have already been received. */
+    remainingLength = mqttPacketSize - pContext->index;
+
+    while( ( totalBytesReceived < remainingLength ) && ( receiveError == false ) )
+    {
+        if( ( remainingLength - totalBytesReceived ) < bytesToReceive )
+        {
+            bytesToReceive = remainingLength - totalBytesReceived;
+        }
+
+        bytesReceived = recvExact( pContext, bytesToReceive );
+
+        if( bytesReceived != ( int32_t ) bytesToReceive )
+        {
+            LogError( ( "Receive error while discarding packet."
+                        "ReceivedBytes=%ld, ExpectedBytes=%lu.",
+                        ( long int ) bytesReceived,
+                        ( unsigned long ) bytesToReceive ) );
+            receiveError = true;
+        }
+        else
+        {
+            totalBytesReceived += ( uint32_t ) bytesReceived;
+        }
+    }
+
+    if( totalBytesReceived == remainingLength )
+    {
+        LogError( ( "Dumped packet. DumpedBytes=%lu.",
+                    ( unsigned long ) totalBytesReceived ) );
+        /* Packet dumped, so no data is available. */
+        status = MQTTNoDataAvailable;
+    }
+
+    /* Clear the buffer */
+    ( void ) memset( pContext->networkBuffer.pBuffer,
+                     0,
+                     pContext->networkBuffer.size );
+
+    /* Reset the index. */
+    pContext->index = 0;
 
     return status;
 }
@@ -945,9 +1248,14 @@ static MQTTStatus_t sendPublishAcks( MQTTContext_t * pContext,
 {
     MQTTStatus_t status = MQTTSuccess;
     MQTTPublishState_t newState = MQTTStateNull;
-    int32_t bytesSent = 0;
+    int32_t sendResult = 0;
     uint8_t packetTypeByte = 0U;
     MQTTPubAckType_t packetType;
+    MQTTFixedBuffer_t localBuffer;
+    uint8_t pubAckPacket[ MQTT_PUBLISH_ACK_PACKET_SIZE ];
+
+    localBuffer.pBuffer = pubAckPacket;
+    localBuffer.size = MQTT_PUBLISH_ACK_PACKET_SIZE;
 
     assert( pContext != NULL );
 
@@ -957,25 +1265,36 @@ static MQTTStatus_t sendPublishAcks( MQTTContext_t * pContext,
     {
         packetType = getAckFromPacketType( packetTypeByte );
 
-        status = MQTT_SerializeAck( &( pContext->networkBuffer ),
+        status = MQTT_SerializeAck( &localBuffer,
                                     packetTypeByte,
                                     packetId );
 
         if( status == MQTTSuccess )
         {
-            bytesSent = sendPacket( pContext,
-                                    pContext->networkBuffer.pBuffer,
-                                    MQTT_PUBLISH_ACK_PACKET_SIZE );
+            MQTT_PRE_SEND_HOOK( pContext );
+
+            /* Here, we are not using the vector approach for efficiency. There is just one buffer
+             * to be sent which can be achieved with a normal send call. */
+            sendResult = sendBuffer( pContext,
+                                     localBuffer.pBuffer,
+                                     MQTT_PUBLISH_ACK_PACKET_SIZE );
+
+            MQTT_POST_SEND_HOOK( pContext );
         }
 
-        if( bytesSent == ( int32_t ) MQTT_PUBLISH_ACK_PACKET_SIZE )
+        if( sendResult == ( int32_t ) MQTT_PUBLISH_ACK_PACKET_SIZE )
         {
             pContext->controlPacketSent = true;
+
+            MQTT_PRE_STATE_UPDATE_HOOK( pContext );
+
             status = MQTT_UpdateStateAck( pContext,
                                           packetId,
                                           packetType,
                                           MQTT_SEND,
                                           &newState );
+
+            MQTT_POST_STATE_UPDATE_HOOK( pContext );
 
             if( status != MQTTSuccess )
             {
@@ -987,7 +1306,7 @@ static MQTTStatus_t sendPublishAcks( MQTTContext_t * pContext,
         {
             LogError( ( "Failed to send ACK packet: PacketType=%02x, SentBytes=%ld, "
                         "PacketSize=%lu.",
-                        ( unsigned int ) packetTypeByte, ( long int ) bytesSent,
+                        ( unsigned int ) packetTypeByte, ( long int ) sendResult,
                         MQTT_PUBLISH_ACK_PACKET_SIZE ) );
             status = MQTTSendFailed;
         }
@@ -1001,29 +1320,42 @@ static MQTTStatus_t sendPublishAcks( MQTTContext_t * pContext,
 static MQTTStatus_t handleKeepAlive( MQTTContext_t * pContext )
 {
     MQTTStatus_t status = MQTTSuccess;
-    uint32_t now = 0U, keepAliveMs = 0U;
+    uint32_t now = 0U;
+    uint32_t packetTxTimeoutMs = 0U;
 
     assert( pContext != NULL );
     assert( pContext->getTime != NULL );
 
     now = pContext->getTime();
-    keepAliveMs = 1000U * ( uint32_t ) pContext->keepAliveIntervalSec;
+
+    packetTxTimeoutMs = 1000U * ( uint32_t ) pContext->keepAliveIntervalSec;
+
+    if( PACKET_TX_TIMEOUT_MS < packetTxTimeoutMs )
+    {
+        packetTxTimeoutMs = PACKET_TX_TIMEOUT_MS;
+    }
 
     /* If keep alive interval is 0, it is disabled. */
-    if( keepAliveMs != 0U )
+    if( pContext->waitingForPingResp == true )
     {
-        if( pContext->waitingForPingResp == true )
+        /* Has time expired? */
+        if( calculateElapsedTime( now, pContext->pingReqSendTimeMs ) >
+            MQTT_PINGRESP_TIMEOUT_MS )
         {
-            /* Has time expired? */
-            if( calculateElapsedTime( now, pContext->pingReqSendTimeMs ) >
-                MQTT_PINGRESP_TIMEOUT_MS )
-            {
-                status = MQTTKeepAliveTimeout;
-            }
+            status = MQTTKeepAliveTimeout;
+        }
+    }
+    else
+    {
+        if( ( packetTxTimeoutMs != 0U ) && ( calculateElapsedTime( now, pContext->lastPacketTxTime ) >= packetTxTimeoutMs ) )
+        {
+            status = MQTT_Ping( pContext );
         }
         else
         {
-            if( calculateElapsedTime( now, pContext->lastPacketTime ) > keepAliveMs )
+            const uint32_t timeElapsed = calculateElapsedTime( now, pContext->lastPacketRxTime );
+
+            if( ( timeElapsed != 0U ) && ( timeElapsed >= PACKET_RX_TIMEOUT_MS ) )
             {
                 status = MQTT_Ping( pContext );
             }
@@ -1053,13 +1385,28 @@ static MQTTStatus_t handleIncomingPublish( MQTTContext_t * pContext,
     LogInfo( ( "De-serialized incoming PUBLISH packet: DeserializerResult=%s.",
                MQTT_Status_strerror( status ) ) );
 
+    if( ( status == MQTTSuccess ) &&
+        ( pContext->incomingPublishRecords == NULL ) &&
+        ( publishInfo.qos > MQTTQoS0 ) )
+    {
+        LogError( ( "Incoming publish has QoS > MQTTQoS0 but incoming "
+                    "publish records have not been initialized. Dropping the "
+                    "incoming publish. Please call MQTT_InitStatefulQoS to enable "
+                    "use of QoS1 and QoS2 publishes." ) );
+        status = MQTTRecvFailed;
+    }
+
     if( status == MQTTSuccess )
     {
+        MQTT_PRE_STATE_UPDATE_HOOK( pContext );
+
         status = MQTT_UpdateStatePublish( pContext,
                                           packetIdentifier,
                                           MQTT_RECEIVE,
                                           publishInfo.qos,
                                           &publishRecordState );
+
+        MQTT_POST_STATE_UPDATE_HOOK( pContext );
 
         if( status == MQTTSuccess )
         {
@@ -1172,11 +1519,15 @@ static MQTTStatus_t handlePublishAcks( MQTTContext_t * pContext,
 
     if( status == MQTTSuccess )
     {
+        MQTT_PRE_STATE_UPDATE_HOOK( pContext );
+
         status = MQTT_UpdateStateAck( pContext,
                                       packetIdentifier,
                                       ackType,
                                       MQTT_RECEIVE,
                                       &publishRecordState );
+
+        MQTT_POST_STATE_UPDATE_HOOK( pContext );
 
         if( status == MQTTSuccess )
         {
@@ -1253,7 +1604,7 @@ static MQTTStatus_t handleIncomingAck( MQTTContext_t * pContext,
 
         case MQTT_PACKET_TYPE_PINGRESP:
             status = MQTT_DeserializeAck( pIncomingPacket, &packetIdentifier, NULL );
-            invokeAppCallback = ( ( status == MQTTSuccess ) && ( manageKeepAlive == false ) ) ? true : false;
+            invokeAppCallback = ( status == MQTTSuccess ) && !manageKeepAlive;
 
             if( ( status == MQTTSuccess ) && ( manageKeepAlive == true ) )
             {
@@ -1266,7 +1617,7 @@ static MQTTStatus_t handleIncomingAck( MQTTContext_t * pContext,
         case MQTT_PACKET_TYPE_UNSUBACK:
             /* Deserialize and give these to the app provided callback. */
             status = MQTT_DeserializeAck( pIncomingPacket, &packetIdentifier, NULL );
-            invokeAppCallback = ( ( status == MQTTSuccess ) || ( status == MQTTServerRefused ) ) ? true : false;
+            invokeAppCallback = ( status == MQTTSuccess ) || ( status == MQTTServerRefused );
             break;
 
         default:
@@ -1290,55 +1641,109 @@ static MQTTStatus_t handleIncomingAck( MQTTContext_t * pContext,
 
     return status;
 }
-
 /*-----------------------------------------------------------*/
 
 static MQTTStatus_t receiveSingleIteration( MQTTContext_t * pContext,
-                                            uint32_t remainingTimeMs,
                                             bool manageKeepAlive )
 {
     MQTTStatus_t status = MQTTSuccess;
-    MQTTPacketInfo_t incomingPacket;
+    MQTTPacketInfo_t incomingPacket = { 0 };
+    int32_t recvBytes;
+    size_t totalMQTTPacketLength = 0;
 
     assert( pContext != NULL );
     assert( pContext->networkBuffer.pBuffer != NULL );
 
-    status = MQTT_GetIncomingPacketTypeAndLength( pContext->transportInterface.recv,
-                                                  pContext->transportInterface.pNetworkContext,
-                                                  &incomingPacket );
+    /* Read as many bytes as possible into the network buffer. */
+    recvBytes = pContext->transportInterface.recv( pContext->transportInterface.pNetworkContext,
+                                                   &( pContext->networkBuffer.pBuffer[ pContext->index ] ),
+                                                   pContext->networkBuffer.size - pContext->index );
 
-    if( status == MQTTNoDataAvailable )
+    if( recvBytes < 0 )
+    {
+        /* The receive function has failed. Bubble up the error up to the user. */
+        status = MQTTRecvFailed;
+    }
+    else if( ( recvBytes == 0 ) && ( pContext->index == 0U ) )
+    {
+        /* No more bytes available since the last read and neither is anything in
+         * the buffer. */
+        status = MQTTNoDataAvailable;
+    }
+
+    /* Either something was received, or there is still data to be processed in the
+     * buffer, or both. */
+    else
+    {
+        /* Update the number of bytes in the MQTT fixed buffer. */
+        pContext->index += ( size_t ) recvBytes;
+
+        status = MQTT_ProcessIncomingPacketTypeAndLength( pContext->networkBuffer.pBuffer,
+                                                          &pContext->index,
+                                                          &incomingPacket );
+
+        totalMQTTPacketLength = incomingPacket.remainingLength + incomingPacket.headerLength;
+    }
+
+    /* No data was received, check for keep alive timeout. */
+    if( recvBytes == 0 )
     {
         if( manageKeepAlive == true )
         {
+            /* Keep the copy of the status to be reset later. */
+            MQTTStatus_t statusCopy = status;
+
             /* Assign status so an error can be bubbled up to application,
              * but reset it on success. */
             status = handleKeepAlive( pContext );
-        }
 
-        if( status == MQTTSuccess )
-        {
-            /* Reset the status to indicate that we should not try to read
-             * a packet from the transport interface. */
-            status = MQTTNoDataAvailable;
+            if( status == MQTTSuccess )
+            {
+                /* Reset the status. */
+                status = statusCopy;
+            }
+            else
+            {
+                LogError( ( "Handling of keep alive failed. Status=%s",
+                            MQTT_Status_strerror( status ) ) );
+            }
         }
     }
+
+    /* Check whether there is data available before processing the packet further. */
+    if( ( status == MQTTNeedMoreBytes ) || ( status == MQTTNoDataAvailable ) )
+    {
+        /* Do nothing as there is nothing to be processed right now. The proper
+         * error code will be bubbled up to the user. */
+    }
+    /* Any other error code. */
     else if( status != MQTTSuccess )
     {
-        LogError( ( "Receiving incoming packet length failed. Status=%s",
+        LogError( ( "Call to receiveSingleIteration failed. Status=%s",
                     MQTT_Status_strerror( status ) ) );
+    }
+    /* If the MQTT Packet size is bigger than the buffer itself. */
+    else if( totalMQTTPacketLength > pContext->networkBuffer.size )
+    {
+        /* Discard the packet from the receive buffer and drain the pending
+         * data from the socket buffer. */
+        status = discardStoredPacket( pContext,
+                                      &incomingPacket );
+    }
+    /* If the total packet is of more length than the bytes we have available. */
+    else if( totalMQTTPacketLength > pContext->index )
+    {
+        status = MQTTNeedMoreBytes;
     }
     else
     {
-        /* Receive packet. Remaining time is recalculated before calling this
-         * function. */
-        status = receivePacket( pContext, incomingPacket, remainingTimeMs );
+        /* MISRA else. */
     }
 
-    /* Handle received packet. If no data was read then this will not execute. */
+    /* Handle received packet. If incomplete data was read then this will not execute. */
     if( status == MQTTSuccess )
     {
-        incomingPacket.pRemainingData = pContext->networkBuffer.pBuffer;
+        incomingPacket.pRemainingData = &pContext->networkBuffer.pBuffer[ incomingPacket.headerLength ];
 
         /* PUBLISH packets allow flags in the lower four bits. For other
          * packet types, they are reserved. */
@@ -1350,6 +1755,14 @@ static MQTTStatus_t receiveSingleIteration( MQTTContext_t * pContext,
         {
             status = handleIncomingAck( pContext, &incomingPacket, manageKeepAlive );
         }
+
+        /* Update the index to reflect the remaining bytes in the buffer.  */
+        pContext->index -= totalMQTTPacketLength;
+
+        /* Move the remaining bytes to the front of the buffer. */
+        ( void ) memmove( pContext->networkBuffer.pBuffer,
+                          &( pContext->networkBuffer.pBuffer[ totalMQTTPacketLength ] ),
+                          pContext->index );
     }
 
     if( status == MQTTNoDataAvailable )
@@ -1370,6 +1783,7 @@ static MQTTStatus_t validateSubscribeUnsubscribeParams( const MQTTContext_t * pC
                                                         uint16_t packetId )
 {
     MQTTStatus_t status = MQTTSuccess;
+    size_t iterator;
 
     /* Validate all the parameters. */
     if( ( pContext == NULL ) || ( pSubscriptionList == NULL ) )
@@ -1392,7 +1806,21 @@ static MQTTStatus_t validateSubscribeUnsubscribeParams( const MQTTContext_t * pC
     }
     else
     {
-        /* Empty else MISRA 15.7 */
+        if( pContext->incomingPublishRecords == NULL )
+        {
+            for( iterator = 0; iterator < subscriptionCount; iterator++ )
+            {
+                if( pSubscriptionList->qos > MQTTQoS0 )
+                {
+                    LogError( ( "The incoming publish record list is not "
+                                "initialised for QoS1/QoS2 records. Please call "
+                                " MQTT_InitStatefulQoS to enable use of QoS1 and "
+                                " QoS2 packets." ) );
+                    status = MQTTBadParameter;
+                    break;
+                }
+            }
+        }
     }
 
     return status;
@@ -1400,56 +1828,416 @@ static MQTTStatus_t validateSubscribeUnsubscribeParams( const MQTTContext_t * pC
 
 /*-----------------------------------------------------------*/
 
-static MQTTStatus_t sendPublish( MQTTContext_t * pContext,
-                                 const MQTTPublishInfo_t * pPublishInfo,
-                                 size_t headerSize )
+static size_t addEncodedStringToVector( uint8_t serailizedLength[ 2 ],
+                                        const char * const string,
+                                        uint16_t length,
+                                        TransportOutVector_t * iterator,
+                                        size_t * updatedLength )
+{
+    size_t packetLength = 0U;
+    const size_t seralizedLengthFieldSize = 2U;
+    TransportOutVector_t * pLocalIterator = iterator;
+    /* This function always adds 2 vectors. */
+    size_t vectorsAdded = 0U;
+
+    /* When length is non-zero, the string must be non-NULL. */
+    assert( ( length != 0U ) == ( string != NULL ) );
+
+    serailizedLength[ 0 ] = ( ( uint8_t ) ( ( length ) >> 8 ) );
+    serailizedLength[ 1 ] = ( ( uint8_t ) ( ( length ) & 0x00ffU ) );
+
+    /* Add the serialized length of the string first. */
+    pLocalIterator[ 0 ].iov_base = serailizedLength;
+    pLocalIterator[ 0 ].iov_len = seralizedLengthFieldSize;
+    vectorsAdded++;
+    packetLength = seralizedLengthFieldSize;
+
+    /* Sometimes the string can be NULL that is, of 0 length. In that case,
+     * only the length field should be encoded in the vector. */
+    if( ( string != NULL ) && ( length != 0U ) )
+    {
+        /* Then add the pointer to the string itself. */
+        pLocalIterator[ 1 ].iov_base = string;
+        pLocalIterator[ 1 ].iov_len = length;
+        vectorsAdded++;
+        packetLength += length;
+    }
+
+    ( *updatedLength ) = ( *updatedLength ) + packetLength;
+
+    return vectorsAdded;
+}
+
+/*-----------------------------------------------------------*/
+
+static MQTTStatus_t sendSubscribeWithoutCopy( MQTTContext_t * pContext,
+                                              const MQTTSubscribeInfo_t * pSubscriptionList,
+                                              size_t subscriptionCount,
+                                              uint16_t packetId,
+                                              size_t remainingLength )
 {
     MQTTStatus_t status = MQTTSuccess;
-    int32_t bytesSent = 0;
+    uint8_t subscribeheader[ 7 ];
+    uint8_t * pIndex;
+    TransportOutVector_t pIoVector[ MQTT_SUB_UNSUB_MAX_VECTORS ];
+    TransportOutVector_t * pIterator;
+    uint8_t serializedTopicFieldLength[ MQTT_SUB_UNSUB_MAX_VECTORS ][ 2 ];
+    size_t totalPacketLength = 0U;
+    size_t ioVectorLength = 0U;
+    size_t subscriptionsSent = 0U;
+    /* For subscribe, only three vector slots are required per topic string. */
+    const size_t subscriptionStringVectorSlots = 3U;
+    size_t vectorsAdded;
+    size_t topicFieldLengthIndex;
 
-    assert( pContext != NULL );
-    assert( pPublishInfo != NULL );
-    assert( headerSize > 0 );
-    assert( pContext->networkBuffer.pBuffer != NULL );
-    assert( !( pPublishInfo->payloadLength > 0 ) || ( pPublishInfo->pPayload != NULL ) );
+    /* The vector array should be at least three element long as the topic
+     * string needs these many vector elements to be stored. */
+    assert( MQTT_SUB_UNSUB_MAX_VECTORS >= subscriptionStringVectorSlots );
 
-    /* Send header first. */
-    bytesSent = sendPacket( pContext,
-                            pContext->networkBuffer.pBuffer,
-                            headerSize );
+    pIndex = subscribeheader;
+    pIterator = pIoVector;
 
-    if( bytesSent < ( int32_t ) headerSize )
+    pIndex = MQTT_SerializeSubscribeHeader( remainingLength,
+                                            pIndex,
+                                            packetId );
+
+    /* The header is to be sent first. */
+    pIterator->iov_base = subscribeheader;
+    /* More details at: https://github.com/FreeRTOS/coreMQTT/blob/main/MISRA.md#rule-182 */
+    /* More details at: https://github.com/FreeRTOS/coreMQTT/blob/main/MISRA.md#rule-108 */
+    /* coverity[misra_c_2012_rule_18_2_violation] */
+    /* coverity[misra_c_2012_rule_10_8_violation] */
+    pIterator->iov_len = ( size_t ) ( pIndex - subscribeheader );
+    totalPacketLength += pIterator->iov_len;
+    pIterator++;
+    ioVectorLength++;
+
+    while( ( status == MQTTSuccess ) && ( subscriptionsSent < subscriptionCount ) )
     {
-        LogError( ( "Transport send failed for PUBLISH header." ) );
+        /* Reset the index for next iteration. */
+        topicFieldLengthIndex = 0;
+
+        /* Check whether the subscription topic (with QoS) will fit in the
+         * given vector. */
+        while( ( ioVectorLength <= ( MQTT_SUB_UNSUB_MAX_VECTORS - subscriptionStringVectorSlots ) ) &&
+               ( subscriptionsSent < subscriptionCount ) )
+        {
+            /* The topic filter gets sent next. */
+            vectorsAdded = addEncodedStringToVector( serializedTopicFieldLength[ topicFieldLengthIndex ],
+                                                     pSubscriptionList[ subscriptionsSent ].pTopicFilter,
+                                                     pSubscriptionList[ subscriptionsSent ].topicFilterLength,
+                                                     pIterator,
+                                                     &totalPacketLength );
+
+            /* Update the pointer after the above operation. */
+            pIterator = &pIterator[ vectorsAdded ];
+
+            /* Lastly, the QoS gets sent. */
+            pIterator->iov_base = &( pSubscriptionList[ subscriptionsSent ].qos );
+            pIterator->iov_len = 1U;
+            totalPacketLength += pIterator->iov_len;
+
+            /* Increment the pointer. */
+            pIterator++;
+
+            /* Two slots get used by the topic string length and topic string.
+             * One slot gets used by the quality of service. */
+            ioVectorLength += vectorsAdded + 1U;
+
+            subscriptionsSent++;
+
+            /* The index needs to be updated for next iteration. */
+            topicFieldLengthIndex++;
+        }
+
+        if( sendMessageVector( pContext,
+                               pIoVector,
+                               ioVectorLength ) != ( int32_t ) totalPacketLength )
+        {
+            status = MQTTSendFailed;
+        }
+
+        /* Update the iterator for the next potential loop iteration. */
+        pIterator = pIoVector;
+        /* Reset the vector length for the next potential loop iteration. */
+        ioVectorLength = 0U;
+        /* Reset the packet length for the next potential loop iteration. */
+        totalPacketLength = 0U;
+    }
+
+    return status;
+}
+
+/*-----------------------------------------------------------*/
+
+static MQTTStatus_t sendUnsubscribeWithoutCopy( MQTTContext_t * pContext,
+                                                const MQTTSubscribeInfo_t * pSubscriptionList,
+                                                size_t subscriptionCount,
+                                                uint16_t packetId,
+                                                size_t remainingLength )
+{
+    MQTTStatus_t status = MQTTSuccess;
+    uint8_t unsubscribeheader[ 7 ];
+    uint8_t * pIndex;
+    TransportOutVector_t pIoVector[ MQTT_SUB_UNSUB_MAX_VECTORS ];
+    TransportOutVector_t * pIterator;
+    uint8_t serializedTopicFieldLength[ MQTT_SUB_UNSUB_MAX_VECTORS ][ 2 ];
+    size_t totalPacketLength = 0U;
+    size_t unsubscriptionsSent = 0U;
+    size_t ioVectorLength = 0U;
+    /* For unsubscribe, only two vector slots are required per topic string. */
+    const size_t unsubscribeStringVectorSlots = 2U;
+    size_t vectorsAdded;
+    size_t topicFieldLengthIndex;
+
+    /* The vector array should be at least three element long as the topic
+     * string needs these many vector elements to be stored. */
+    assert( MQTT_SUB_UNSUB_MAX_VECTORS >= unsubscribeStringVectorSlots );
+
+    pIndex = unsubscribeheader;
+    pIterator = pIoVector;
+
+    pIndex = MQTT_SerializeUnsubscribeHeader( remainingLength,
+                                              pIndex,
+                                              packetId );
+
+    /* The header is to be sent first. */
+    pIterator->iov_base = unsubscribeheader;
+    /* More details at: https://github.com/FreeRTOS/coreMQTT/blob/main/MISRA.md#rule-182 */
+    /* More details at: https://github.com/FreeRTOS/coreMQTT/blob/main/MISRA.md#rule-108 */
+    /* coverity[misra_c_2012_rule_18_2_violation] */
+    /* coverity[misra_c_2012_rule_10_8_violation] */
+    pIterator->iov_len = ( size_t ) ( pIndex - unsubscribeheader );
+    totalPacketLength += pIterator->iov_len;
+    pIterator++;
+    ioVectorLength++;
+
+    while( ( status == MQTTSuccess ) && ( unsubscriptionsSent < subscriptionCount ) )
+    {
+        /* Reset the index for next iteration. */
+        topicFieldLengthIndex = 0;
+
+        /* Check whether the subscription topic will fit in the given vector. */
+        while( ( ioVectorLength <= ( MQTT_SUB_UNSUB_MAX_VECTORS - unsubscribeStringVectorSlots ) ) &&
+               ( unsubscriptionsSent < subscriptionCount ) )
+        {
+            /* The topic filter gets sent next. */
+            vectorsAdded = addEncodedStringToVector( serializedTopicFieldLength[ topicFieldLengthIndex ],
+                                                     pSubscriptionList[ unsubscriptionsSent ].pTopicFilter,
+                                                     pSubscriptionList[ unsubscriptionsSent ].topicFilterLength,
+                                                     pIterator,
+                                                     &totalPacketLength );
+
+            /* Update the iterator to point to the next empty location. */
+            pIterator = &pIterator[ vectorsAdded ];
+            /* Update the total count based on how many vectors were added. */
+            ioVectorLength += vectorsAdded;
+
+            unsubscriptionsSent++;
+
+            /* Update the index for next iteration. */
+            topicFieldLengthIndex++;
+        }
+
+        if( sendMessageVector( pContext, pIoVector, ioVectorLength ) != ( int32_t ) totalPacketLength )
+        {
+            status = MQTTSendFailed;
+        }
+
+        /* Update the iterator for the next potential loop iteration. */
+        pIterator = pIoVector;
+        /* Reset the vector length for the next potential loop iteration. */
+        ioVectorLength = 0U;
+        /* Reset the packet length for the next potential loop iteration. */
+        totalPacketLength = 0U;
+    }
+
+    return status;
+}
+
+/*-----------------------------------------------------------*/
+
+static MQTTStatus_t sendPublishWithoutCopy( MQTTContext_t * pContext,
+                                            const MQTTPublishInfo_t * pPublishInfo,
+                                            const uint8_t * pMqttHeader,
+                                            size_t headerSize,
+                                            uint16_t packetId )
+{
+    MQTTStatus_t status = MQTTSuccess;
+    uint8_t serializedPacketID[ 2 ];
+    TransportOutVector_t pIoVector[ 4 ];
+    size_t ioVectorLength;
+    size_t totalMessageLength;
+    const size_t packetIDLength = 2U;
+
+    /* The header is sent first. */
+    pIoVector[ 0U ].iov_base = pMqttHeader;
+    pIoVector[ 0U ].iov_len = headerSize;
+    totalMessageLength = headerSize;
+
+    /* Then the topic name has to be sent. */
+    pIoVector[ 1U ].iov_base = pPublishInfo->pTopicName;
+    pIoVector[ 1U ].iov_len = pPublishInfo->topicNameLength;
+    totalMessageLength += pPublishInfo->topicNameLength;
+
+    /* The next field's index should be 2 as the first two fields
+     * have been filled in. */
+    ioVectorLength = 2U;
+
+    if( pPublishInfo->qos > MQTTQoS0 )
+    {
+        /* Encode the packet ID. */
+        serializedPacketID[ 0 ] = ( ( uint8_t ) ( ( packetId ) >> 8 ) );
+        serializedPacketID[ 1 ] = ( ( uint8_t ) ( ( packetId ) & 0x00ffU ) );
+
+        pIoVector[ ioVectorLength ].iov_base = serializedPacketID;
+        pIoVector[ ioVectorLength ].iov_len = packetIDLength;
+
+        ioVectorLength++;
+        totalMessageLength += packetIDLength;
+    }
+
+    /* Publish packets are allowed to contain no payload. */
+    if( pPublishInfo->payloadLength > 0U )
+    {
+        pIoVector[ ioVectorLength ].iov_base = pPublishInfo->pPayload;
+        pIoVector[ ioVectorLength ].iov_len = pPublishInfo->payloadLength;
+
+        ioVectorLength++;
+        totalMessageLength += pPublishInfo->payloadLength;
+    }
+
+    if( sendMessageVector( pContext, pIoVector, ioVectorLength ) != ( int32_t ) totalMessageLength )
+    {
         status = MQTTSendFailed;
+    }
+
+    return status;
+}
+
+/*-----------------------------------------------------------*/
+
+static MQTTStatus_t sendConnectWithoutCopy( MQTTContext_t * pContext,
+                                            const MQTTConnectInfo_t * pConnectInfo,
+                                            const MQTTPublishInfo_t * pWillInfo,
+                                            size_t remainingLength )
+{
+    MQTTStatus_t status = MQTTSuccess;
+    TransportOutVector_t * iterator;
+    size_t ioVectorLength = 0U;
+    size_t totalMessageLength = 0U;
+    int32_t bytesSentOrError;
+
+    /* Connect packet header can be of maximum 15 bytes. */
+    uint8_t connectPacketHeader[ 15 ];
+    uint8_t * pIndex = connectPacketHeader;
+    TransportOutVector_t pIoVector[ 11 ];
+    uint8_t serializedClientIDLength[ 2 ];
+    uint8_t serializedTopicLength[ 2 ];
+    uint8_t serializedPayloadLength[ 2 ];
+    uint8_t serializedUsernameLength[ 2 ];
+    uint8_t serializedPasswordLength[ 2 ];
+    size_t vectorsAdded;
+
+    iterator = pIoVector;
+
+    /* Validate arguments. */
+    if( ( pWillInfo != NULL ) && ( pWillInfo->pTopicName == NULL ) )
+    {
+        LogError( ( "pWillInfo->pTopicName cannot be NULL if Will is present." ) );
+        status = MQTTBadParameter;
     }
     else
     {
-        LogDebug( ( "Sent %ld bytes of PUBLISH header.",
-                    ( long int ) bytesSent ) );
+        pIndex = MQTT_SerializeConnectFixedHeader( pIndex,
+                                                   pConnectInfo,
+                                                   pWillInfo,
+                                                   remainingLength );
 
-        /* Send Payload if there is one to send. It is valid for a PUBLISH
-         * Packet to contain a zero length payload.*/
-        if( pPublishInfo->payloadLength > 0U )
+        assert( ( pIndex - connectPacketHeader ) <= 15 );
+
+        /* The header gets sent first. */
+        iterator->iov_base = connectPacketHeader;
+        /* More details at: https://github.com/FreeRTOS/coreMQTT/blob/main/MISRA.md#rule-182 */
+        /* More details at: https://github.com/FreeRTOS/coreMQTT/blob/main/MISRA.md#rule-108 */
+        /* coverity[misra_c_2012_rule_18_2_violation] */
+        /* coverity[misra_c_2012_rule_10_8_violation] */
+        iterator->iov_len = ( size_t ) ( pIndex - connectPacketHeader );
+        totalMessageLength += iterator->iov_len;
+        iterator++;
+        ioVectorLength++;
+
+        /* Serialize the client ID. */
+        vectorsAdded = addEncodedStringToVector( serializedClientIDLength,
+                                                 pConnectInfo->pClientIdentifier,
+                                                 pConnectInfo->clientIdentifierLength,
+                                                 iterator,
+                                                 &totalMessageLength );
+
+        /* Update the iterator to point to the next empty slot. */
+        iterator = &iterator[ vectorsAdded ];
+        ioVectorLength += vectorsAdded;
+
+        if( pWillInfo != NULL )
         {
-            bytesSent = sendPacket( pContext,
-                                    pPublishInfo->pPayload,
-                                    pPublishInfo->payloadLength );
+            /* Serialize the topic. */
+            vectorsAdded = addEncodedStringToVector( serializedTopicLength,
+                                                     pWillInfo->pTopicName,
+                                                     pWillInfo->topicNameLength,
+                                                     iterator,
+                                                     &totalMessageLength );
 
-            if( bytesSent < ( int32_t ) pPublishInfo->payloadLength )
-            {
-                LogError( ( "Transport send failed for PUBLISH payload." ) );
-                status = MQTTSendFailed;
-            }
-            else
-            {
-                LogDebug( ( "Sent %ld bytes of PUBLISH payload.",
-                            ( long int ) bytesSent ) );
-            }
+            /* Update the iterator to point to the next empty slot. */
+            iterator = &iterator[ vectorsAdded ];
+            ioVectorLength += vectorsAdded;
+
+
+            /* Serialize the payload. Payload of last will and testament can be NULL. */
+            vectorsAdded = addEncodedStringToVector( serializedPayloadLength,
+                                                     pWillInfo->pPayload,
+                                                     ( uint16_t ) pWillInfo->payloadLength,
+                                                     iterator,
+                                                     &totalMessageLength );
+
+            /* Update the iterator to point to the next empty slot. */
+            iterator = &iterator[ vectorsAdded ];
+            ioVectorLength += vectorsAdded;
         }
-        else
+
+        /* Encode the user name if provided. */
+        if( pConnectInfo->pUserName != NULL )
         {
-            LogDebug( ( "PUBLISH payload was not sent. Payload length was zero." ) );
+            /* Serialize the user name string. */
+            vectorsAdded = addEncodedStringToVector( serializedUsernameLength,
+                                                     pConnectInfo->pUserName,
+                                                     pConnectInfo->userNameLength,
+                                                     iterator,
+                                                     &totalMessageLength );
+
+            /* Update the iterator to point to the next empty slot. */
+            iterator = &iterator[ vectorsAdded ];
+            ioVectorLength += vectorsAdded;
+        }
+
+        /* Encode the password if provided. */
+        if( pConnectInfo->pPassword != NULL )
+        {
+            /* Serialize the user name string. */
+            vectorsAdded = addEncodedStringToVector( serializedPasswordLength,
+                                                     pConnectInfo->pPassword,
+                                                     pConnectInfo->passwordLength,
+                                                     iterator,
+                                                     &totalMessageLength );
+            /* Update the iterator to point to the next empty slot. */
+            iterator = &iterator[ vectorsAdded ];
+            ioVectorLength += vectorsAdded;
+        }
+
+        bytesSentOrError = sendMessageVector( pContext, pIoVector, ioVectorLength );
+
+        if( bytesSentOrError != ( int32_t ) totalMessageLength )
+        {
+            status = MQTTSendFailed;
         }
     }
 
@@ -1500,11 +2288,11 @@ static MQTTStatus_t receiveConnack( const MQTTContext_t * pContext,
          *    A value of 0 for the config will try once to read CONNACK. */
         if( timeoutMs > 0U )
         {
-            breakFromLoop = ( calculateElapsedTime( getTimeStamp(), entryTimeMs ) >= timeoutMs ) ? true : false;
+            breakFromLoop = calculateElapsedTime( getTimeStamp(), entryTimeMs ) >= timeoutMs;
         }
         else
         {
-            breakFromLoop = ( loopCount >= MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT ) ? true : false;
+            breakFromLoop = loopCount >= MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT;
             loopCount++;
         }
 
@@ -1592,6 +2380,10 @@ static MQTTStatus_t handleSessionResumption( MQTTContext_t * pContext,
 
     assert( pContext != NULL );
 
+    /* Reset the index and clear the buffer when a new session is established. */
+    pContext->index = 0;
+    ( void ) memset( pContext->networkBuffer.pBuffer, 0, pContext->networkBuffer.size );
+
     if( sessionPresent == true )
     {
         /* Get the next packet ID for which a PUBREL need to be resent. */
@@ -1609,54 +2401,23 @@ static MQTTStatus_t handleSessionResumption( MQTTContext_t * pContext,
     else
     {
         /* Clear any existing records if a new session is established. */
-        ( void ) memset( pContext->outgoingPublishRecords,
-                         0x00,
-                         sizeof( pContext->outgoingPublishRecords ) );
-        ( void ) memset( pContext->incomingPublishRecords,
-                         0x00,
-                         sizeof( pContext->incomingPublishRecords ) );
+        if( pContext->outgoingPublishRecordMaxCount > 0U )
+        {
+            ( void ) memset( pContext->outgoingPublishRecords,
+                             0x00,
+                             pContext->outgoingPublishRecordMaxCount * sizeof( *pContext->outgoingPublishRecords ) );
+        }
+
+        if( pContext->incomingPublishRecordMaxCount > 0U )
+        {
+            ( void ) memset( pContext->incomingPublishRecords,
+                             0x00,
+                             pContext->incomingPublishRecordMaxCount * sizeof( *pContext->incomingPublishRecords ) );
+        }
     }
 
     return status;
 }
-
-/*-----------------------------------------------------------*/
-
-static MQTTStatus_t serializePublish( const MQTTContext_t * pContext,
-                                      const MQTTPublishInfo_t * pPublishInfo,
-                                      uint16_t packetId,
-                                      size_t * const pHeaderSize )
-{
-    MQTTStatus_t status = MQTTSuccess;
-    size_t remainingLength = 0UL, packetSize = 0UL;
-
-    assert( pContext != NULL );
-    assert( pPublishInfo != NULL );
-    assert( pHeaderSize != NULL );
-
-    /* Get the remaining length and packet size.*/
-    status = MQTT_GetPublishPacketSize( pPublishInfo,
-                                        &remainingLength,
-                                        &packetSize );
-    LogDebug( ( "PUBLISH packet size is %lu and remaining length is %lu.",
-                ( unsigned long ) packetSize,
-                ( unsigned long ) remainingLength ) );
-
-    if( status == MQTTSuccess )
-    {
-        status = MQTT_SerializePublishHeader( pPublishInfo,
-                                              packetId,
-                                              remainingLength,
-                                              &( pContext->networkBuffer ),
-                                              pHeaderSize );
-        LogDebug( ( "Serialized PUBLISH header size is %lu.",
-                    ( unsigned long ) *pHeaderSize ) );
-    }
-
-    return status;
-}
-
-/*-----------------------------------------------------------*/
 
 static MQTTStatus_t validatePublishParams( const MQTTContext_t * pContext,
                                            const MQTTPublishInfo_t * pPublishInfo,
@@ -1687,9 +2448,16 @@ static MQTTStatus_t validatePublishParams( const MQTTContext_t * pContext,
                     pPublishInfo->pPayload ) );
         status = MQTTBadParameter;
     }
+    else if( ( pContext->outgoingPublishRecords == NULL ) && ( pPublishInfo->qos > MQTTQoS0 ) )
+    {
+        LogError( ( "Trying to publish a QoS > MQTTQoS0 packet when outgoing publishes "
+                    "for QoS1/QoS2 have not been enabled. Please, call MQTT_InitStatefulQoS "
+                    "to initialize and enable the use of QoS1/QoS2 publishes." ) );
+        status = MQTTBadParameter;
+    }
     else
     {
-        /* Empty else MISRA 15.7 */
+        /* MISRA else */
     }
 
     return status;
@@ -1756,6 +2524,95 @@ MQTTStatus_t MQTT_Init( MQTTContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
+MQTTStatus_t MQTT_InitStatefulQoS( MQTTContext_t * pContext,
+                                   MQTTPubAckInfo_t * pOutgoingPublishRecords,
+                                   size_t outgoingPublishCount,
+                                   MQTTPubAckInfo_t * pIncomingPublishRecords,
+                                   size_t incomingPublishCount )
+{
+    MQTTStatus_t status = MQTTSuccess;
+
+    if( pContext == NULL )
+    {
+        LogError( ( "Argument cannot be NULL: pContext=%p\n",
+                    ( void * ) pContext ) );
+        status = MQTTBadParameter;
+    }
+
+    /* Check whether the arguments make sense. Not equal here behaves
+     * like an exclusive-or operator for boolean values. */
+    else if( ( outgoingPublishCount == 0U ) !=
+             ( pOutgoingPublishRecords == NULL ) )
+    {
+        LogError( ( "Arguments do not match: pOutgoingPublishRecords=%p, "
+                    "outgoingPublishCount=%lu",
+                    ( void * ) pOutgoingPublishRecords,
+                    outgoingPublishCount ) );
+        status = MQTTBadParameter;
+    }
+
+    /* Check whether the arguments make sense. Not equal here behaves
+     * like an exclusive-or operator for boolean values. */
+    else if( ( incomingPublishCount == 0U ) !=
+             ( pIncomingPublishRecords == NULL ) )
+    {
+        LogError( ( "Arguments do not match: pIncomingPublishRecords=%p, "
+                    "incomingPublishCount=%lu",
+                    ( void * ) pIncomingPublishRecords,
+                    incomingPublishCount ) );
+        status = MQTTBadParameter;
+    }
+    else if( pContext->appCallback == NULL )
+    {
+        LogError( ( "MQTT_InitStatefulQoS must be called only after MQTT_Init has"
+                    " been called succesfully.\n" ) );
+        status = MQTTBadParameter;
+    }
+    else
+    {
+        pContext->incomingPublishRecordMaxCount = incomingPublishCount;
+        pContext->incomingPublishRecords = pIncomingPublishRecords;
+        pContext->outgoingPublishRecordMaxCount = outgoingPublishCount;
+        pContext->outgoingPublishRecords = pOutgoingPublishRecords;
+    }
+
+    return status;
+}
+
+/*-----------------------------------------------------------*/
+
+MQTTStatus_t MQTT_CancelCallback( const MQTTContext_t * pContext,
+                                  uint16_t packetId )
+{
+    MQTTStatus_t status = MQTTSuccess;
+
+    if( pContext == NULL )
+    {
+        LogWarn( ( "pContext is NULL\n" ) );
+        status = MQTTBadParameter;
+    }
+    else if( pContext->outgoingPublishRecords == NULL )
+    {
+        LogError( ( "QoS1/QoS2 is not initialized for use. Please, "
+                    "call MQTT_InitStatefulQoS to enable QoS1 and QoS2 "
+                    "publishes.\n" ) );
+        status = MQTTBadParameter;
+    }
+    else
+    {
+        MQTT_PRE_STATE_UPDATE_HOOK( pContext );
+
+        status = MQTT_RemoveStateRecord( pContext,
+                                         packetId );
+
+        MQTT_POST_STATE_UPDATE_HOOK( pContext );
+    }
+
+    return status;
+}
+
+/*-----------------------------------------------------------*/
+
 MQTTStatus_t MQTT_Connect( MQTTContext_t * pContext,
                            const MQTTConnectInfo_t * pConnectInfo,
                            const MQTTPublishInfo_t * pWillInfo,
@@ -1763,7 +2620,6 @@ MQTTStatus_t MQTT_Connect( MQTTContext_t * pContext,
                            bool * pSessionPresent )
 {
     size_t remainingLength = 0UL, packetSize = 0UL;
-    int32_t bytesSent;
     MQTTStatus_t status = MQTTSuccess;
     MQTTPacketInfo_t incomingPacket = { 0 };
 
@@ -1793,28 +2649,14 @@ MQTTStatus_t MQTT_Connect( MQTTContext_t * pContext,
 
     if( status == MQTTSuccess )
     {
-        status = MQTT_SerializeConnect( pConnectInfo,
-                                        pWillInfo,
-                                        remainingLength,
-                                        &( pContext->networkBuffer ) );
-    }
+        MQTT_PRE_SEND_HOOK( pContext );
 
-    if( status == MQTTSuccess )
-    {
-        bytesSent = sendPacket( pContext,
-                                pContext->networkBuffer.pBuffer,
-                                packetSize );
+        status = sendConnectWithoutCopy( pContext,
+                                         pConnectInfo,
+                                         pWillInfo,
+                                         remainingLength );
 
-        if( bytesSent < ( int32_t ) packetSize )
-        {
-            LogError( ( "Transport send failed for CONNECT packet." ) );
-            status = MQTTSendFailed;
-        }
-        else
-        {
-            LogDebug( ( "Sent %ld bytes of CONNECT packet.",
-                        ( long int ) bytesSent ) );
-        }
+        MQTT_POST_SEND_HOOK( pContext );
     }
 
     /* Read CONNACK from transport layer. */
@@ -1859,7 +2701,6 @@ MQTTStatus_t MQTT_Subscribe( MQTTContext_t * pContext,
                              uint16_t packetId )
 {
     size_t remainingLength = 0UL, packetSize = 0UL;
-    int32_t bytesSent = 0;
 
     /* Validate arguments. */
     MQTTStatus_t status = validateSubscribeUnsubscribeParams( pContext,
@@ -1881,31 +2722,16 @@ MQTTStatus_t MQTT_Subscribe( MQTTContext_t * pContext,
 
     if( status == MQTTSuccess )
     {
-        /* Serialize MQTT SUBSCRIBE packet. */
-        status = MQTT_SerializeSubscribe( pSubscriptionList,
-                                          subscriptionCount,
-                                          packetId,
-                                          remainingLength,
-                                          &( pContext->networkBuffer ) );
-    }
+        MQTT_PRE_SEND_HOOK( pContext );
 
-    if( status == MQTTSuccess )
-    {
-        /* Send serialized MQTT SUBSCRIBE packet to transport layer. */
-        bytesSent = sendPacket( pContext,
-                                pContext->networkBuffer.pBuffer,
-                                packetSize );
+        /* Send MQTT SUBSCRIBE packet. */
+        status = sendSubscribeWithoutCopy( pContext,
+                                           pSubscriptionList,
+                                           subscriptionCount,
+                                           packetId,
+                                           remainingLength );
 
-        if( bytesSent < ( int32_t ) packetSize )
-        {
-            LogError( ( "Transport send failed for SUBSCRIBE packet." ) );
-            status = MQTTSendFailed;
-        }
-        else
-        {
-            LogDebug( ( "Sent %ld bytes of SUBSCRIBE packet.",
-                        ( long int ) bytesSent ) );
-        }
+        MQTT_POST_SEND_HOOK( pContext );
     }
 
     return status;
@@ -1918,23 +2744,41 @@ MQTTStatus_t MQTT_Publish( MQTTContext_t * pContext,
                            uint16_t packetId )
 {
     size_t headerSize = 0UL;
+    size_t remainingLength = 0UL;
+    size_t packetSize = 0UL;
     MQTTPublishState_t publishStatus = MQTTStateNull;
+    bool stateUpdateHookExecuted = false;
+
+    /* 1 header byte + 4 bytes (maximum) required for encoding the length +
+     * 2 bytes for topic string. */
+    uint8_t mqttHeader[ 7 ];
 
     /* Validate arguments. */
     MQTTStatus_t status = validatePublishParams( pContext, pPublishInfo, packetId );
 
     if( status == MQTTSuccess )
     {
-        /* Serialize PUBLISH packet. */
-        status = serializePublish( pContext,
-                                   pPublishInfo,
-                                   packetId,
-                                   &headerSize );
+        /* Get the remaining length and packet size.*/
+        status = MQTT_GetPublishPacketSize( pPublishInfo,
+                                            &remainingLength,
+                                            &packetSize );
+    }
+
+    if( status == MQTTSuccess )
+    {
+        status = MQTT_SerializePublishHeaderWithoutTopic( pPublishInfo,
+                                                          remainingLength,
+                                                          mqttHeader,
+                                                          &headerSize );
     }
 
     if( ( status == MQTTSuccess ) && ( pPublishInfo->qos > MQTTQoS0 ) )
     {
-        /* Reserve state for publish message. Only to be done for QoS1 or QoS2. */
+        MQTT_PRE_STATE_UPDATE_HOOK( pContext );
+
+        /* Set the flag so that the corresponding hook can be called later. */
+        stateUpdateHookExecuted = true;
+
         status = MQTT_ReserveState( pContext,
                                     packetId,
                                     pPublishInfo->qos );
@@ -1950,13 +2794,22 @@ MQTTStatus_t MQTT_Publish( MQTTContext_t * pContext,
 
     if( status == MQTTSuccess )
     {
-        /* Sends the serialized publish packet over network. */
-        status = sendPublish( pContext,
-                              pPublishInfo,
-                              headerSize );
+        /* Take the mutex as multiple send calls are required for sending this
+         * packet. */
+        MQTT_PRE_SEND_HOOK( pContext );
+
+        status = sendPublishWithoutCopy( pContext,
+                                         pPublishInfo,
+                                         mqttHeader,
+                                         headerSize,
+                                         packetId );
+
+        /* Give the mutex away for the next taker. */
+        MQTT_POST_SEND_HOOK( pContext );
     }
 
-    if( ( status == MQTTSuccess ) && ( pPublishInfo->qos > MQTTQoS0 ) )
+    if( ( status == MQTTSuccess ) &&
+        ( pPublishInfo->qos > MQTTQoS0 ) )
     {
         /* Update state machine after PUBLISH is sent.
          * Only to be done for QoS1 or QoS2. */
@@ -1976,6 +2829,13 @@ MQTTStatus_t MQTT_Publish( MQTTContext_t * pContext,
         }
     }
 
+    if( stateUpdateHookExecuted == true )
+    {
+        /* Regardless of the status, if the mutex was taken due to the
+         * packet being of QoS > QoS0, then it should be relinquished. */
+        MQTT_POST_STATE_UPDATE_HOOK( pContext );
+    }
+
     if( status != MQTTSuccess )
     {
         LogError( ( "MQTT PUBLISH failed with status %s.",
@@ -1989,9 +2849,15 @@ MQTTStatus_t MQTT_Publish( MQTTContext_t * pContext,
 
 MQTTStatus_t MQTT_Ping( MQTTContext_t * pContext )
 {
-    int32_t bytesSent = 0;
+    int32_t sendResult = 0;
     MQTTStatus_t status = MQTTSuccess;
     size_t packetSize = 0U;
+    /* MQTT ping packets are of fixed length. */
+    uint8_t pingreqPacket[ 2U ];
+    MQTTFixedBuffer_t localBuffer;
+
+    localBuffer.pBuffer = pingreqPacket;
+    localBuffer.size = 2U;
 
     if( pContext == NULL )
     {
@@ -2018,28 +2884,38 @@ MQTTStatus_t MQTT_Ping( MQTTContext_t * pContext )
     if( status == MQTTSuccess )
     {
         /* Serialize MQTT PINGREQ. */
-        status = MQTT_SerializePingreq( &( pContext->networkBuffer ) );
+        status = MQTT_SerializePingreq( &localBuffer );
     }
 
     if( status == MQTTSuccess )
     {
-        /* Send the serialized PINGREQ packet to transport layer. */
-        bytesSent = sendPacket( pContext,
-                                pContext->networkBuffer.pBuffer,
-                                packetSize );
+        /* Take the mutex as the send call should not be interrupted in
+         * between. */
+        MQTT_PRE_SEND_HOOK( pContext );
+
+        /* Send the serialized PINGREQ packet to transport layer.
+         * Here, we do not use the vectored IO approach for efficiency as the
+         * Ping packet does not have numerous fields which need to be copied
+         * from the user provided buffers. Thus it can be sent directly. */
+        sendResult = sendBuffer( pContext,
+                                 localBuffer.pBuffer,
+                                 2U );
+
+        /* Give the mutex away. */
+        MQTT_POST_SEND_HOOK( pContext );
 
         /* It is an error to not send the entire PINGREQ packet. */
-        if( bytesSent < ( int32_t ) packetSize )
+        if( sendResult < ( int32_t ) packetSize )
         {
             LogError( ( "Transport send failed for PINGREQ packet." ) );
             status = MQTTSendFailed;
         }
         else
         {
-            pContext->pingReqSendTimeMs = pContext->lastPacketTime;
+            pContext->pingReqSendTimeMs = pContext->lastPacketTxTime;
             pContext->waitingForPingResp = true;
             LogDebug( ( "Sent %ld bytes of PINGREQ packet.",
-                        ( long int ) bytesSent ) );
+                        ( long int ) sendResult ) );
         }
     }
 
@@ -2054,7 +2930,6 @@ MQTTStatus_t MQTT_Unsubscribe( MQTTContext_t * pContext,
                                uint16_t packetId )
 {
     size_t remainingLength = 0UL, packetSize = 0UL;
-    int32_t bytesSent = 0;
 
     /* Validate arguments. */
     MQTTStatus_t status = validateSubscribeUnsubscribeParams( pContext,
@@ -2076,31 +2951,17 @@ MQTTStatus_t MQTT_Unsubscribe( MQTTContext_t * pContext,
 
     if( status == MQTTSuccess )
     {
-        /* Serialize MQTT UNSUBSCRIBE packet. */
-        status = MQTT_SerializeUnsubscribe( pSubscriptionList,
-                                            subscriptionCount,
-                                            packetId,
-                                            remainingLength,
-                                            &( pContext->networkBuffer ) );
-    }
+        /* Take the mutex because the below call should not be interrupted. */
+        MQTT_PRE_SEND_HOOK( pContext );
 
-    if( status == MQTTSuccess )
-    {
-        /* Send serialized MQTT UNSUBSCRIBE packet to transport layer. */
-        bytesSent = sendPacket( pContext,
-                                pContext->networkBuffer.pBuffer,
-                                packetSize );
+        status = sendUnsubscribeWithoutCopy( pContext,
+                                             pSubscriptionList,
+                                             subscriptionCount,
+                                             packetId,
+                                             remainingLength );
 
-        if( bytesSent < ( int32_t ) packetSize )
-        {
-            LogError( ( "Transport send failed for UNSUBSCRIBE packet." ) );
-            status = MQTTSendFailed;
-        }
-        else
-        {
-            LogDebug( ( "Sent %ld bytes of UNSUBSCRIBE packet.",
-                        ( long int ) bytesSent ) );
-        }
+        /* Give the mutex away. */
+        MQTT_POST_SEND_HOOK( pContext );
     }
 
     return status;
@@ -2111,8 +2972,13 @@ MQTTStatus_t MQTT_Unsubscribe( MQTTContext_t * pContext,
 MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext )
 {
     size_t packetSize = 0U;
-    int32_t bytesSent = 0;
+    int32_t sendResult = 0;
     MQTTStatus_t status = MQTTSuccess;
+    MQTTFixedBuffer_t localBuffer;
+    uint8_t disconnectPacket[ 2U ];
+
+    localBuffer.pBuffer = disconnectPacket;
+    localBuffer.size = 2U;
 
     /* Validate arguments. */
     if( pContext == NULL )
@@ -2132,16 +2998,25 @@ MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext )
     if( status == MQTTSuccess )
     {
         /* Serialize MQTT DISCONNECT packet. */
-        status = MQTT_SerializeDisconnect( &( pContext->networkBuffer ) );
+        status = MQTT_SerializeDisconnect( &localBuffer );
     }
 
     if( status == MQTTSuccess )
     {
-        bytesSent = sendPacket( pContext,
-                                pContext->networkBuffer.pBuffer,
-                                packetSize );
+        /* Take the mutex because the below call should not be interrupted. */
+        MQTT_PRE_SEND_HOOK( pContext );
 
-        if( bytesSent < ( int32_t ) packetSize )
+        /* Here we do not use vectors as the disconnect packet has fixed fields
+         * which do not reside in user provided buffers. Thus, it can be sent
+         * using a simple send call. */
+        sendResult = sendBuffer( pContext,
+                                 localBuffer.pBuffer,
+                                 packetSize );
+
+        /* Give the mutex away. */
+        MQTT_POST_SEND_HOOK( pContext );
+
+        if( sendResult < ( int32_t ) packetSize )
         {
             LogError( ( "Transport send failed for DISCONNECT packet." ) );
             status = MQTTSendFailed;
@@ -2149,7 +3024,7 @@ MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext )
         else
         {
             LogDebug( ( "Sent %ld bytes of DISCONNECT packet.",
-                        ( long int ) bytesSent ) );
+                        ( long int ) sendResult ) );
         }
     }
 
@@ -2157,6 +3032,10 @@ MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext )
     {
         LogInfo( ( "Disconnected from the broker." ) );
         pContext->connectStatus = MQTTNotConnected;
+
+        /* Reset the index and clean the buffer on a successful disconnect. */
+        pContext->index = 0;
+        ( void ) memset( pContext->networkBuffer.pBuffer, 0, pContext->networkBuffer.size );
     }
 
     return status;
@@ -2164,11 +3043,9 @@ MQTTStatus_t MQTT_Disconnect( MQTTContext_t * pContext )
 
 /*-----------------------------------------------------------*/
 
-MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
-                               uint32_t timeoutMs )
+MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext )
 {
     MQTTStatus_t status = MQTTBadParameter;
-    uint32_t entryTimeMs = 0U, remainingTimeMs = timeoutMs, elapsedTimeMs = 0U;
 
     if( pContext == NULL )
     {
@@ -2184,36 +3061,8 @@ MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
     }
     else
     {
-        entryTimeMs = pContext->getTime();
         pContext->controlPacketSent = false;
-        status = MQTTSuccess;
-    }
-
-    while( status == MQTTSuccess )
-    {
-        status = receiveSingleIteration( pContext, remainingTimeMs, true );
-
-        /* We don't need to break here since the status is already checked in
-         * the loop condition, and we do not want multiple breaks in a loop. */
-        if( status != MQTTSuccess )
-        {
-            LogError( ( "Exiting process loop due to failure: ErrorStatus=%s",
-                        MQTT_Status_strerror( status ) ) );
-        }
-        else
-        {
-            /* Recalculate remaining time and check if loop should exit. This is
-             * done at the end so the loop will run at least a single iteration. */
-            elapsedTimeMs = calculateElapsedTime( pContext->getTime(),
-                                                  entryTimeMs );
-
-            if( elapsedTimeMs >= timeoutMs )
-            {
-                break;
-            }
-
-            remainingTimeMs = timeoutMs - elapsedTimeMs;
-        }
+        status = receiveSingleIteration( pContext, true );
     }
 
     return status;
@@ -2221,11 +3070,9 @@ MQTTStatus_t MQTT_ProcessLoop( MQTTContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
-MQTTStatus_t MQTT_ReceiveLoop( MQTTContext_t * pContext,
-                               uint32_t timeoutMs )
+MQTTStatus_t MQTT_ReceiveLoop( MQTTContext_t * pContext )
 {
     MQTTStatus_t status = MQTTBadParameter;
-    uint32_t entryTimeMs = 0U, remainingTimeMs = timeoutMs, elapsedTimeMs = 0U;
 
     if( pContext == NULL )
     {
@@ -2241,34 +3088,7 @@ MQTTStatus_t MQTT_ReceiveLoop( MQTTContext_t * pContext,
     }
     else
     {
-        entryTimeMs = pContext->getTime();
-        status = MQTTSuccess;
-    }
-
-    while( status == MQTTSuccess )
-    {
-        status = receiveSingleIteration( pContext, remainingTimeMs, false );
-
-        /* We don't need to break here since the status is already checked in
-         * the loop condition, and we do not want multiple breaks in a loop. */
-        if( status != MQTTSuccess )
-        {
-            LogError( ( "Exiting receive loop. Error status=%s",
-                        MQTT_Status_strerror( status ) ) );
-        }
-        else
-        {
-            /* Recalculate remaining time and check if loop should exit. This is
-             * done at the end so the loop will run at least a single iteration. */
-            elapsedTimeMs = calculateElapsedTime( pContext->getTime(), entryTimeMs );
-
-            if( elapsedTimeMs >= timeoutMs )
-            {
-                break;
-            }
-
-            remainingTimeMs = timeoutMs - elapsedTimeMs;
-        }
+        status = receiveSingleIteration( pContext, false );
     }
 
     return status;
@@ -2282,6 +3102,8 @@ uint16_t MQTT_GetPacketId( MQTTContext_t * pContext )
 
     if( pContext != NULL )
     {
+        MQTT_PRE_STATE_UPDATE_HOOK( pContext );
+
         packetId = pContext->nextPacketId;
 
         /* A packet ID of zero is not a valid packet ID. When the max ID
@@ -2294,6 +3116,8 @@ uint16_t MQTT_GetPacketId( MQTTContext_t * pContext )
         {
             pContext->nextPacketId++;
         }
+
+        MQTT_POST_STATE_UPDATE_HOOK( pContext );
     }
 
     return packetId;
@@ -2339,7 +3163,7 @@ MQTTStatus_t MQTT_MatchTopic( const char * pTopicName,
          * topic filter length match. */
         if( topicNameLength == topicFilterLength )
         {
-            matchStatus = ( strncmp( pTopicName, pTopicFilter, topicNameLength ) == 0 ) ? true : false;
+            matchStatus = strncmp( pTopicName, pTopicFilter, topicNameLength ) == 0;
         }
 
         if( matchStatus == false )
@@ -2348,8 +3172,8 @@ MQTTStatus_t MQTT_MatchTopic( const char * pTopicName,
              * topic filter.*/
 
             /* Determine if topic filter starts with a wildcard. */
-            topicFilterStartsWithWildcard = ( ( pTopicFilter[ 0 ] == '+' ) ||
-                                              ( pTopicFilter[ 0 ] == '#' ) ) ? true : false;
+            topicFilterStartsWithWildcard = ( pTopicFilter[ 0 ] == '+' ) ||
+                                            ( pTopicFilter[ 0 ] == '#' );
 
             /* Note: According to the MQTT 3.1.1 specification, incoming PUBLISH topic names
              * starting with "$" character cannot be matched against topic filter starting with
@@ -2420,7 +3244,7 @@ MQTTStatus_t MQTT_GetSubAckStatusCodes( const MQTTPacketInfo_t * pSubackPacket,
          * length of the variable header (2 bytes) plus the length of the payload.
          * Therefore, we add 2 positions for the starting address of the payload, and
          * subtract 2 bytes from the remaining length for the length of the payload.*/
-        *pPayloadStart = pSubackPacket->pRemainingData + ( ( uint16_t ) sizeof( uint16_t ) );
+        *pPayloadStart = &pSubackPacket->pRemainingData[ sizeof( uint16_t ) ];
         *pPayloadSize = pSubackPacket->remainingLength - sizeof( uint16_t );
     }
 

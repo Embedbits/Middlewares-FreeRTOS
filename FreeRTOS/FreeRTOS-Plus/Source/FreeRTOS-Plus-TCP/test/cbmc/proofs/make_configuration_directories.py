@@ -2,7 +2,7 @@
 #
 # Creating the CBMC proofs from Configurations.json.
 #
-# Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+# Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ def prolog():
           "OBJS":
           [
             "$(ENTRY)_harness.goto",
-            "$(FREERTOS_PLUS_TCP)/FreeRTOS_ARP.goto"
+            "$(FREERTOS_PLUS_TCP)/source/FreeRTOS_ARP.goto"
           ],
           "DEF":
           [
@@ -85,7 +85,7 @@ def prolog():
           ],
           "OBJS": [
             "$(ENTRY)_harness.goto",
-            "$(FREERTOS_PLUS_TCP)/FreeRTOS_ARP.goto"
+            "$(FREERTOS_PLUS_TCP)/source/FreeRTOS_ARP.goto"
           ],
           "DEF": [
             "ipconfigARP_USE_CLASH_DETECTION=0"

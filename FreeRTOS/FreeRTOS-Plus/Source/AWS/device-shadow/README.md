@@ -8,6 +8,8 @@ This library has gone through code quality checks including verification that no
 
 See memory requirements for this library [here](https://docs.aws.amazon.com/embedded-csdk/202103.00/lib-ref/libraries/aws/device-shadow-for-aws-iot-embedded-sdk/docs/doxygen/output/html/index.html#shadow_memory_requirements).
 
+**AWS IoT Device Shadow v1.3.0 [source code](https://github.com/aws/Device-Shadow-for-AWS-IoT-embedded-sdk/tree/v1.3.0) is part of the [FreeRTOS 202210.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202210.00-LTS) release.**
+
 **AWS IoT Device Shadow v1.0.2 [source code](https://github.com/aws/Device-Shadow-for-AWS-IoT-embedded-sdk/tree/v1.0.2) is part of the [FreeRTOS 202012.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.00-LTS) release.**
 
 ### AWS IoT Device Shadow Config File
@@ -54,6 +56,14 @@ git submodule update --checkout --init --recursive --test/unit-test/CMock
 1. The generated test executables will be present in `build/bin/tests` folder.
 
 1. Run `cd build && ctest` to execute all tests and view the test run summary.
+
+## CBMC
+
+To learn more about CBMC and proofs specifically, review the training material [here](https://model-checking.github.io/cbmc-training).
+
+The `test/cbmc/proofs` directory contains CBMC proofs.
+
+In order to run these proofs you will need to install CBMC and other tools by following the instructions [here](https://model-checking.github.io/cbmc-training/installation.html).
 
 ## Reference examples
 

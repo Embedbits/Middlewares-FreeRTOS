@@ -1,6 +1,6 @@
 #
 # FreeRTOS memory safety proofs with CBMC.
-# Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+# Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -35,8 +35,8 @@
   "OBJS":
   [
     "$(ENTRY)_harness.goto",
-    "$(FREERTOS_PLUS_TCP)/FreeRTOS_IP.goto",
-    "$(FREERTOS_PLUS_TCP)/FreeRTOS_ARP.goto"
+    "$(FREERTOS_PLUS_TCP)/source/FreeRTOS_IP.goto",
+    "$(FREERTOS_PLUS_TCP)/source/FreeRTOS_ARP.goto"
   ],
   #That is the minimal required size for an ARPPacket_t plus offset in the buffer.
   "MINIMUM_PACKET_BYTES": 50,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -41,7 +41,7 @@
     #define CATCH_JMPBUF    waypoint_
 #endif
 
-jmp_buf CATCH_JMPBUF;
+static jmp_buf CATCH_JMPBUF;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -53,7 +53,7 @@ static void catchHandler_( int signal )
 
 #define catch_assert( x )                    \
     do {                                     \
-        int try = 0, catch = 0;              \
+        int ltry = 0, lcatch = 0;            \
         int saveFd = dup( 2 );               \
         struct sigaction sa = { 0 }, saveSa; \
         sa.sa_handler = catchHandler_;       \
@@ -61,17 +61,17 @@ static void catchHandler_( int signal )
         close( 2 );                          \
         if( setjmp( CATCH_JMPBUF ) == 0 )    \
         {                                    \
-            try++;                           \
+            ltry++;                          \
             x;                               \
         }                                    \
         else                                 \
         {                                    \
-            catch++;                         \
+            lcatch++;                        \
         }                                    \
         sigaction( SIGABRT, &saveSa, NULL ); \
         dup2( saveFd, 2 );                   \
         close( saveFd );                     \
-        TEST_ASSERT_EQUAL( try, catch );     \
+        TEST_ASSERT_EQUAL( ltry, lcatch );   \
     } while( 0 )
 
 #endif /* ifndef CATCH_ASSERT_H_ */

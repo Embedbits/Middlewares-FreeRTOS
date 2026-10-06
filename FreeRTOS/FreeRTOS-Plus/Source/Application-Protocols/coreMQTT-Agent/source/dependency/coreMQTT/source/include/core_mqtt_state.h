@@ -1,6 +1,8 @@
 /*
- * coreMQTT v1.2.0
- * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * coreMQTT v2.1.0
+ * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -62,7 +64,7 @@ typedef enum MQTTStateOperation
 /** @endcond */
 
 /**
- * @fn MQTTStatus_t MQTT_ReserveState( MQTTContext_t * pMqttContext, uint16_t packetId, MQTTQoS_t qos );
+ * @fn MQTTStatus_t MQTT_ReserveState( const MQTTContext_t * pMqttContext, uint16_t packetId, MQTTQoS_t qos );
  * @brief Reserve an entry for an outgoing QoS 1 or Qos 2 publish.
  *
  * @param[in] pMqttContext Initialized MQTT context.
@@ -76,7 +78,7 @@ typedef enum MQTTStateOperation
  * @cond DOXYGEN_IGNORE
  * Doxygen should ignore this definition, this function is private.
  */
-MQTTStatus_t MQTT_ReserveState( MQTTContext_t * pMqttContext,
+MQTTStatus_t MQTT_ReserveState( const MQTTContext_t * pMqttContext,
                                 uint16_t packetId,
                                 MQTTQoS_t qos );
 /** @endcond */
@@ -100,7 +102,7 @@ MQTTPublishState_t MQTT_CalculateStatePublish( MQTTStateOperation_t opType,
 /** @endcond */
 
 /**
- * @fn MQTTStatus_t MQTT_UpdateStatePublish( MQTTContext_t * pMqttContext, uint16_t packetId, MQTTStateOperation_t opType, MQTTQoS_t qos, MQTTPublishState_t * pNewState );
+ * @fn MQTTStatus_t MQTT_UpdateStatePublish( const MQTTContext_t * pMqttContext, uint16_t packetId, MQTTStateOperation_t opType, MQTTQoS_t qos, MQTTPublishState_t * pNewState );
  * @brief Update the state record for a PUBLISH packet.
  *
  * @param[in] pMqttContext Initialized MQTT context.
@@ -117,11 +119,29 @@ MQTTPublishState_t MQTT_CalculateStatePublish( MQTTStateOperation_t opType,
  * @cond DOXYGEN_IGNORE
  * Doxygen should ignore this definition, this function is private.
  */
-MQTTStatus_t MQTT_UpdateStatePublish( MQTTContext_t * pMqttContext,
+MQTTStatus_t MQTT_UpdateStatePublish( const MQTTContext_t * pMqttContext,
                                       uint16_t packetId,
                                       MQTTStateOperation_t opType,
                                       MQTTQoS_t qos,
                                       MQTTPublishState_t * pNewState );
+/** @endcond */
+
+/**
+ * @fn MQTTStatus_t MQTT_RemoveStateRecord( const MQTTContext_t * pMqttContext, uint16_t packetId );
+ * @brief Remove the state record for a PUBLISH packet.
+ *
+ * @param[in] pMqttContext Initialized MQTT context.
+ * @param[in] packetId ID of the PUBLISH packet.
+ *
+ * @return #MQTTBadParameter or #MQTTSuccess.
+ */
+
+/**
+ * @cond DOXYGEN_IGNORE
+ * Doxygen should ignore this definition, this function is private.
+ */
+MQTTStatus_t MQTT_RemoveStateRecord( const MQTTContext_t * pMqttContext,
+                                     uint16_t packetId );
 /** @endcond */
 
 /**
@@ -145,7 +165,7 @@ MQTTPublishState_t MQTT_CalculateStateAck( MQTTPubAckType_t packetType,
 /** @endcond */
 
 /**
- * @fn MQTTStatus_t MQTT_UpdateStateAck( MQTTContext_t * pMqttContext, uint16_t packetId, MQTTPubAckType_t packetType, MQTTStateOperation_t opType, MQTTPublishState_t * pNewState );
+ * @fn MQTTStatus_t MQTT_UpdateStateAck( const MQTTContext_t * pMqttContext, uint16_t packetId, MQTTPubAckType_t packetType, MQTTStateOperation_t opType, MQTTPublishState_t * pNewState );
  * @brief Update the state record for an ACKed publish.
  *
  * @param[in] pMqttContext Initialized MQTT context.
@@ -164,7 +184,7 @@ MQTTPublishState_t MQTT_CalculateStateAck( MQTTPubAckType_t packetType,
  * @cond DOXYGEN_IGNORE
  * Doxygen should ignore this definition, this function is private.
  */
-MQTTStatus_t MQTT_UpdateStateAck( MQTTContext_t * pMqttContext,
+MQTTStatus_t MQTT_UpdateStateAck( const MQTTContext_t * pMqttContext,
                                   uint16_t packetId,
                                   MQTTPubAckType_t packetType,
                                   MQTTStateOperation_t opType,

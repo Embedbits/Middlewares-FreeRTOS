@@ -6,7 +6,7 @@ This library has gone through code quality checks including verification that no
 
 See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
-**coreMQTT v1.1.0 [source code](https://github.com/FreeRTOS/coreMQTT/tree/v1.1.0/source) is part of the [FreeRTOS 202012.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.00-LTS) release.**
+**coreMQTT v2.1.0 [source code](https://github.com/FreeRTOS/coreMQTT/tree/v2.1.0/source) is part of the [FreeRTOS 202210.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202210.00-LTS) release.**
 
 ## MQTT Config File
 
@@ -47,17 +47,17 @@ is an empty value.
 
 Example
 
-*  Actual_Username = “iotuser”, OS_Name = FreeRTOS, OS_Version = V10.4.3, Hardware_Platform_Name = WinSim, MQTT_Library_Name = coremqtt, MQTT_Library_version = 1.1.0. If username is not used, then “iotuser” can be removed.
+*  Actual_Username = “iotuser”, OS_Name = FreeRTOS, OS_Version = V10.4.3, Hardware_Platform_Name = WinSim, MQTT_Library_Name = coremqtt, MQTT_Library_version = 2.1.0. If username is not used, then “iotuser” can be removed.
 
 ```
 /* Username string:
- * iotuser?SDK=FreeRTOS&Version=v10.4.3&Platform=WinSim&MQTTLib=coremqtt@1.1.0
+ * iotuser?SDK=FreeRTOS&Version=v10.4.3&Platform=WinSim&MQTTLib=coremqtt@2.1.0
  */
 
 #define OS_NAME                   "FreeRTOS"
 #define OS_VERSION                "V10.4.3"
 #define HARDWARE_PLATFORM_NAME    "WinSim"
-#define MQTT_LIB                  "coremqtt@1.1.0"
+#define MQTT_LIB                  "coremqtt@2.1.0"
 
 #define USERNAME_STRING           "iotuser?SDK=" OS_NAME "&Version=" OS_VERSION "&Platform=" HARDWARE_PLATFORM_NAME "&MQTTLib=" MQTT_LIB
 #define USERNAME_STRING_LENGTH    ( ( uint16_t ) ( sizeof( USERNAME_STRING ) - 1 ) )
@@ -68,6 +68,9 @@ connectInfo.userNameLength = USERNAME_STRING_LENGTH;
 mqttStatus = MQTT_Connect( pMqttContext, &connectInfo, NULL, CONNACK_RECV_TIMEOUT_MS, pSessionPresent );
 ```
 
+## Upgrading to v2.0.0 and above
+
+With coreMQTT versions >=v2.0.0, there are breaking changes. Please refer to the [coreMQTT version >=v2.0.0 Migration Guide](MigrationGuide.md).
 
 ## Building the Library
 
@@ -91,6 +94,9 @@ git submodule update --checkout --init --recursive test/unit-test/CMock
 
 ### Platform Prerequisites
 
+- Docker
+
+or the following:
 - For running unit tests
     - **C90 compiler** like gcc
     - **CMake 3.13.0 or later**
@@ -98,6 +104,10 @@ git submodule update --checkout --init --recursive test/unit-test/CMock
 - For running the coverage target, **gcov** and **lcov** are additionally required.
 
 ### Steps to build **Unit Tests**
+
+1. If using docker, launch the container:
+    1. `docker build -t coremqtt .`
+    1. `docker run -it -v "$PWD":/workspaces/coreMQTT -w /workspaces/coreMQTT coremqtt`
 
 1. Go to the root directory of this repository. (Make sure that the **CMock** submodule is cloned as described [above](#checkout-cmock-submodule))
 
@@ -108,6 +118,14 @@ git submodule update --checkout --init --recursive test/unit-test/CMock
 1. The generated test executables will be present in `build/bin/tests` folder.
 
 1. Run `cd build && ctest` to execute all tests and view the test run summary.
+
+## CBMC
+
+To learn more about CBMC and proofs specifically, review the training material [here](https://model-checking.github.io/cbmc-training).
+
+The `test/cbmc/proofs` directory contains CBMC proofs.
+
+In order to run these proofs you will need to install CBMC and other tools by following the instructions [here](https://model-checking.github.io/cbmc-training/installation.html).
 
 ## Reference examples
 

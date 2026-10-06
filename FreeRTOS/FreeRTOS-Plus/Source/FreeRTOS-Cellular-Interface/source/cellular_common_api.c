@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -71,7 +71,8 @@ static CellularError_t _socketSetSockOptLevelTransport( CellularSocketOption_t o
     {
         if( optionValueLength == sizeof( uint32_t ) )
         {
-            /* The variable length is checked. */
+            /* MISRA Ref 11.3 [Misaligned access] */
+            /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-113 */
             /* coverity[misra_c_2012_rule_11_3_violation] */
             pTimeoutMs = ( const uint32_t * ) pOptionValue;
             socketHandle->sendTimeoutMs = *pTimeoutMs;
@@ -85,7 +86,8 @@ static CellularError_t _socketSetSockOptLevelTransport( CellularSocketOption_t o
     {
         if( optionValueLength == sizeof( uint32_t ) )
         {
-            /* The variable length is checked. */
+            /* MISRA Ref 11.3 [Misaligned access] */
+            /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-113 */
             /* coverity[misra_c_2012_rule_11_3_violation] */
             pTimeoutMs = ( const uint32_t * ) pOptionValue;
             socketHandle->recvTimeoutMs = *pTimeoutMs;
@@ -97,14 +99,30 @@ static CellularError_t _socketSetSockOptLevelTransport( CellularSocketOption_t o
     }
     else if( option == CELLULAR_SOCKET_OPTION_PDN_CONTEXT_ID )
     {
-        if( socketHandle->socketState == SOCKETSTATE_ALLOCATED )
+        if( ( socketHandle->socketState == SOCKETSTATE_ALLOCATED ) && ( optionValueLength == sizeof( uint8_t ) ) )
         {
             socketHandle->contextId = *pOptionValue;
         }
         else
         {
-            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the contextID in this state %d",
-                        socketHandle->socketState ) );
+            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the contextID in this state %d or length %d is invalid.",
+                        socketHandle->socketState, optionValueLength ) );
+            cellularStatus = CELLULAR_INTERNAL_FAILURE;
+        }
+    }
+    else if( option == CELLULAR_SOCKET_OPTION_SET_LOCAL_PORT )
+    {
+        if( ( socketHandle->socketState == SOCKETSTATE_ALLOCATED ) && ( optionValueLength == sizeof( uint16_t ) ) )
+        {
+            /* MISRA Ref 11.3 [Misaligned access] */
+            /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-113 */
+            /* coverity[misra_c_2012_rule_11_3_violation] */
+            socketHandle->localPort = *( ( uint16_t * ) pOptionValue );
+        }
+        else
+        {
+            LogError( ( "Cellular_SocketSetSockOpt: Cannot change the localPort in this state %d or length %d is invalid.",
+                        socketHandle->socketState, optionValueLength ) );
             cellularStatus = CELLULAR_INTERNAL_FAILURE;
         }
     }
@@ -188,8 +206,10 @@ CellularError_t Cellular_CommonRegisterUrcNetworkRegistrationEventCallback( Cell
     }
     else
     {
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->cbEvents.networkRegistrationCallback = networkRegistrationCallback;
         pContext->cbEvents.pNetworkRegistrationCallbackContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
     }
 
     return cellularStatus;
@@ -213,8 +233,10 @@ CellularError_t Cellular_CommonRegisterUrcPdnEventCallback( CellularHandle_t cel
     }
     else
     {
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->cbEvents.pdnEventCallback = pdnEventCallback;
         pContext->cbEvents.pPdnEventCallbackContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
     }
 
     return cellularStatus;
@@ -238,8 +260,10 @@ CellularError_t Cellular_CommonRegisterUrcSignalStrengthChangedCallback( Cellula
     }
     else
     {
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->cbEvents.signalStrengthChangedCallback = signalStrengthChangedCallback;
         pContext->cbEvents.pSignalStrengthChangedCallbackContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
     }
 
     return cellularStatus;
@@ -263,8 +287,10 @@ CellularError_t Cellular_CommonRegisterUrcGenericCallback( CellularHandle_t cell
     }
     else
     {
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->cbEvents.genericCallback = genericCallback;
         pContext->cbEvents.pGenericCallbackContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
     }
 
     return cellularStatus;
@@ -288,8 +314,10 @@ CellularError_t Cellular_CommonRegisterModemEventCallback( CellularHandle_t cell
     }
     else
     {
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->cbEvents.modemEventCallback = modemEventCallback;
         pContext->cbEvents.pModemEventCallbackContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
     }
 
     return cellularStatus;
@@ -331,7 +359,9 @@ CellularError_t Cellular_CommonATCommandRaw( CellularHandle_t cellularHandle,
         atReqGetResult.dataLen = dataLen;
         atReqGetResult.respCallback = responseReceivedCallback;
 
-        pktStatus = _Cellular_AtcmdRequestWithCallback( pContext, atReqGetResult );
+        pktStatus = _Cellular_TimeoutAtcmdRequestWithCallback( pContext,
+                                                               atReqGetResult,
+                                                               CELLULAR_AT_COMMAND_RAW_TIMEOUT_MS );
         cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
     }
 

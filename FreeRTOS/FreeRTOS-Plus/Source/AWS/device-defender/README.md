@@ -16,6 +16,8 @@ and validation of memory safety through the [CBMC automated reasoning tool](http
 
 See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
+**AWS IoT Device Defender v1.3.0 [source code](https://github.com/aws/Device-Defender-for-AWS-IoT-embedded-sdk/tree/v1.3.0/source) is part of the [FreeRTOS 202210.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202210.00-LTS) release.**
+
 **AWS IoT Device Defender v1.1.0 [source code](https://github.com/aws/Device-Defender-for-AWS-IoT-embedded-sdk/tree/v1.1.0/source) is part of the [FreeRTOS 202012.01 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.01-LTS) release.**
 
 ## AWS IoT Device Defender Client Config File
@@ -76,6 +78,14 @@ in [test/CMakeLists.txt](test/CMakeLists.txt) file.
 1. The generated test executables will be present in `build/bin/tests` folder.
 
 1. Run `cd build && ctest` to execute all tests and view the test run summary.
+
+## CBMC
+
+To learn more about CBMC and proofs specifically, review the training material [here](https://model-checking.github.io/cbmc-training).
+
+The `test/cbmc/proofs` directory contains CBMC proofs.
+
+In order to run these proofs you will need to install CBMC and other tools by following the instructions [here](https://model-checking.github.io/cbmc-training/installation.html).
 
 ## Reference examples
 

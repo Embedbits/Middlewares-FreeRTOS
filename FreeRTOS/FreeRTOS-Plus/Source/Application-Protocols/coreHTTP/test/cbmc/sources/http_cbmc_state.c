@@ -1,6 +1,8 @@
 /*
- * coreHTTP v2.1.0
+ * coreHTTP v3.0.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -200,13 +202,13 @@ bool isValidTransportInterface( TransportInterface_t * pTransportInterface )
     }
 }
 
-http_parser * allocateHttpSendParser( http_parser * pHttpParser )
+llhttp_t * allocateHttpSendParser( llhttp_t * pHttpParser )
 {
     HTTPParsingContext_t * pHttpParsingContext;
 
     if( pHttpParser == NULL )
     {
-        pHttpParser = malloc( sizeof( http_parser ) );
+        pHttpParser = malloc( sizeof( llhttp_t ) );
         __CPROVER_assume( pHttpParser != NULL );
     }
 
@@ -251,13 +253,13 @@ bool isValidHttpSendParsingContext( const HTTPParsingContext_t * pHttpParsingCon
     return isValid;
 }
 
-http_parser * allocateHttpReadHeaderParser( http_parser * pHttpParser )
+llhttp_t * allocateHttpReadHeaderParser( llhttp_t * pHttpParser )
 {
     HTTPParsingContext_t * pFindHeaderContext;
 
     if( pHttpParser == NULL )
     {
-        pHttpParser = malloc( sizeof( http_parser ) );
+        pHttpParser = malloc( sizeof( llhttp_t ) );
         __CPROVER_assume( pHttpParser != NULL );
     }
 

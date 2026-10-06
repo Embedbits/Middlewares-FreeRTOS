@@ -1,5 +1,5 @@
 /*
- * FreeRTOS-Cellular-Interface v1.2.0
+ * FreeRTOS-Cellular-Interface v1.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -74,13 +74,15 @@ static void _Cellular_PktHandlerAcquirePktRequestMutex( CellularContext_t * pCon
 static void _Cellular_PktHandlerReleasePktRequestMutex( CellularContext_t * pContext );
 static int _searchCompareFunc( const void * pInputToken,
                                const void * pBase );
-static int _sortCompareFunc( const void * pElem1Ptr,
-                             const void * pElem2Ptr );
+static int32_t _sortCompareFunc( const void * pElem1Ptr,
+                                 const void * pElem2Ptr );
 static void _Cellular_ProcessGenericUrc( const CellularContext_t * pContext,
                                          const char * pInputLine );
 static CellularPktStatus_t _atParseGetHandler( CellularContext_t * pContext,
                                                const char * pTokenPtr,
                                                char * pSavePtr );
+static CellularPktStatus_t _handleUndefinedMessage( CellularContext_t * pContext,
+                                                    const char * pLine );
 
 /*-----------------------------------------------------------*/
 
@@ -93,11 +95,10 @@ static CellularPktStatus_t _convertAndQueueRespPacket( CellularContext_t * pCont
     if( ( pBuf != NULL ) )
     {
         pAtResp = ( const CellularATCommandResponse_t * ) pBuf;
-        PlatformMutex_Lock( &pContext->PktRespMutex );
 
         if( pAtResp->status == false )
         {
-            LogError( ( "_convertAndQueueRespPacket: AT response contains error" ) );
+            /* The modem returns error code to indicate that the command failed. */
             pktStatus = CELLULAR_PKT_STATUS_FAILURE;
         }
 
@@ -110,15 +111,11 @@ static CellularPktStatus_t _convertAndQueueRespPacket( CellularContext_t * pCont
         }
 
         /* Notify calling thread, Not blocking immediately comes back if the queue is full. */
-        /* This is platform dependent api. */
-        /* coverity[misra_c_2012_directive_4_6_violation] */
         if( xQueueSend( pContext->pktRespQueue, ( void * ) &pktStatus, ( TickType_t ) 0 ) != pdPASS )
         {
             pktStatus = CELLULAR_PKT_STATUS_FAILURE;
             LogError( ( "_convertAndQueueRespPacket: Got a response when the Resp Q is full!!" ) );
         }
-
-        PlatformMutex_Unlock( &pContext->PktRespMutex );
     }
     else
     {
@@ -219,12 +216,16 @@ static CellularPktStatus_t _Cellular_AtcmdRequestTimeoutWithCallbackRaw( Cellula
     }
     else
     {
-        /* Fill in request info structure. */
-        pContext->pktRespCB = atReq.respCallback;
         LogDebug( ( ">>>>>Start sending [%s]<<<<<", atReq.pAtCmd ) );
+
+        /* Fill in request info structure. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
+        pContext->pktRespCB = atReq.respCallback;
         pContext->pPktUsrData = atReq.pData;
         pContext->PktUsrDataLen = ( uint16_t ) atReq.dataLen;
         pContext->pCurrentCmd = atReq.pAtCmd;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         pktStatus = _Cellular_PktioSendAtCmd( pContext, atReq.pAtCmd, atReq.atCmdType, atReq.pAtRspPrefix );
 
         if( pktStatus != CELLULAR_PKT_STATUS_OK )
@@ -234,8 +235,6 @@ static CellularPktStatus_t _Cellular_AtcmdRequestTimeoutWithCallbackRaw( Cellula
         else
         {
             /* Wait for a response. */
-            /* This is platform dependent api. */
-            /* coverity[misra_c_2012_directive_4_6_violation] */
             qRet = xQueueReceive( pContext->pktRespQueue, &respCode, pdMS_TO_TICKS( timeoutMS ) );
 
             if( qRet == pdTRUE )
@@ -244,7 +243,8 @@ static CellularPktStatus_t _Cellular_AtcmdRequestTimeoutWithCallbackRaw( Cellula
 
                 if( pktStatus != CELLULAR_PKT_STATUS_OK )
                 {
-                    LogError( ( "pkt_recv status=%d, error in AT cmd %s resp", pktStatus, atReq.pAtCmd ) );
+                    LogWarn( ( "Modem returns error in sending AT command %s, pktStatus %d.",
+                               atReq.pAtCmd, pktStatus ) );
                 } /* Ignore errors from callbacks as they will be handled elsewhere. */
             }
             else
@@ -255,9 +255,11 @@ static CellularPktStatus_t _Cellular_AtcmdRequestTimeoutWithCallbackRaw( Cellula
         }
 
         /* No command is waiting response. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->PktioAtCmdType = CELLULAR_AT_NO_COMMAND;
         pContext->pktRespCB = NULL;
         pContext->pCurrentCmd = NULL;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
         LogDebug( ( "<<<<<Exit sending [%s] status[%d]<<<<<", atReq.pAtCmd, pktStatus ) );
     }
 
@@ -284,8 +286,13 @@ static CellularPktStatus_t _Cellular_DataSendWithTimeoutDelayRaw( CellularContex
     else
     {
         LogDebug( ( ">>>>>Start sending Data <<<<<" ) );
+
+        /* Send the packet. Data send is regarded as CELLULAR_AT_NO_RESULT. Only
+         * success or error token is expected in the result. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->PktioAtCmdType = CELLULAR_AT_NO_RESULT;
-        /* Send the packet. */
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         *dataReq.pSentDataLength = _Cellular_PktioSendData( pContext, dataReq.pData, dataReq.dataLen );
 
         if( *dataReq.pSentDataLength != dataReq.dataLen )
@@ -325,7 +332,7 @@ static CellularPktStatus_t _Cellular_DataSendWithTimeoutDelayRaw( CellularContex
             }
             else
             {
-                LogError( ( "pkt_recv status=%d, error in sending data", pktStatus ) );
+                LogWarn( ( "Modem returns error in sending data, pktStatus %d.", pktStatus ) );
             }
         }
         else
@@ -334,7 +341,11 @@ static CellularPktStatus_t _Cellular_DataSendWithTimeoutDelayRaw( CellularContex
             LogError( ( "pkt_recv status=%d, data sending timed out", pktStatus ) );
         }
 
+        /* Set AT command type to CELLULAR_AT_NO_COMMAND for timeout case here. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->PktioAtCmdType = CELLULAR_AT_NO_COMMAND;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         LogDebug( ( "<<<<<Exit sending data ret[%d]>>>>>", pktStatus ) );
     }
 
@@ -357,19 +368,9 @@ static void _Cellular_PktHandlerReleasePktRequestMutex( CellularContext_t * pCon
 
 /*-----------------------------------------------------------*/
 
-/* _searchCompareFunc is returning a variable with "int" data type because
- * this is the Compare function used in bsearch() function.
- * bsearch function syntax mandates the compare function should be of type int.
- * Hence int data type is used instead of typedef datatype. */
-/* coverity[misra_c_2012_directive_4_6_violation] */
 static int _searchCompareFunc( const void * pInputToken,
                                const void * pBase )
 {
-    /* _searchCompareFunc is returning a variable with "int" data type because
-     * this is the Compare function used in bsearch() function.
-     * bsearch function syntax mandates the compare function should be of type int.
-     * Hence int data type is used instead of typedef datatype. */
-    /* coverity[misra_c_2012_directive_4_6_violation] */
     int compareValue = 0;
     const char * pToken = ( const char * ) pInputToken;
     const CellularAtParseTokenMap_t * pBasePtr = ( const CellularAtParseTokenMap_t * ) pBase;
@@ -399,20 +400,10 @@ static int _searchCompareFunc( const void * pInputToken,
 
 /*-----------------------------------------------------------*/
 
-/* _sortCompareFunc is returning a variable with "int" data type because
- * this is the Compare function used in qsort() function.
- * qsort function syntax mandates the compare function should be of type int.
- * Hence int data type is used instead of typedef datatype. */
-/* coverity[misra_c_2012_directive_4_6_violation] */
-static int _sortCompareFunc( const void * pElem1Ptr,
-                             const void * pElem2Ptr )
+static int32_t _sortCompareFunc( const void * pElem1Ptr,
+                                 const void * pElem2Ptr )
 {
-    /* _sortCompareFunc is returning a variable with "int" data type because
-     * this is the Compare function used in qsort() function.
-     * qsort function syntax mandates the compare function should be of type int.
-     * Hence int data type is used instead of typedef datatype. */
-    /* coverity[misra_c_2012_directive_4_6_violation] */
-    int compareValue = 0;
+    int32_t compareValue = 0;
     const CellularAtParseTokenMap_t * pElement1Ptr = ( const CellularAtParseTokenMap_t * ) pElem1Ptr;
     const CellularAtParseTokenMap_t * pElement2Ptr = ( const CellularAtParseTokenMap_t * ) pElem2Ptr;
     uint32_t element1PtrLen = ( uint32_t ) strlen( pElement1Ptr->pStrValue );
@@ -458,13 +449,10 @@ static CellularPktStatus_t _atParseGetHandler( CellularContext_t * pContext,
     CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
     const CellularAtParseTokenMap_t * pTokenMap = pContext->tokenTable.pCellularUrcHandlerTable;
     uint32_t tokenMapSize = pContext->tokenTable.cellularPrefixToParserMapSize;
+    uint8_t decrementPointer = 0U;
 
-    /* the unspecified behavior, which relates to the treatment of elements that compare as equal,
-     * can be avoided by ensuring that the comparison function never returns 0.
-     * When two elements are otherwise equal, the comparison function could
-     * return a value that indicates their relative order in the initial array.
-     * This the token table must be checked without duplicated string. The return value
-     * is 0 only if the string is exactly the same. */
+    /* MISRA Ref 21.9.1 [Use of bsearch] */
+    /* More details at: https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/MISRA.md#rule-219 */
     /* coverity[misra_c_2012_rule_21_9_violation] */
     pElementPtr = ( CellularAtParseTokenMap_t * ) bsearch( ( const void * ) pTokenPtr,
                                                            ( const void * ) pTokenMap,
@@ -488,7 +476,51 @@ static CellularPktStatus_t _atParseGetHandler( CellularContext_t * pContext,
     {
         /* No URC callback function available, check for generic call back. */
         LogDebug( ( "No URC Callback func avail %s, now trying generic URC Callback", pTokenPtr ) );
-        _Cellular_ProcessGenericUrc( pContext, pSavePtr );
+
+        if( pSavePtr != pTokenPtr )
+        {
+            /* pSavePtr != pTokenPtr means the string starts with '+'.
+             * Restore string to "+pTokenPtr:pSavePtr" for callback function. */
+            decrementPointer = 1U;
+            *( pSavePtr - 1 ) = ':';
+        }
+
+        _Cellular_ProcessGenericUrc( pContext, pTokenPtr - decrementPointer );
+    }
+
+    return pktStatus;
+}
+
+/*-----------------------------------------------------------*/
+
+/*
+ * @brief Handle AT_UNDEFINED message type.
+ */
+static CellularPktStatus_t _handleUndefinedMessage( CellularContext_t * pContext,
+                                                    const char * pLine )
+{
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+
+    LogInfo( ( "AT_UNDEFINED message received %s\r\n", pLine ) );
+
+    /* undefined message received. Try to handle it with cellular module
+     * specific handler. */
+    if( pContext->undefinedRespCallback == NULL )
+    {
+        LogError( ( "No undefined callback for AT_UNDEFINED type message %s received.",
+                    pLine ) );
+        pktStatus = CELLULAR_PKT_STATUS_INVALID_DATA;
+    }
+    else
+    {
+        pktStatus = pContext->undefinedRespCallback( pContext->pUndefinedRespCBContext, pLine );
+
+        if( pktStatus != CELLULAR_PKT_STATUS_OK )
+        {
+            LogError( ( "undefinedRespCallback returns error %d for AT_UNDEFINED type message %s received.",
+                        pktStatus, pLine ) );
+            pktStatus = CELLULAR_PKT_STATUS_INVALID_DATA;
+        }
     }
 
     return pktStatus;
@@ -503,7 +535,7 @@ void _Cellular_PktHandlerCleanup( CellularContext_t * pContext )
         /* Wait for response to finish. */
         _Cellular_PktHandlerAcquirePktRequestMutex( pContext );
         /* This is platform dependent api. */
-        /* coverity[misra_c_2012_directive_4_6_violation] */
+
         ( void ) vQueueDelete( pContext->pktRespQueue );
         pContext->pktRespQueue = NULL;
         _Cellular_PktHandlerReleasePktRequestMutex( pContext );
@@ -528,6 +560,11 @@ CellularPktStatus_t _Cellular_HandlePacket( CellularContext_t * pContext,
 
             case AT_UNSOLICITED:
                 pktStatus = _processUrcPacket( pContext, pBuf );
+                break;
+
+            case AT_UNDEFINED:
+                pktStatus = _handleUndefinedMessage( pContext, pBuf );
+
                 break;
 
             default:
@@ -569,6 +606,50 @@ CellularPktStatus_t _Cellular_PktHandler_AtcmdRequestWithCallback( CellularConte
 
 /*-----------------------------------------------------------*/
 
+CellularPktStatus_t _Cellular_AtcmdRequestSuccessToken( CellularContext_t * pContext,
+                                                        CellularAtReq_t atReq,
+                                                        uint32_t atTimeoutMS,
+                                                        const char ** pCellularSrcTokenSuccessTable,
+                                                        uint32_t cellularSrcTokenSuccessTableSize )
+{
+    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+
+    if( pContext == NULL )
+    {
+        LogError( ( "_Cellular_AtcmdRequestSuccessToken : Invalid cellular context" ) );
+        pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
+    }
+    else if( pCellularSrcTokenSuccessTable == NULL )
+    {
+        LogError( ( "_Cellular_AtcmdRequestSuccessToken : pCellularSrcTokenSuccessTable is NULL" ) );
+        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+    }
+    else
+    {
+        _Cellular_PktHandlerAcquirePktRequestMutex( pContext );
+
+        /* Set the extra Token table for this AT command. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
+        pContext->tokenTable.pCellularSrcExtraTokenSuccessTable = pCellularSrcTokenSuccessTable;
+        pContext->tokenTable.cellularSrcExtraTokenSuccessTableSize = cellularSrcTokenSuccessTableSize;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
+        pktStatus = _Cellular_AtcmdRequestTimeoutWithCallbackRaw( pContext, atReq, atTimeoutMS );
+
+        /* Clear the extra Token table for this AT command. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
+        pContext->tokenTable.cellularSrcExtraTokenSuccessTableSize = 0;
+        pContext->tokenTable.pCellularSrcExtraTokenSuccessTable = NULL;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
+        _Cellular_PktHandlerReleasePktRequestMutex( pContext );
+    }
+
+    return pktStatus;
+}
+
+/*-----------------------------------------------------------*/
+
 CellularPktStatus_t _Cellular_TimeoutAtcmdDataRecvRequestWithCallback( CellularContext_t * pContext,
                                                                        CellularAtReq_t atReq,
                                                                        uint32_t timeoutMS,
@@ -585,11 +666,21 @@ CellularPktStatus_t _Cellular_TimeoutAtcmdDataRecvRequestWithCallback( CellularC
     else
     {
         _Cellular_PktHandlerAcquirePktRequestMutex( pContext );
+
+        /* Set the data receive prefix. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->pktDataPrefixCB = pktDataPrefixCallback;
         pContext->pDataPrefixCBContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         pktStatus = _Cellular_AtcmdRequestTimeoutWithCallbackRaw( pContext, atReq, timeoutMS );
+
+        /* Clear the data receive prefix. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->pktDataPrefixCB = NULL;
         pContext->pDataPrefixCBContext = NULL;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         _Cellular_PktHandlerReleasePktRequestMutex( pContext );
     }
 
@@ -617,11 +708,20 @@ CellularPktStatus_t _Cellular_AtcmdDataSend( CellularContext_t * pContext,
     else
     {
         _Cellular_PktHandlerAcquirePktRequestMutex( pContext );
+
+        /* Set the data send prefix callback. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->pktDataSendPrefixCB = pktDataSendPrefixCallback;
         pContext->pDataSendPrefixCBContext = pCallbackContext;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         pktStatus = _Cellular_AtcmdRequestTimeoutWithCallbackRaw( pContext, atReq, atTimeoutMS );
+
+        /* Clear the data send prefix callback. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->pDataSendPrefixCBContext = NULL;
         pContext->pktDataSendPrefixCB = NULL;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
 
         if( pktStatus == CELLULAR_PKT_STATUS_OK )
         {
@@ -665,11 +765,20 @@ CellularPktStatus_t _Cellular_TimeoutAtcmdDataSendSuccessToken( CellularContext_
     else
     {
         _Cellular_PktHandlerAcquirePktRequestMutex( pContext );
+
+        /* Set the extra token table. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->tokenTable.pCellularSrcExtraTokenSuccessTable = pCellularSrcTokenSuccessTable;
         pContext->tokenTable.cellularSrcExtraTokenSuccessTableSize = cellularSrcTokenSuccessTableSize;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
+
         pktStatus = _Cellular_AtcmdRequestTimeoutWithCallbackRaw( pContext, atReq, atTimeoutMS );
+
+        /* Clear the extra token table. */
+        PlatformMutex_Lock( &pContext->PktRespMutex );
         pContext->tokenTable.cellularSrcExtraTokenSuccessTableSize = 0;
         pContext->tokenTable.pCellularSrcExtraTokenSuccessTable = NULL;
+        PlatformMutex_Unlock( &pContext->PktRespMutex );
 
         if( pktStatus == CELLULAR_PKT_STATUS_OK )
         {
@@ -691,9 +800,6 @@ CellularPktStatus_t _Cellular_PktHandlerInit( CellularContext_t * pContext )
     if( pContext != NULL )
     {
         /* Create the response queue which is used to post reponses to the sender. */
-        /* This is platform dependent api. */
-        /* coverity[misra_c_2012_directive_4_6_violation] */
-        /* coverity[misra_c_2012_rule_11_4_violation] */
         pContext->pktRespQueue = xQueueCreate( 1, ( uint32_t ) sizeof( CellularPktStatus_t ) );
 
         if( pContext->pktRespQueue == NULL )

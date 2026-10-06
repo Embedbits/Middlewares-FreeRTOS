@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.3.3
+ * FreeRTOS+TCP V2.3.3-Patch-1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -332,50 +332,52 @@
     #if ( ipconfigBYTE_ORDER == pdFREERTOS_LITTLE_ENDIAN )
 
 /* Ethernet frame types. */
-        #define ipARP_FRAME_TYPE                ( 0x0608U )
-        #define ipIPv4_FRAME_TYPE               ( 0x0008U )
+        #define ipARP_FRAME_TYPE                   ( 0x0608U )
+        #define ipIPv4_FRAME_TYPE                  ( 0x0008U )
 
 /* ARP related definitions. */
-        #define ipARP_PROTOCOL_TYPE             ( 0x0008U )
-        #define ipARP_HARDWARE_TYPE_ETHERNET    ( 0x0100U )
-        #define ipARP_REQUEST                   ( 0x0100U )
-        #define ipARP_REPLY                     ( 0x0200U )
+        #define ipARP_PROTOCOL_TYPE                ( 0x0008U )
+        #define ipARP_HARDWARE_TYPE_ETHERNET       ( 0x0100U )
+        #define ipARP_REQUEST                      ( 0x0100U )
+        #define ipARP_REPLY                        ( 0x0200U )
+
+/* The bits in the two byte IP header field that make up the fragment offset value. */
+        #define ipFRAGMENT_OFFSET_BIT_MASK         ( ( uint16_t ) 0xff1fU )
+
+/* The bits in the two byte IP header field that make up the flags value. */
+        #define ipFRAGMENT_FLAGS_BIT_MASK          ( ( uint16_t ) 0x00e0U )
+
+/* Don't Fragment Flag */
+        #define ipFRAGMENT_FLAGS_DONT_FRAGMENT     ( ( uint16_t ) 0x0040U )
+
+/* More Fragments Flag */
+        #define ipFRAGMENT_FLAGS_MORE_FRAGMENTS    ( ( uint16_t ) 0x0020U )
 
     #else /* if ( ipconfigBYTE_ORDER == pdFREERTOS_LITTLE_ENDIAN ) */
 
 /* Ethernet frame types. */
-        #define ipARP_FRAME_TYPE                ( 0x0806U )
-        #define ipIPv4_FRAME_TYPE               ( 0x0800U )
+        #define ipARP_FRAME_TYPE                   ( 0x0806U )
+        #define ipIPv4_FRAME_TYPE                  ( 0x0800U )
 
 /* ARP related definitions. */
-        #define ipARP_PROTOCOL_TYPE             ( 0x0800U )
-        #define ipARP_HARDWARE_TYPE_ETHERNET    ( 0x0001U )
-        #define ipARP_REQUEST                   ( 0x0001 )
-        #define ipARP_REPLY                     ( 0x0002 )
+        #define ipARP_PROTOCOL_TYPE                ( 0x0800U )
+        #define ipARP_HARDWARE_TYPE_ETHERNET       ( 0x0001U )
+        #define ipARP_REQUEST                      ( 0x0001 )
+        #define ipARP_REPLY                        ( 0x0002 )
 
-    #endif /* ipconfigBYTE_ORDER == pdFREERTOS_LITTLE_ENDIAN */
+/* The bits in the two byte IP header field that make up the fragment offset value. */
+        #define ipFRAGMENT_OFFSET_BIT_MASK         ( ( uint16_t ) 0x1fffU )
 
-    #if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 0 )
-        #if ( ipconfigBYTE_ORDER == pdFREERTOS_LITTLE_ENDIAN )
-            /* The bits in the two byte IP header field that make up the fragment offset value. */
-            #define ipFRAGMENT_OFFSET_BIT_MASK         ( ( uint16_t ) 0xff1fU )
-            /* The bits in the two byte IP header field that make up the flags value. */
-            #define ipFRAGMENT_FLAGS_BIT_MASK          ( ( uint16_t ) 0x00e0U )
-            /* Don't Fragment Flag */
-            #define ipFRAGMENT_FLAGS_DONT_FRAGMENT     ( ( uint16_t ) 0x0040U )
-            /* More Fragments Flag */
-            #define ipFRAGMENT_FLAGS_MORE_FRAGMENTS    ( ( uint16_t ) 0x0020U )
-        #else
-            /* The bits in the two byte IP header field that make up the fragment offset value. */
-            #define ipFRAGMENT_OFFSET_BIT_MASK         ( ( uint16_t ) 0x1fffU )
-            /* The bits in the two byte IP header field that make up the flags value. */
-            #define ipFRAGMENT_FLAGS_BIT_MASK          ( ( uint16_t ) 0xe000U )
-            /* Don't Fragment Flag */
-            #define ipFRAGMENT_FLAGS_DONT_FRAGMENT     ( ( uint16_t ) 0x4000U )
-            /* More Fragments Flag */
-            #define ipFRAGMENT_FLAGS_MORE_FRAGMENTS    ( ( uint16_t ) 0x2000U )
-        #endif /* ipconfigBYTE_ORDER */
-    #endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
+/* The bits in the two byte IP header field that make up the flags value. */
+        #define ipFRAGMENT_FLAGS_BIT_MASK          ( ( uint16_t ) 0xe000U )
+
+/* Don't Fragment Flag */
+        #define ipFRAGMENT_FLAGS_DONT_FRAGMENT     ( ( uint16_t ) 0x4000U )
+
+/* More Fragments Flag */
+        #define ipFRAGMENT_FLAGS_MORE_FRAGMENTS    ( ( uint16_t ) 0x2000U )
+
+    #endif /* ipconfigBYTE_ORDER */
 
 /* For convenience, a MAC address of all zeros and another of all 0xffs are
  * defined const for quick reference. */
@@ -630,8 +632,7 @@
             } bits;                        /**< The bits structure */
             uint32_t ulHighestRxAllowed;   /**< The highest sequence number that we can receive at any moment */
             uint16_t usTimeout;            /**< Time (in ticks) after which this socket needs attention */
-            uint16_t usCurMSS;             /**< Current Maximum Segment Size */
-            uint16_t usInitMSS;            /**< Initial maximum segment Size */
+            uint16_t usMSS;                /**< Current Maximum Segment Size */
             uint16_t usChildCount;         /**< In case of a listening socket: number of connections on this port number */
             uint16_t usBacklog;            /**< In case of a listening socket: maximum number of concurrent connections on this port number */
             uint8_t ucRepCount;            /**< Send repeat count, for retransmissions

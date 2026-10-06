@@ -1,5 +1,5 @@
 /*
- * AWS IoT Device SDK for Embedded C
+ * corePKCS11 v3.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -18,9 +18,6 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * http://aws.amazon.com/freertos
- * http://www.FreeRTOS.org
  */
 
 /**
@@ -63,12 +60,12 @@
 /**
  * @brief Malloc API used by iot_pkcs11.h
  */
-#define PKCS11_MALLOC                    malloc
+#define pkcs11configPKCS11_MALLOC              malloc
 
 /**
  * @brief Free API used by iot_pkcs11.h
  */
-#define PKCS11_FREE                      free
+#define pkcs11configPKCS11_FREE                free
 
 /**
  * @brief PKCS #11 default user PIN.
@@ -82,19 +79,19 @@
  * Note: Do not cast this to a pointer! The library calls sizeof to get the length
  * of this string.
  */
-#define configPKCS11_DEFAULT_USER_PIN    "0000"
+#define pkcs11configPKCS11_DEFAULT_USER_PIN    "0000"
 
 /**
  * @brief Maximum length (in characters) for a PKCS #11 CKA_LABEL
  * attribute.
  */
-#define pkcs11configMAX_LABEL_LENGTH     32
+#define pkcs11configMAX_LABEL_LENGTH           32
 
 /**
  * @brief Maximum number of token objects that can be stored
  * by the PKCS #11 module.
  */
-#define pkcs11configMAX_NUM_OBJECTS      6
+#define pkcs11configMAX_NUM_OBJECTS            6
 
 /**
  * @brief Maximum number of sessions that can be stored
@@ -103,7 +100,7 @@
  * @note The windows test port has an abnormally large value in order to have
  * enough sessions to successfully run all the model based PKCS #11 tests.
  */
-#define pkcs11configMAX_SESSIONS         250
+#define pkcs11configMAX_SESSIONS               250
 
 
 /**
@@ -169,6 +166,24 @@
  * Used by over-the-air update code to verify an incoming signed image.
  */
 #define pkcs11configLABEL_CODE_VERIFICATION_KEY            "Code Verify Key"
+
+/**
+ * @brief The PKCS #11 label for a claim certificate useful for provisioning with
+ * Fleet Provisioning feature of AWS IoT Core through the "Provisioning by Claim" workflow.
+ *
+ * For more information on Fleet Provisioning, refer to this
+ * [AWS document](https://docs.aws.amazon.com/iot/latest/developerguide/provision-wo-cert.html)
+ */
+#define pkcs11configLABEL_CLAIM_CERTIFICATE                "Claim Cert"
+
+/**
+ * @brief The PKCS #11 label for a claim private key useful for provisioning with
+ * Fleet Provisioning feature of AWS IoT Core through the "Provisioning by Claim" workflow.
+ *
+ * For more information on Fleet Provisioning, refer to this
+ * [AWS document](https://docs.aws.amazon.com/iot/latest/developerguide/provision-wo-cert.html)
+ */
+#define pkcs11configLABEL_CLAIM_PRIVATE_KEY                "Claim Key"
 
 /**
  * @brief The PKCS #11 label for Just-In-Time-Provisioning.

@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -43,7 +43,7 @@
 #define MAX_MSG_SIZE    sizeof( OtaEventMsg_t )
 
 /* Array containing pointer to the OTA event structures used to send events to the OTA task. */
-static OtaEventMsg_t queueData[ MAX_MESSAGES ];
+static OtaEventMsg_t queueData[ MAX_MESSAGES * MAX_MSG_SIZE ];
 
 /* The queue control structure.  .*/
 static StaticQueue_t staticQueue;
@@ -68,7 +68,7 @@ OtaOsStatus_t OtaInitEvent_FreeRTOS( OtaEventContext_t * pEventCtx )
 
     ( void ) pEventCtx;
 
-    otaEventQueue = xQueueCreateStatic( ( UBaseType_t ) OTA_NUM_MSG_Q_ENTRIES,
+    otaEventQueue = xQueueCreateStatic( ( UBaseType_t ) MAX_MESSAGES,
                                         ( UBaseType_t ) MAX_MSG_SIZE,
                                         ( uint8_t * ) queueData,
                                         &staticQueue );
@@ -215,7 +215,6 @@ OtaOsStatus_t OtaStartTimer_FreeRTOS( OtaTimerId_t otaTimerId,
 
     configASSERT( callback != NULL );
     configASSERT( pTimerName != NULL );
-    configASSERT( ( otaTimerId >= OtaRequestTimer ) && ( otaTimerId < OtaNumOfTimers ) );
 
     /* Set OTA lib callback. */
     otaTimerCallback = callback;
@@ -287,8 +286,6 @@ OtaOsStatus_t OtaStopTimer_FreeRTOS( OtaTimerId_t otaTimerId )
     OtaOsStatus_t otaOsStatus = OtaOsSuccess;
     BaseType_t retVal = pdFALSE;
 
-    configASSERT( ( otaTimerId >= OtaRequestTimer ) && ( otaTimerId < OtaNumOfTimers ) );
-
     if( otaTimer[ otaTimerId ] != NULL )
     {
         /* Stop the timer. */
@@ -320,8 +317,6 @@ OtaOsStatus_t OtaDeleteTimer_FreeRTOS( OtaTimerId_t otaTimerId )
 {
     OtaOsStatus_t otaOsStatus = OtaOsSuccess;
     BaseType_t retVal = pdFALSE;
-
-    configASSERT( ( otaTimerId >= OtaRequestTimer ) && ( otaTimerId < OtaNumOfTimers ) );
 
     if( otaTimer[ otaTimerId ] != NULL )
     {

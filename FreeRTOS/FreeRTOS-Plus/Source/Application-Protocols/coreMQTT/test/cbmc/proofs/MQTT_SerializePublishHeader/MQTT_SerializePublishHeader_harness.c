@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -45,7 +45,7 @@ void harness()
 
     /* Allocate space for a returned header size to get coverage of a possibly
      * NULL input. */
-    pHeaderSize = mallocCanFail( sizeof( size_t ) );
+    pHeaderSize = malloc( sizeof( size_t ) );
 
     /* Before calling MQTT_SerializePublishHeader() it is up to the application
      * to verify that the information in MQTTPublishInfo_t can fit into the

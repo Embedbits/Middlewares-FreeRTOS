@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -51,7 +51,7 @@ OtaErr_t initFileTransfer_Http( OtaAgentContext_t * pAgentCtx )
     OtaFileContext_t * fileContext = NULL;
 
     LogDebug( ( "Invoking initFileTransfer_Http" ) );
-    assert( pAgentCtx != NULL && pAgentCtx->pOtaInterface != NULL );
+    assert( ( pAgentCtx != NULL ) && ( pAgentCtx->pOtaInterface != NULL ) && ( pAgentCtx->pOtaInterface->http.init != NULL ) );
 
     /* File context from OTA agent. */
     fileContext = &( pAgentCtx->fileContext );
@@ -85,7 +85,7 @@ OtaErr_t requestDataBlock_Http( OtaAgentContext_t * pAgentCtx )
 
     OtaFileContext_t * fileContext = NULL;
 
-    assert( pAgentCtx != NULL && pAgentCtx->pOtaInterface != NULL );
+    assert( ( pAgentCtx != NULL ) && ( pAgentCtx->pOtaInterface != NULL ) && ( pAgentCtx->pOtaInterface->http.request != NULL ) );
     LogDebug( ( "Invoking requestDataBlock_Http" ) );
 
     fileContext = &( pAgentCtx->fileContext );
@@ -163,7 +163,8 @@ OtaErr_t cleanupData_Http( const OtaAgentContext_t * pAgentCtx )
 {
     OtaHttpStatus_t httpStatus = OtaHttpSuccess;
 
-    assert( pAgentCtx != NULL && pAgentCtx->pOtaInterface != NULL );
+    assert( ( pAgentCtx != NULL ) && ( pAgentCtx->pOtaInterface != NULL ) && ( pAgentCtx->pOtaInterface->http.deinit != NULL ) );
+
     httpStatus = pAgentCtx->pOtaInterface->http.deinit();
 
     /* Reset currBlock. */

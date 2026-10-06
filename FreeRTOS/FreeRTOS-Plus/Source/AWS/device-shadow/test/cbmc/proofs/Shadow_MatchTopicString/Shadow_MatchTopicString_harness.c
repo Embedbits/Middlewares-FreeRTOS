@@ -1,5 +1,5 @@
 /*
- * AWS IoT Device Shadow v1.1.0
+ * AWS IoT Device Shadow v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -26,7 +26,8 @@
  */
 
 #include "shadow.h"
-#include "shadow_cbmc_state.h"
+
+#include <stdlib.h>
 
 void harness()
 {
@@ -39,15 +40,15 @@ void harness()
     uint16_t * pShadowNameLength;
 
     __CPROVER_assume( topicNameLength < TOPIC_STRING_LENGTH_MAX );
-    pTopicName = mallocCanFail( topicNameLength );
+    pTopicName = malloc( topicNameLength );
 
-    pMessageType = mallocCanFail( sizeof( *pMessageType ) );
+    pMessageType = malloc( sizeof( *pMessageType ) );
 
-    pThingName = mallocCanFail( sizeof( *pThingName ) );
-    pThingNameLength = mallocCanFail( sizeof( *pThingNameLength ) );
+    pThingName = malloc( sizeof( *pThingName ) );
+    pThingNameLength = malloc( sizeof( *pThingNameLength ) );
 
-    pShadowName = mallocCanFail( sizeof( *pShadowName ) );
-    pShadowNameLength = mallocCanFail( sizeof( *pShadowNameLength ) );
+    pShadowName = malloc( sizeof( *pShadowName ) );
+    pShadowNameLength = malloc( sizeof( *pShadowNameLength ) );
 
     Shadow_MatchTopicString( pTopicName,
                              topicNameLength,

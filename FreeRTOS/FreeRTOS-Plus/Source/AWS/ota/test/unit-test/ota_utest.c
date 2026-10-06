@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -90,6 +90,8 @@
       OTA_AUTH_SCHEME_SIZE )
 
 #define min( x, y )    ( x < y ? x : y )
+
+#define OTA_NUM_MSG_Q_ENTRIES    20
 
 /* Firmware version. */
 const AppVersion32_t appFirmwareVersion =

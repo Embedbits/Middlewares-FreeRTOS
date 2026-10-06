@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -1615,7 +1615,7 @@ static DocParseErr_t extractAndStoreArray( const char * pKey,
             LogError( ( "Memory allocation failed "
                         "[key: valueLength]=[%s: %lu]",
                         pKey,
-                        valueLength ) );
+                        ( unsigned long ) valueLength ) );
         }
     }
     else
@@ -1627,7 +1627,7 @@ static DocParseErr_t extractAndStoreArray( const char * pKey,
             LogError( ( "Insufficient user memory: "
                         "[key: valueLength]=[%s: %lu]",
                         pKey,
-                        valueLength ) );
+                        ( unsigned long ) valueLength ) );
         }
     }
 
@@ -1706,7 +1706,7 @@ static DocParseErr_t extractParameter( JsonDocParam_t docParam,
 
     if( err != DocParseErrNone )
     {
-        LogError( ( "Failed to extract document parameter: error=%d, paramter key=%s",
+        LogDebug( ( "Failed to extract document parameter: error=%d, paramter key=%s",
                     err, docParam.pSrcKey ) );
     }
 
@@ -1732,10 +1732,10 @@ static DocParseErr_t verifyRequiredParamsExtracted( const JsonDocParam_t * pMode
         {
             if( ( missingParams & ( ( uint32_t ) 1U << scanIndex ) ) != 0U )
             {
-                LogInfo( ( "Failed job document content check: "
-                           "Required job document parameter was not extracted: "
-                           "parameter=%s",
-                           pModelParam[ scanIndex ].pSrcKey ) );
+                LogDebug( ( "Failed job document content check: "
+                            "Required job document parameter was not extracted: "
+                            "parameter=%s",
+                            pModelParam[ scanIndex ].pSrcKey ) );
             }
         }
 
@@ -1818,9 +1818,9 @@ static DocParseErr_t parseJSONbyModel( const char * pJson,
 
     if( err != DocParseErrNone )
     {
-        LogInfo( ( "Failed to parse JSON document as AFR_OTA job: "
-                   "DocParseErr_t=%d",
-                   err ) );
+        LogDebug( ( "Failed to parse JSON document as AFR_OTA job: "
+                    "DocParseErr_t=%d",
+                    err ) );
     }
 
     return err;
@@ -1950,7 +1950,6 @@ static OtaJobParseErr_t handleCustomJob( const char * pJson,
     const char * jobDocValue = NULL;
     const char * jobIdValue = NULL;
 
-
     jobDoc.parseErr = OtaJobParseErrUnknown;
 
     /* If this is a valid custom job, extract job document and job ID data from the JSON payload.*/
@@ -1970,10 +1969,6 @@ static OtaJobParseErr_t handleCustomJob( const char * pJson,
                                            &jobDoc.jobIdLength,
                                            NULL ) ) )
     {
-        /* We have an unknown job parser error. Check to see if we can pass control
-         * to a callback for parsing */
-        otaAgent.OtaAppCallback( OtaJobEventParseCustomJob, &jobDoc );
-
         if( ( jobDoc.jobIdLength > 0U ) && ( jobDoc.jobIdLength <= OTA_JOB_ID_MAX_SIZE ) ) /* LCOV_EXCL_BR_LINE */
         {
             jobDoc.pJobDocJson = ( const uint8_t * ) jobDocValue;
@@ -1984,6 +1979,10 @@ static OtaJobParseErr_t handleCustomJob( const char * pJson,
         {
             jobDoc.parseErr = OtaJobParseErrNonConformingJobDoc;
         }
+
+        /* We have an unknown job parser error. Check to see if we can pass control
+         * to a callback for parsing */
+        otaAgent.OtaAppCallback( OtaJobEventParseCustomJob, &jobDoc );
 
         if( jobDoc.parseErr == OtaJobParseErrNone )
         {
@@ -2000,8 +1999,8 @@ static OtaJobParseErr_t handleCustomJob( const char * pJson,
             /* Job is malformed - return an error */
             err = OtaJobParseErrNonConformingJobDoc;
 
-            LogError( ( "Failed to parse custom job document: OtaJobParseErr_t=%s, jobIdLength=%lu",
-                        OTA_JobParse_strerror( jobDoc.parseErr ), jobDoc.jobIdLength ) );
+            LogDebug( ( "Failed to parse custom job document: OtaJobParseErr_t=%s, jobIdLength=%lu",
+                        OTA_JobParse_strerror( jobDoc.parseErr ), ( unsigned long ) jobDoc.jobIdLength ) );
         }
     }
     else
@@ -2084,9 +2083,9 @@ static OtaJobParseErr_t verifyActiveJobStatus( OtaFileContext_t * pFileContext,
     }
     else
     {
-        LogWarn( ( "Parameter check failed: "
-                   "pJobName is NULL while the OTA Agent is busy: "
-                   "Ignoring parameter check failure." ) );
+        LogDebug( ( "Parameter check failed: "
+                    "pJobName is NULL while the OTA Agent is busy: "
+                    "Ignoring parameter check failure." ) );
         err = OtaJobParseErrNullJob;
     }
 
@@ -2201,7 +2200,7 @@ static OtaJobParseErr_t validateAndStartJob( OtaFileContext_t * pFileContext,
     }
     else
     {
-        LogError( ( "Failed to validate and start the job: OtaJobParseErr_t=%s", OTA_JobParse_strerror( err ) ) );
+        LogDebug( ( "Failed to validate and start the job: OtaJobParseErr_t=%s", OTA_JobParse_strerror( err ) ) );
     }
 
     return err;
@@ -2826,7 +2825,7 @@ static void executeHandler( uint32_t index,
     }
     else
     {
-        LogError( ( "Failed to execute state transition handler: "
+        LogDebug( ( "Failed to execute state transition handler: "
                     "Handler returned error: OtaErr_t=%s",
                     OTA_Err_strerror( err ) ) );
     }
@@ -3061,7 +3060,7 @@ static void initializeLocalBuffers( void )
  * successfully.
  */
 OtaErr_t OTA_Init( OtaAppBuffer_t * pOtaBuffer,
-                   OtaInterfaces_t * pOtaInterfaces,
+                   const OtaInterfaces_t * pOtaInterfaces,
                    const uint8_t * pThingName,
                    OtaAppCallback_t OtaAppCallback )
 {

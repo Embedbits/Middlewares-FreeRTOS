@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.3.3
+ * FreeRTOS+TCP V2.3.3-Patch-1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -112,6 +112,9 @@
     #else
         #define ipBUFFER_PADDING    ( 8U + ipconfigPACKET_FILLER_SIZE )
     #endif
+
+/* The offset of ucTCPFlags within the TCP header. */
+    #define ipTCP_FLAGS_OFFSET    13U
 
 /**
  * The structure used to store buffers and pass them around the network stack.

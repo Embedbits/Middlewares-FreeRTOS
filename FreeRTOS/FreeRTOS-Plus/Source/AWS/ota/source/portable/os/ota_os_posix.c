@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -39,6 +39,7 @@
 
 /* Posix includes. */
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <mqueue.h>
 
 /* OTA OS POSIX Interface Includes.*/
@@ -351,7 +352,7 @@ OtaOsStatus_t Posix_OtaStopTimer( OtaTimerId_t otaTimerId )
     }
     else
     {
-        LogWarn( ( "OTA Timer handle NULL for Timerid=%i, can't stop.", otaTimerId ) );
+        LogDebug( ( "OTA Timer handle NULL for Timerid=%i, can't stop.", otaTimerId ) );
 
         otaOsStatus = OtaOsTimerStopFailed;
     }

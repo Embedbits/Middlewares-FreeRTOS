@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -34,7 +34,7 @@ void harness()
      * MQTT_GetPacketId() touches only the nextPacketId field in MQTTContext_t.
      * This nextPacketId is left unbounded to verify the function under harness.
      */
-    MQTTContext_t * pContext = mallocCanFail( sizeof( MQTTContext_t ) );
+    MQTTContext_t * pContext = malloc( sizeof( MQTTContext_t ) );
 
     MQTT_GetPacketId( pContext );
 }

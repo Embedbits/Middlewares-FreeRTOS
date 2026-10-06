@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -882,8 +882,8 @@ static MQTTStatus_t receivePacket( const MQTTContext_t * pContext,
         if( bytesReceived == ( int32_t ) bytesToReceive )
         {
             /* Receive successful, bytesReceived == bytesToReceive. */
-            LogInfo( ( "Packet received. ReceivedBytes=%ld.",
-                       ( long int ) bytesReceived ) );
+            LogDebug( ( "Packet received. ReceivedBytes=%ld.",
+                        ( long int ) bytesReceived ) );
         }
         else
         {
@@ -922,6 +922,13 @@ static uint8_t getAckTypeToSend( MQTTPublishState_t state )
             packetTypeByte = MQTT_PACKET_TYPE_PUBCOMP;
             break;
 
+        case MQTTPubAckPending:
+        case MQTTPubCompPending:
+        case MQTTPubRecPending:
+        case MQTTPubRelPending:
+        case MQTTPublishDone:
+        case MQTTPublishSend:
+        case MQTTStateNull:
         default:
             /* Take no action for states that do not require sending an ack. */
             break;
@@ -1562,7 +1569,7 @@ static MQTTStatus_t receiveConnack( const MQTTContext_t * pContext,
 
     if( status == MQTTSuccess )
     {
-        LogInfo( ( "Received MQTT CONNACK successfully from broker." ) );
+        LogDebug( ( "Received MQTT CONNACK successfully from broker." ) );
     }
     else
     {

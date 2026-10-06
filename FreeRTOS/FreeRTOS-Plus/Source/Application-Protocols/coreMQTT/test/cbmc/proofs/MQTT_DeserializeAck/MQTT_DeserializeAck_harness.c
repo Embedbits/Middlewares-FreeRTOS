@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -37,8 +37,8 @@ void harness()
     __CPROVER_assume( isValidMqttPacketInfo( pIncomingPacket ) );
 
     /* These are allocated for coverage of a NULL input. */
-    pPacketId = mallocCanFail( sizeof( uint16_t ) );
-    pSessionPresent = mallocCanFail( sizeof( bool ) );
+    pPacketId = malloc( sizeof( uint16_t ) );
+    pSessionPresent = malloc( sizeof( bool ) );
 
     MQTT_DeserializeAck( pIncomingPacket,
                          pPacketId,

@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.0.0
+ * coreJSON v3.0.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -1870,4 +1870,17 @@ void test_JSON_unreached( void )
         TEST_ASSERT_EQUAL( JSONNotFound,
                            iterate( buf, max, &start, &next, &key, &keyLength, &value, &valueLength ) );
     }
+}
+
+/**
+ * @brief Test overflows.
+ */
+void test_JSON_overflows( void )
+{
+    char buf[] = UNICODE_ESCAPE_SEQUENCES_BMP;
+    size_t start;
+    uint16_t u;
+
+    start = SIZE_MAX;
+    TEST_ASSERT_EQUAL( false, skipOneHexEscape( buf, &start, SIZE_MAX, &u ) );
 }

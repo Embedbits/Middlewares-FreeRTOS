@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -44,7 +44,7 @@ void harness()
     pWillInfo = allocateMqttPublishInfo( NULL );
     __CPROVER_assume( isValidMqttPublishInfo( pWillInfo ) );
 
-    pSessionPresent = mallocCanFail( sizeof( bool ) );
+    pSessionPresent = malloc( sizeof( bool ) );
 
     /* The MQTT_RECEIVE_TIMEOUT is used here to control the number of loops
      * when receiving on the network. The default is used here because memory

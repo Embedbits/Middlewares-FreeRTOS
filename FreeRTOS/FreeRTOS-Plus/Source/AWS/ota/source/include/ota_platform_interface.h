@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -27,6 +27,12 @@
 
 #ifndef OTA_PLATFORM_INTERFACE
 #define OTA_PLATFORM_INTERFACE
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    extern "C" {
+#endif
+/* *INDENT-ON* */
 
 #include "ota_private.h"
 
@@ -103,11 +109,11 @@ typedef enum OtaPalMainStatus
  */
 
 /* @[define_ota_err_code_helpers] */
-#define OTA_PAL_ERR_MASK    0xffffffUL                                                                                                        /*!< The PAL layer uses the signed low 24 bits of the OTA error code. */
-#define OTA_PAL_SUB_BITS    24U                                                                                                               /*!< The OTA Agent error code is the highest 8 bits of the word. */
-#define OTA_PAL_MAIN_ERR( err )             ( ( OtaPalMainStatus_t ) ( uint32_t ) ( ( uint32_t ) ( err ) >> ( uint32_t ) OTA_PAL_SUB_BITS ) ) /*!< Helper to get the OTA PAL main error code. */
-#define OTA_PAL_SUB_ERR( err )              ( ( uint32_t ) ( err ) & ( uint32_t ) OTA_PAL_ERR_MASK )                                          /*!< Helper to get the OTA PAL sub error code. */
-#define OTA_PAL_COMBINE_ERR( main, sub )    ( ( ( uint32_t ) ( main ) << ( uint32_t ) OTA_PAL_SUB_BITS ) | ( uint32_t ) ( sub ) )             /*!< Helper to combine the OTA PAL main and sub error code. */
+#define OTA_PAL_ERR_MASK    0xffffffUL                                                                                                           /*!< The PAL layer uses the signed low 24 bits of the OTA error code. */
+#define OTA_PAL_SUB_BITS    24U                                                                                                                  /*!< The OTA Agent error code is the highest 8 bits of the word. */
+#define OTA_PAL_MAIN_ERR( err )             ( ( OtaPalMainStatus_t ) ( uint32_t ) ( ( uint32_t ) ( err ) >> ( uint32_t ) OTA_PAL_SUB_BITS ) )    /*!< Helper to get the OTA PAL main error code. */
+#define OTA_PAL_SUB_ERR( err )              ( ( uint32_t ) ( err ) & ( uint32_t ) OTA_PAL_ERR_MASK )                                             /*!< Helper to get the OTA PAL sub error code. */
+#define OTA_PAL_COMBINE_ERR( main, sub )    ( ( ( uint32_t ) ( main ) << ( uint32_t ) OTA_PAL_SUB_BITS ) | ( uint32_t ) OTA_PAL_SUB_ERR( sub ) ) /*!< Helper to combine the OTA PAL main and sub error code. */
 /* @[define_ota_err_code_helpers] */
 
 /**
@@ -303,5 +309,11 @@ typedef struct OtaPalInterface
     OtaPalSetPlatformImageState_t setPlatformImageState; /*!< @brief Set the state of the OTA update image. */
     OtaPalGetPlatformImageState_t getPlatformImageState; /*!< @brief Get the state of the OTA update image. */
 } OtaPalInterface_t;
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    }
+#endif
+/* *INDENT-ON* */
 
 #endif /* ifndef OTA_PLATFORM_INTERFACE */

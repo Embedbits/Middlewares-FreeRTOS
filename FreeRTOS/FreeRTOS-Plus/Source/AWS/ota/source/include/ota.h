@@ -1,5 +1,5 @@
 /*
- * AWS IoT Over-the-air Update v3.0.0
+ * AWS IoT Over-the-air Update v3.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -27,6 +27,12 @@
 
 #ifndef OTA_H
 #define OTA_H
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    extern "C" {
+#endif
+/* *INDENT-ON* */
 
 /* Standard includes. */
 /* For FILE type in OtaFileContext_t.*/
@@ -210,13 +216,11 @@ typedef struct OtaJobDocument
  * @ingroup ota_callback_types
  * @brief OTA update complete callback function typedef.
  *
- * The user may register a callback function when initializing the OTA Agent. This
+ * The user must register a callback function when initializing the OTA Agent. This
  * callback is used to notify the main application when the OTA update job is complete.
  * Typically, it is used to reset the device after a successful update by calling
  * @ref OTA_ActivateNewImage and may also be used to kick off user specified self tests
- * during the Self Test phase. If the user does not supply a custom callback function,
- * a default callback handler is used that automatically calls @ref OTA_ActivateNewImage
- * after a successful update.
+ * during the Self Test phase.
  *
  * The callback function is called with one of the following arguments:
  *
@@ -300,7 +304,7 @@ typedef struct OtaAgentContext
     uint32_t numOfBlocksToReceive;                         /*!< Number of data blocks to receive per data request. */
     OtaAgentStatistics_t statistics;                       /*!< The OTA agent statistics block. */
     uint32_t requestMomentum;                              /*!< The number of requests sent before a response was received. */
-    OtaInterfaces_t * pOtaInterface;                       /*!< Collection of all interfaces used by the agent. */
+    const OtaInterfaces_t * pOtaInterface;                 /*!< Collection of all interfaces used by the agent. */
     OtaAppCallback_t OtaAppCallback;                       /*!< OTA App callback. */
     uint8_t unsubscribeOnShutdown;                         /*!< Flag to indicate if unsubscribe from job topics should be done at shutdown. */
 } OtaAgentContext_t;
@@ -389,7 +393,7 @@ typedef struct OtaAgentContext
  */
 /* @[declare_ota_init] */
 OtaErr_t OTA_Init( OtaAppBuffer_t * pOtaBuffer,
-                   OtaInterfaces_t * pOtaInterfaces,
+                   const OtaInterfaces_t * pOtaInterfaces,
                    const uint8_t * pThingName,
                    OtaAppCallback_t OtaAppCallback );
 /* @[declare_ota_init] */
@@ -799,5 +803,11 @@ const char * OTA_PalStatus_strerror( OtaPalMainStatus_t status );
 /* @[declare_ota_osstatus_strerror] */
 const char * OTA_OsStatus_strerror( OtaOsStatus_t status );
 /* @[declare_ota_osstatus_strerror] */
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    }
+#endif
+/* *INDENT-ON* */
 
 #endif /* ifndef OTA_H */

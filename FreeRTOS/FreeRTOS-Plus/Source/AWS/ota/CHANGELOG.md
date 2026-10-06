@@ -1,5 +1,12 @@
 # Changelog for AWS IoT Over-the-air Update Library
-
+### v3.2.0 (November 2021)
+ - [#275](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/276) Updated the doxygen version from 1.8.20 to 1.9.2 
+ - [#236](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/236) Added C++ guards
+ - [#231](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/231) Added checks for http interface functions. 
+### v3.1.0 (August 2021)
+ - [#232](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/232) Add updater version to the status details when job succeeds
+ - [#216](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/216), [#213](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/213), [#226](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/226), [#234](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/234) Misc fixes to remove compiler warnings and resolve build failures on certain platforms.
+ - [#200](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/200) Add type cast for logging variable of type size_t
 ## v3.0.0 (March 2021)
 
 ### Updates
@@ -16,4 +23,4 @@
  - [#183](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/183), [#158](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/158), [#157](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/157), [#153](https://github.com/aws/ota-for-aws-iot-embedded-sdk/pull/153) Other fixes to execution flow and improving logs.
 
 ## v2.0.0 (Release Candidate) (December 2020)
-This is a release candidate of the AWS IoT Over-the-air (OTA) Update library in this repository. You can use the OTA library with your chosen MQTT library, HTTP library, and operating system (e.g. Linux, FreeRTOS).
+- This is a release candidate of the AWS IoT Over-the-air (OTA) Update library in this repository. You can use the OTA library with your chosen MQTT library, HTTP library, and operating system (e.g. Linux, FreeRTOS).

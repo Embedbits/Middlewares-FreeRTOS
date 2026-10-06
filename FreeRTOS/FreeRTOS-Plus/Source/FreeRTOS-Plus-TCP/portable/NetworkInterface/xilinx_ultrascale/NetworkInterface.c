@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.3.3
+ * FreeRTOS+TCP V2.3.3-Patch-1
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -146,9 +146,6 @@ static uint32_t ulPHYLinkStatus = 0uL;
     static const uint8_t xLLMNR_MACAddress[] = { 0x01, 0x00, 0x5E, 0x00, 0x00, 0xFC };
 #endif
 
-/* ucMACAddress as it appears in main.c */
-extern const uint8_t ucMACAddress[ 6 ];
-
 /* Holds the handle of the task used as a deferred interrupt processor.  The
  * handle is used so direct notifications can be sent to the task for all EMAC/DMA
  * related interrupts. */
@@ -190,7 +187,7 @@ BaseType_t xNetworkInterfaceInitialise( void )
  *      }
  */
         /* Initialize the mac and set the MAC address. */
-        XEmacPs_SetMacAddress( pxEMAC_PS, ( void * ) ucMACAddress, 1 );
+        XEmacPs_SetMacAddress( pxEMAC_PS, ( void * ) ipLOCAL_MAC_ADDRESS, 1 );
 
         #if ( ipconfigUSE_LLMNR == 1 )
             {

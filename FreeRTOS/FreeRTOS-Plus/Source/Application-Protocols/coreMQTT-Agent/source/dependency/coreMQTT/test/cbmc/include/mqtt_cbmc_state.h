@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -31,14 +31,7 @@
 
 /* mqtt.h must precede including this header. */
 
-/**
- * @brief Proof model for malloc that can fail and return NULL.
- *
- * @param[in] size The size in bytes of memory to allocate.
- *
- * @return NULL or requested memory.
- */
-void * mallocCanFail( size_t size );
+#define IMPLIES( a, b )    ( !( a ) || ( b ) )
 
 /**
  * @brief Allocate a #MQTTPacketInfo_t object.

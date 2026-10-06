@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -36,11 +36,11 @@ void harness()
     MQTTEventCallback_t userCallback;
     MQTTFixedBuffer_t * pNetworkBuffer;
 
-    pContext = mallocCanFail( sizeof( MQTTContext_t ) );
-    pTransportInterface = mallocCanFail( sizeof( TransportInterface_t ) );
-    getTimeFunction = mallocCanFail( sizeof( MQTTGetCurrentTimeFunc_t ) );
-    userCallback = mallocCanFail( sizeof( MQTTEventCallback_t ) );
-    pNetworkBuffer = mallocCanFail( sizeof( MQTTFixedBuffer_t ) );
+    pContext = malloc( sizeof( MQTTContext_t ) );
+    pTransportInterface = malloc( sizeof( TransportInterface_t ) );
+    getTimeFunction = malloc( sizeof( MQTTGetCurrentTimeFunc_t ) );
+    userCallback = malloc( sizeof( MQTTEventCallback_t ) );
+    pNetworkBuffer = malloc( sizeof( MQTTFixedBuffer_t ) );
 
     MQTT_Init( pContext,
                pTransportInterface,

@@ -1,5 +1,5 @@
 /*
- * coreHTTP v2.0.2
+ * coreHTTP v2.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -29,6 +29,9 @@
 #include "http_parser.h"
 #include "callback_stubs.h"
 
+int __CPROVER_file_local_core_http_client_c_httpParserOnHeaderFieldCallback( http_parser * pHttpParser,
+                                                                             const char * pLoc,
+                                                                             size_t length );
 
 void httpParserOnHeaderFieldCallback_harness()
 {

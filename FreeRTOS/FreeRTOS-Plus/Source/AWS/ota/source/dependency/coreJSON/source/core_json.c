@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.0.0
+ * coreJSON v3.0.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -26,6 +26,7 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "core_json.h"
@@ -39,8 +40,13 @@ typedef union
     uint8_t u;
 } char_;
 
-#define isdigit_( x )    ( ( ( x ) >= '0' ) && ( ( x ) <= '9' ) )
-#define iscntrl_( x )    ( ( ( x ) >= '\0' ) && ( ( x ) < ' ' ) )
+#if ( CHAR_MIN == 0 )
+    #define isascii_( x )    ( ( x ) <= '\x7F' )
+#else
+    #define isascii_( x )    ( ( x ) >= '\0' )
+#endif
+#define iscntrl_( x )        ( isascii_( x ) && ( ( x ) < ' ' ) )
+#define isdigit_( x )        ( ( ( x ) >= '0' ) && ( ( x ) <= '9' ) )
 /* NB. This is whitespace as defined by the JSON standard (ECMA-404). */
 #define isspace_( x )                          \
     ( ( ( x ) == ' ' ) || ( ( x ) == '\t' ) || \
@@ -190,7 +196,7 @@ static bool skipUTF8MultiByte( const char * buf,
 
     i = *start;
     assert( i < max );
-    assert( buf[ i ] < '\0' );
+    assert( !isascii_( buf[ i ] ) );
 
     c.c = buf[ i ];
 
@@ -251,8 +257,7 @@ static bool skipUTF8( const char * buf,
 
     if( *start < max )
     {
-        /* an ASCII byte */
-        if( buf[ *start ] >= '\0' )
+        if( isascii_( buf[ *start ] ) )
         {
             *start += 1U;
             ret = true;
@@ -330,7 +335,7 @@ static bool skipOneHexEscape( const char * buf,
 
     i = *start;
 #define HEX_ESCAPE_LENGTH    ( 6U )   /* e.g., \u1234 */
-    end = i + HEX_ESCAPE_LENGTH;
+    end = ( i <= ( SIZE_MAX - HEX_ESCAPE_LENGTH ) ) ? ( i + HEX_ESCAPE_LENGTH ) : SIZE_MAX;
 
     if( ( end < max ) && ( buf[ i ] == '\\' ) && ( buf[ i + 1U ] == 'u' ) )
     {
@@ -1435,7 +1440,9 @@ static bool arraySearch( const char * buf,
  * @return true if a valid string was present;
  * false otherwise.
  */
-#define JSON_QUERY_KEY_SEPARATOR    '.'
+#ifndef JSON_QUERY_KEY_SEPARATOR
+    #define JSON_QUERY_KEY_SEPARATOR    '.'
+#endif
 #define isSeparator_( x )    ( ( x ) == JSON_QUERY_KEY_SEPARATOR )
 static bool skipQueryPart( const char * buf,
                            size_t * start,
@@ -1620,7 +1627,7 @@ JSONStatus_t JSON_SearchConst( const char * buf,
                                JSONTypes_t * outType )
 {
     JSONStatus_t ret;
-    size_t value;
+    size_t value = 0U;
 
     if( ( buf == NULL ) || ( query == NULL ) ||
         ( outValue == NULL ) || ( outValueLength == NULL ) )

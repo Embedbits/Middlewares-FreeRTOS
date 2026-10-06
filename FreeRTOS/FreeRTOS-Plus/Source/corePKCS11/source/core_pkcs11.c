@@ -1,5 +1,5 @@
 /*
- * corePKCS11 v3.1.0
+ * corePKCS11 v3.3.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -18,12 +18,10 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * http://aws.amazon.com/freertos
- * http://www.FreeRTOS.org
  */
 
 #include "core_pkcs11_config.h"
+#include "core_pkcs11_config_defaults.h"
 #include "core_pkcs11.h"
 
 /* C runtime includes. */
@@ -109,7 +107,7 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
     {
         if( *pxSlotCount == ( ( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) ) / ( sizeof( CK_SLOT_ID ) ) ) )
         {
-            pxSlotId = PKCS11_MALLOC( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) );
+            pxSlotId = pkcs11configPKCS11_MALLOC( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) );
 
             if( pxSlotId == NULL )
             {
@@ -133,7 +131,7 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
 
     if( ( xResult != CKR_OK ) && ( pxSlotId != NULL ) )
     {
-        PKCS11_FREE( pxSlotId );
+        pkcs11configPKCS11_FREE( pxSlotId );
         *ppxSlotId = NULL;
     }
 
@@ -207,7 +205,7 @@ CK_RV xInitializePkcs11Token( void )
         ( NULL != pxFunctionList->C_InitToken ) )
     {
         /* Check if the token requires further initialization. */
-        pxTokenInfo = PKCS11_MALLOC( sizeof( CK_TOKEN_INFO ) );
+        pxTokenInfo = pkcs11configPKCS11_MALLOC( sizeof( CK_TOKEN_INFO ) );
 
         if( pxTokenInfo != NULL )
         {
@@ -231,20 +229,20 @@ CK_RV xInitializePkcs11Token( void )
         {
             /* Initialize the token if it is not already. */
             xResult = pxFunctionList->C_InitToken( pxSlotId[ 0 ],
-                                                   ( CK_UTF8CHAR_PTR ) configPKCS11_DEFAULT_USER_PIN,
-                                                   sizeof( configPKCS11_DEFAULT_USER_PIN ) - 1UL,
+                                                   ( CK_UTF8CHAR_PTR ) pkcs11configPKCS11_DEFAULT_USER_PIN,
+                                                   sizeof( pkcs11configPKCS11_DEFAULT_USER_PIN ) - 1UL,
                                                    ( CK_UTF8CHAR_PTR ) "FreeRTOS" );
         }
     }
 
     if( pxTokenInfo != NULL )
     {
-        PKCS11_FREE( pxTokenInfo );
+        pkcs11configPKCS11_FREE( pxTokenInfo );
     }
 
     if( pxSlotId != NULL )
     {
-        PKCS11_FREE( pxSlotId );
+        pkcs11configPKCS11_FREE( pxSlotId );
     }
 
     return xResult;
@@ -293,15 +291,15 @@ CK_RV xInitializePkcs11Session( CK_SESSION_HANDLE * pxSession )
         xResult = prvOpenSession( pxSession, pxSlotId[ 0 ] );
 
         /* Free the memory allocated by xGetSlotList. */
-        PKCS11_FREE( pxSlotId );
+        pkcs11configPKCS11_FREE( pxSlotId );
     }
 
     if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_Login != NULL ) )
     {
         xResult = pxFunctionList->C_Login( *pxSession,
                                            CKU_USER,
-                                           ( CK_UTF8CHAR_PTR ) configPKCS11_DEFAULT_USER_PIN,
-                                           sizeof( configPKCS11_DEFAULT_USER_PIN ) - 1UL );
+                                           ( CK_UTF8CHAR_PTR ) pkcs11configPKCS11_DEFAULT_USER_PIN,
+                                           sizeof( pkcs11configPKCS11_DEFAULT_USER_PIN ) - 1UL );
     }
 
     return xResult;

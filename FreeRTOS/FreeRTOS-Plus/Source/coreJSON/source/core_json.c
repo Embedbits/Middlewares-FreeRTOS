@@ -1,5 +1,5 @@
 /*
- * coreJSON v3.0.2
+ * coreJSON v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -170,14 +170,14 @@ static bool shortestUTF8( size_t length,
  * @return true if a valid code point was present;
  * false otherwise.
  *
- * 00–7F    Single-byte character
- * 80–BF    Trailing byte
- * C0–DF    Leading byte of two-byte character
- * E0–EF    Leading byte of three-byte character
- * F0–F7    Leading byte of four-byte character
- * F8–FB    Illegal (formerly leading byte of five-byte character)
- * FC–FD    Illegal (formerly leading byte of six-byte character)
- * FE–FF    Illegal
+ * 00-7F    Single-byte character
+ * 80-BF    Trailing byte
+ * C0-DF    Leading byte of two-byte character
+ * E0-EF    Leading byte of three-byte character
+ * F0-F7    Leading byte of four-byte character
+ * F8-FB    Illegal (formerly leading byte of five-byte character)
+ * FC-FD    Illegal (formerly leading byte of six-byte character)
+ * FE-FF    Illegal
  *
  * The octet values C0, C1, and F5 to FF are illegal, since C0 and C1
  * would introduce a non-shortest sequence, and F5 or above would

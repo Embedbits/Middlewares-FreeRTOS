@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.2
+ * coreMQTT v1.2.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -246,6 +246,7 @@ static bool validateTransitionPublish( MQTTPublishState_t currentState,
                     isValid = ( newState == MQTTPubRecPending ) ? true : false;
                     break;
 
+                case MQTTQoS0:
                 default:
                     /* QoS 0 is checked before calling this function. */
                     break;
@@ -271,6 +272,13 @@ static bool validateTransitionPublish( MQTTPublishState_t currentState,
 
             break;
 
+        case MQTTPubAckSend:
+        case MQTTPubCompPending:
+        case MQTTPubCompSend:
+        case MQTTPubRecSend:
+        case MQTTPubRelPending:
+        case MQTTPubRelSend:
+        case MQTTPublishDone:
         default:
             /* For a PUBLISH, we should not start from any other state. */
             break;

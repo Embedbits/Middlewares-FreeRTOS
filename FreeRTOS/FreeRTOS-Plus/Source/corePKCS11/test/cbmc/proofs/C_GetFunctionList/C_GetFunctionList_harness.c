@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -33,8 +33,7 @@
 
 void harness()
 {
-    CK_FUNCTION_LIST_PTR pFunctionList;
+    CK_FUNCTION_LIST_PTR pxFunctionList = malloc( sizeof( CK_FUNCTION_LIST ) );
 
-    ( void ) C_GetFunctionList( &pFunctionList );
-    ( void ) C_GetFunctionList( NULL ); /* Unhappy path. */
+    ( void ) C_GetFunctionList( pxFunctionList );
 }

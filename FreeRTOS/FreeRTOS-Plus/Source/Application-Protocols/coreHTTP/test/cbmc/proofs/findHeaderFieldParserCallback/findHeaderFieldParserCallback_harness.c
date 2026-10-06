@@ -1,5 +1,5 @@
 /*
- * coreHTTP v2.0.0
+ * coreHTTP v2.0.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -46,10 +46,9 @@ void findHeaderFieldParserCallback_harness()
                       pResponse->pBuffer != NULL &&
                       pResponse->bufferLen > 0 );
 
-    __CPROVER_assume( 0 < fieldLen && fieldLen <= MAX_HEADER_FIELD_LENGTH && fieldLen <= pResponse->bufferLen );
-    __CPROVER_assume( fieldOffset < fieldLen );
+    __CPROVER_assume( 0 < fieldLen && fieldLen < MAX_HEADER_FIELD_LENGTH && fieldLen <= pResponse->bufferLen );
+    __CPROVER_assume( fieldOffset <= pResponse->bufferLen - fieldLen );
     pFieldLoc = pResponse->pBuffer + fieldOffset;
-    __CPROVER_assume( pFieldLoc + fieldLen < pResponse->pBuffer + pResponse->bufferLen );
 
     __CPROVER_assume( 0 < fieldContextLen && fieldContextLen < CBMC_MAX_OBJECT_SIZE );
     pFindHeaderContext->pField = ( char * ) malloc( fieldContextLen );

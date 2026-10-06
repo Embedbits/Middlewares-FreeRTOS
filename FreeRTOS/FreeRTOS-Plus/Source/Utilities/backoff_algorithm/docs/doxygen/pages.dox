@@ -34,23 +34,7 @@ For a reference example of using the library, refer to the related README sectio
 @section backoff_algorithm_memory_requirements Memory Requirements
 @brief Memory requirements of the backoffAlgorithm library.
 
-<table>
-    <tr>
-        <td colspan="4"><center><b>Code size (in bytes) of backoffAlgorithm library files (sizes generated with [GCC for ARM Cortex-M toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads/9-2020-q2-update))</b></center></td>
-    </tr>
-    <tr>
-        <td><b>File</b></td>
-        <td><b>No Optimization (asserts enabled)</b></td>
-        <td><b>With -O1 Optimization (asserts disabled)</b></td>
-        <td><b>With -Os Optimization (asserts disabled)</b></td>
-    </tr>
-    <tr>
-        <td>backoff_algorithm.c</td>
-        <td>678</td>
-        <td>140</td>
-        <td>136</td>
-    </tr>
-</table>
+@include{doc} size_table.md
 
 @section backoff_algorithm_design Design
 @brief backoffAlgorithm Library Design
@@ -78,18 +62,33 @@ every path of execution and achieve 100% branch coverage.
 */
 
 /**
+@page backoff_algorithm_example Code Example for backoffAlgorithm API
+@brief Example POSIX application that retries DNS resolution operation with exponential backoff-and-jitter using the backoffAlgorithm library.
+
+@include backoff_algorithm_posix.c
+ */
+
+/**
 @page backoff_algorithm_functions Functions
 @brief Primary functions of the backoffAlgorithm library:<br><br>
 @subpage define_backoffalgorithm_initializeparams <br>
 @subpage define_backoffalgorithm_getnextbackoff <br>
 
+<b>For a code example </b> of using backoffAlgorithm library for retrying operations with exponential back-off and jitter, refer to @ref backoff_algorithm_example.
+
 @page define_backoffalgorithm_initializeparams BackoffAlgorithm_InitializeParams
 @snippet backoff_algorithm.h define_backoffalgorithm_initializeparams
 @copydoc BackoffAlgorithm_InitializeParams
 
+From the @ref backoff_algorithm_example, following is the part relevant to the @ref BackoffAlgorithm_InitializeParams API.
+@snippet backoff_algorithm_posix.c code_example_backoffalgorithm_initializeparams
+
 @page define_backoffalgorithm_getnextbackoff BackoffAlgorithm_GetNextBackoff
-@snippet backoff_algorithm.h define_backoffalgorithm_getnextbackoff
 @copydoc BackoffAlgorithm_GetNextBackoff
+
+From the @ref backoff_algorithm_example, following is the part relevant to the @ref BackoffAlgorithm_GetNextBackoff API.
+@snippet backoff_algorithm_posix.c code_example_backoffalgorithm_getnextbackoff
+
 */
 
 <!-- We do not use doxygen ALIASes here because there have been issues in the past versions with "^^" newlines within the alias definition. -->

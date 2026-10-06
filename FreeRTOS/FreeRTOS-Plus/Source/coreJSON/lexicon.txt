@@ -34,6 +34,7 @@ ff
 ffff
 foo
 gcc
+html
 https
 ifndef
 inc
@@ -63,6 +64,7 @@ keylength
 len
 longjmp
 mainpage
+md
 microcontrollers
 min
 misra

@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.0
+ * coreMQTT v1.1.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -68,7 +68,7 @@ struct NetworkContext
  * If a ping response is not received before this timeout, then
  * #MQTT_ProcessLoop will return #MQTTKeepAliveTimeout.
  */
-#define MQTT_PINGRESP_TIMEOUT_MS                ( 500U )
+#define MQTT_PINGRESP_TIMEOUT_MS                ( 5000U )
 
 /**
  * @brief The maximum duration of receiving no data over network when

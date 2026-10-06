@@ -8,7 +8,11 @@ HARNESS_FILE = C_Verify_harness
 # Litani dashboard. It can be human-readable and contain spaces if you wish.
 PROOF_UID = C_Verify
 
-DEFINES +=
+# Defined in `core_pkcs11_config.h`
+# Should be one more than the total number of objects in the PKCS stack.
+MAX_OBJECT_NUM=2
+
+DEFINES += -DMAX_OBJECT_NUM=$(MAX_OBJECT_NUM)
 INCLUDES += -I$(SRCDIR)/source/dependency/3rdparty/mbedtls/include
 INCLUDES += -I$(SRCDIR)/source/dependency/3rdparty/mbedtls_utils
 
@@ -23,6 +27,9 @@ REMOVE_FUNCTION_BODY += mbedtls_entropy_free
 REMOVE_FUNCTION_BODY += mbedtls_entropy_init
 REMOVE_FUNCTION_BODY += mbedtls_ctr_drbg_free
 REMOVE_FUNCTION_BODY += __CPROVER_file_local_core_pkcs11_mbedtls_c_prvMbedTLS_Initialize
+
+# SHA256 hashes to 32 bytes always. Need one extra unwind to prove memory safety.
+UNWINDSET += memcmp.0:33
 
 PROOF_SOURCES += $(PROOFDIR)/$(HARNESS_FILE).c
 PROOF_SOURCES += $(SRCDIR)/test/cbmc/stubs/mbedtls_stubs.c

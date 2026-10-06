@@ -20,7 +20,7 @@ It has proofs showing safe memory use and no heap allocation, making it suitable
 @section jobs_memory_requirements Memory Requirements
 @brief Memory requirements of the jobs library.
 
-@include{doc} size_table.html
+@include{doc} size_table.md
  */
 
 /**
@@ -64,7 +64,7 @@ These configuration settings are C pre-processor constants they are set using a 
 @subpage jobs_getpending_function <br>
 @subpage jobs_startnext_function <br>
 @subpage jobs_describe_function <br>
-@subpage jobs_startnext_function <br>
+@subpage jobs_update_function <br>
 
 @page jobs_gettopic_function Jobs_GetTopic
 @snippet jobs.h declare_jobs_gettopic

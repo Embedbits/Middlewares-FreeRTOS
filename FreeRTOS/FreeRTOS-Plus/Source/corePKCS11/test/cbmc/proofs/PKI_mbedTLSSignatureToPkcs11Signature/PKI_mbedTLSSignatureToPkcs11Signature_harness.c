@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -29,6 +29,9 @@
  */
 #include "core_pki_utils.h"
 
+#define mbedtlsEncodedBufferLen    72
+#define ASN1EncodedBufferLen       64
+
 
 void harness()
 {
@@ -37,12 +40,9 @@ void harness()
     uint32_t ulSigLen;
     uint32_t ulMbedSigLen;
 
-    __CPROVER_assume( ulSigLen == 64 && ulMbedSigLen == 72 );
+    __CPROVER_assume( ulSigLen >= ASN1EncodedBufferLen && ulMbedSigLen >= mbedtlsEncodedBufferLen );
     pucSig = malloc( ulSigLen * sizeof( uint8_t ) );
     pucMbedSig = malloc( ulMbedSigLen * sizeof( uint8_t ) );
 
     PKI_mbedTLSSignatureToPkcs11Signature( pucSig, pucMbedSig );
-
-    free( pucSig );
-    free( pucMbedSig );
 }

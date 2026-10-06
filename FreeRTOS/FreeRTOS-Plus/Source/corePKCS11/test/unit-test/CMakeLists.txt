@@ -2,6 +2,8 @@ project( "pkcs11_wrapper" )
 #Include filepaths for source and include.
 include( ${MODULE_ROOT_DIR}/pkcsFilePaths.cmake )
 
+add_compile_definitions( MBEDTLS_CONFIG_FILE="aws_mbedtls_config.h" )
+
 # =============================  PKCS #11 wrapper unit tests  ===========================
 set(project_name "core_pkcs11")
 set(utest_name "${project_name}_utest")
@@ -33,6 +35,7 @@ list(APPEND mock_list
 list(APPEND mock_include_list
         config
         "${PKCS_INCLUDE_PUBLIC_DIRS}"
+        "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include"
         "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls"
         "${MODULE_ROOT_DIR}/test/unit-test/config"
     )
@@ -47,8 +50,8 @@ list(APPEND mock_define_list
 # list the files you would like to test here
 list(APPEND real_source_files
             "${MODULE_ROOT_DIR}/source/core_pkcs11.c"
-            "${MODULE_ROOT_DIR}/test/unit-test/config/logging_stack.h"
-            "${MODULE_ROOT_DIR}/test/unit-test/config/logging_levels.h"
+            "${MODULE_ROOT_DIR}/test/shared-config/logging_stack.h"
+            "${MODULE_ROOT_DIR}/test/shared-config/logging_levels.h"
         )
 
 # list the directories the module under test includes
@@ -151,14 +154,17 @@ list(APPEND mock_list
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/ecp.h"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/pk_internal.h"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/ecdsa.h"
-            "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls_utils/mbedtls_error.h"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/pk.h"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/x509_crt.h"
+            "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/md.h"
+            "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/cmac.h"
+            "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/cipher.h"
             "${MODULE_ROOT_DIR}/source/include/core_pki_utils.h"
     )
 
 # list the directories your mocks need
 list(APPEND mock_include_list
+            "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls_utils"
             "${MODULE_ROOT_DIR}/test/unit-test/config"
@@ -192,6 +198,7 @@ list(APPEND real_include_directories
 # list the directories your test needs to include
 list(APPEND test_include_directories
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/pkcs11"
+            "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls"
             "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls_utils"
             "${MODULE_ROOT_DIR}/test/unit-test/config"
@@ -261,7 +268,7 @@ set(mock_dir "wrapper_mocks")
 # list the files to mock here
 # Can't have an empty mock list.
 list(APPEND mock_list
-    "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls_utils/mbedtls_error.h"
+    "${MODULE_ROOT_DIR}/source/dependency/3rdparty/mbedtls/include/mbedtls/error.h"
 )
 
 # list the directories your mocks need

@@ -9,12 +9,12 @@ This library is distributed under the [MIT Open Source License](LICENSE).
 This library has gone through code quality checks including verification that no
 function has a [GNU Complexity](https://www.gnu.org/software/complexity/manual/complexity.html)
 score over 8, and checks against deviations from mandatory rules in the
-[MISRA coding standard](https://www.misra.org.uk/MISRAHome/MISRAC2012/tabid/196/Default.aspx).
+[MISRA coding standard](https://www.misra.org.uk).
 Deviations from the MISRA C:2012 guidelines are documented under [MISRA Deviations](MISRA.md).
 This library has also undergone static code analysis using [Coverity static analysis](https://scan.coverity.com/),
 and validation of memory safety through the [CBMC automated reasoning tool](https://www.cprover.org/cbmc/).
 
-See memory requirements for this library [here](https://docs.aws.amazon.com/embedded-csdk/202103.00/lib-ref/libraries/aws/device-defender-for-aws-iot-embedded-sdk/docs/doxygen/output/html/index.html#defender_memory_requirements).
+See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
 **AWS IoT Device Defender v1.1.0 [source code](https://github.com/aws/Device-Defender-for-AWS-IoT-embedded-sdk/tree/v1.1.0/source) is part of the [FreeRTOS 202012.01 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.01-LTS) release.**
 
@@ -83,7 +83,19 @@ The AWS IoT Embedded C-SDK repository contains a demo showing the use of AWS IoT
 Device Defender Client Library [here](https://github.com/aws/aws-iot-device-sdk-embedded-C/tree/main/demos/defender/defender_demo_json)
 on a POSIX platform.
 
-## Generating documentation
+## Documentation
+
+### Existing documentation
+For pre-generated documentation, please see the documentation linked in the locations below:
+
+| Location |
+| :-: |
+| [AWS IoT Device SDK for Embedded C](https://github.com/aws/aws-iot-device-sdk-embedded-C#releases-and-documentation) |
+| [FreeRTOS.org](https://freertos.org/Documentation/api-ref/device-defender-for-aws-iot-embedded-sdk/docs/doxygen/output/html/index.html) |
+
+Note that the latest included version of the AWS IoT Device Defender library may differ across repositories.
+
+### Generating documentation
 
 The Doxygen references were created using Doxygen version 1.8.20. To generate the
 Doxygen pages, please run the following command from the root of this repository:

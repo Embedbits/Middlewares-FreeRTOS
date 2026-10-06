@@ -14,19 +14,20 @@ Besides, in an environment with poor connectivity, a client can get disconnected
 A backoff strategy helps the client to conserve battery by not repeatedly attempting reconnections when they are
 unlikely to succeed.
 
-See memory requirements for this library [here](https://docs.aws.amazon.com/embedded-csdk/202012.00/lib-ref/libraries/standard/backoffAlgorithm/docs/doxygen/output/html/index.html#backoff_algorithm_memory_requirements).
+See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
 **backoffAlgorithm v1.0.0 [source code](https://github.com/FreeRTOS/backoffAlgorithm/tree/v1.0.0/source) is part of the [FreeRTOS 202012.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.00-LTS) release.**
 
 ## Reference example
 
-The example below shows how to use the backoffAlgorithm library to retry a DNS resolution query for `amazon.com`.
+The example below shows how to use the backoffAlgorithm library on a POSIX platform to retry a DNS resolution query for `amazon.com`.
 
 ```c
 #include "backoff_algorithm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <time.h>
 
 /* The maximum number of retries for the example code. */
@@ -44,11 +45,11 @@ int main()
     BackoffAlgorithmStatus_t retryStatus = BackoffAlgorithmSuccess;
     BackoffAlgorithmContext_t retryParams;
     char serverAddress[] = "amazon.com";
-    uint16_t nextRetryBackOff = 0;
+    uint16_t nextRetryBackoff = 0;
 
     int32_t dnsStatus = -1;
     struct addrinfo hints;
-    struct addrinfo ** pListHead;
+    struct addrinfo ** pListHead = NULL;
     struct timespec tp;
 
     /* Add hints to retrieve only TCP sockets in getaddrinfo. */
@@ -86,12 +87,16 @@ int main()
         {
             /* Generate a random number and get back-off value (in milliseconds) for the next retry.
              * Note: It is recommended to use a random number generator that is seeded with
-             * device-specific entropy source so that backoff calculation in devices is different 
+             * device-specific entropy source so that backoff calculation across devices is different
              * and possibility of network collision between devices attempting retries can be avoided.
              *
-             * For the simplicity of the code example, the pseudo random number generator, rand() function
-             * is used. */
-            retryStatus = BackoffAlgorithm_GetNextBackoff( &retryParams, rand(), &nextRetryBackOff );
+             * For the simplicity of this code example, the pseudo random number generator, rand()
+             * function is used. */
+            retryStatus = BackoffAlgorithm_GetNextBackoff( &retryParams, rand(), &nextRetryBackoff );
+
+            /* Wait for the calculated backoff period before the next retry attempt of querying DNS.
+             * As usleep() takes nanoseconds as the parameter, we multiply the backoff period by 1000. */
+            ( void ) usleep( nextRetryBackoff * 1000U );
         }
     } while( ( dnsStatus != 0 ) && ( retryStatus != BackoffAlgorithmRetriesExhausted ) );
 
@@ -124,7 +129,7 @@ By default, the submodules in this repository are configured with `update=none` 
 
 To build unit tests, the submodule dependency of Unity is required. Use the following command to clone the submodule:
 ```
-git submodule update --checkout --init --recursive --test/unit-test/Unity
+git submodule update --checkout --init --recursive test/unit-test/Unity
 ```
 
 ### Platform Prerequisites

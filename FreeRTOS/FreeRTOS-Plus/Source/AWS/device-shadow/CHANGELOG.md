@@ -1,4 +1,18 @@
-# Changelog for AWS IoT Device Shadow
+# Changelog for AWS IoT Device Shadow library
+
+## v1.1.1 (July 2021)
+
+### Other
+ - [#85](https://github.com/aws/Device-Shadow-for-AWS-IoT-embedded-sdk/pull/85) Fix CBMC proof for `Shadow_AssembleTopicString` API.
+ - [#88](https://github.com/aws/Device-Shadow-for-AWS-IoT-embedded-sdk/pull/88) Update broken MISRA link
+
+## v1.1.0 (March 2021)
+
+### Updates
+ - [#56](https://github.com/aws/device-shadow-for-aws-iot-embedded-sdk/pull/56), [#56](https://github.com/aws/device-shadow-for-aws-iot-embedded-sdk/pull/72) and [#73](https://github.com/aws/device-shadow-for-aws-iot-embedded-sdk/pull/73) Add support for named shadow, a feature of the AWS IoT Device Shadow service that allows you to create multiple shadows for a single IoT device.
+
+### Other
+ - [#74](https://github.com/aws/device-shadow-for-aws-iot-embedded-sdk/pull/74) Add CBMC proof for `Shadow_MatchTopic` API.
 
 ## v1.0.2 (December 2020)
 

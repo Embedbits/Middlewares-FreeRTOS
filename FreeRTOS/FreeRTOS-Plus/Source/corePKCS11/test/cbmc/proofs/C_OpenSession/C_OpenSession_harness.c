@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -35,17 +35,15 @@ void harness()
 {
     CK_RV xResult;
     CK_FLAGS xFlags;
-    CK_SESSION_HANDLE xSession;
+    CK_SESSION_HANDLE * pxSession = malloc( sizeof( CK_SESSION_HANDLE ) );
 
     xResult = C_Initialize( NULL );
+    __CPROVER__assume( xResult == CKR_OK );
+
+    xResult = C_OpenSession( 0, xFlags, NULL, 0, pxSession );
 
     if( xResult == CKR_OK )
     {
-        xResult = C_OpenSession( 0, xFlags, NULL, 0, &xSession );
-
-        if( xResult == CKR_OK )
-        {
-            __CPROVER_assert( xSession != CK_INVALID_HANDLE, "Handle must be valid if CKR_OK is returned." );
-        }
+        __CPROVER_assert( *pxSession != CK_INVALID_HANDLE, "Handle must be valid if CKR_OK is returned." );
     }
 }

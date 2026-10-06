@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -32,8 +32,8 @@
 
 void harness()
 {
-    CK_SLOT_ID ** ppxSlotId;
-    CK_ULONG ulSlotCount;
+    CK_SLOT_ID ** ppxSlotId = malloc( sizeof( CK_SLOT_ID * ) );
+    CK_ULONG * pulSlotCount = malloc( sizeof( CK_ULONG ) );
 
-    ( void ) xGetSlotList( ppxSlotId, &ulSlotCount );
+    ( void ) xGetSlotList( ppxSlotId, pulSlotCount );
 }

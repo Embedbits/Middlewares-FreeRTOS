@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -31,6 +31,7 @@
 #include <stddef.h>
 #include "core_pkcs11.h"
 
+
 void harness()
 {
     uint8_t * pucHash;
@@ -38,12 +39,9 @@ void harness()
     uint32_t ulHashLen;
     uint32_t ulOidLen;
 
-    __CPROVER_assume( ulHashLen == 32 && ulOidLen == 51 );
+    __CPROVER_assume( ulHashLen >= 32 && ulOidLen >= 51 );
     pucHash = malloc( ulHashLen * sizeof( uint8_t ) );
     pucOid = malloc( ulOidLen * sizeof( uint8_t ) );
 
     vAppendSHA256AlgorithmIdentifierSequence( pucHash, pucOid );
-
-    free( pucHash );
-    free( pucOid );
 }

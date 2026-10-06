@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -27,6 +27,12 @@
 #define _CORE_PKCS11_H_
 
 #include <stdint.h>
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    extern "C" {
+#endif
+/* *INDENT-ON* */
 
 #ifdef _WIN32
     #pragma pack(push, cryptoki, 1)
@@ -90,6 +96,12 @@
  * @brief Length of a SHA256 digest, in bytes.
  */
 #define pkcs11SHA256_DIGEST_LENGTH           32UL
+
+/**
+ * @ingroup pkcs11_wrapper_macros
+ * @brief Length of a CMAC signature, in bytes.
+ */
+#define pkcs11AES_CMAC_SIGNATURE_LENGTH      16UL
 
 /**
  * @ingroup pkcs11_wrapper_macros
@@ -318,5 +330,11 @@ CK_RV vAppendSHA256AlgorithmIdentifierSequence( const uint8_t * puc32ByteHashedM
 #ifdef _WIN32
     #pragma pack(pop, cryptoki)
 #endif
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    }
+#endif
+/* *INDENT-ON* */
 
 #endif /* ifndef _CORE_PKCS11_H_ */

@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -31,6 +31,7 @@
 #include "mbedtls/oid.h"
 #include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
+#include "mbedtls/cmac.h"
 #include "core_pkcs11_config.h"
 #include "core_pkcs11.h"
 
@@ -55,12 +56,18 @@ typedef struct P11Session
     CK_OBJECT_HANDLE xSignKeyHandle;
     mbedtls_pk_context xSignKey;
     mbedtls_sha256_context xSHA256Context;
+    CK_OBJECT_HANDLE xHMACKeyHandle;
+    mbedtls_md_context_t xHMACSecretContext;
+    CK_OBJECT_HANDLE xCMACKeyHandle;
+    mbedtls_cipher_context_t xCMACSecretContext;
 } P11Session_t;
 
 CK_RV __CPROVER_file_local_core_pkcs11_mbedtls_c_prvCheckValidSessionAndModule( const P11Session_t * pxSession )
 {
+    CK_RV xResult;
+
     __CPROVER_assert( pxSession != NULL, "pxSession was NULL." );
-    return CKR_OK;
+    return xResult;
 }
 
 void __CPROVER_file_local_core_pkcs11_mbedtls_c_prvFindObjectInListByHandle( CK_OBJECT_HANDLE xAppHandle,
@@ -69,24 +76,17 @@ void __CPROVER_file_local_core_pkcs11_mbedtls_c_prvFindObjectInListByHandle( CK_
                                                                              CK_ULONG_PTR pxLabelLength )
 {
     CK_OBJECT_HANDLE handle;
+    CK_ULONG xLen;
 
     __CPROVER_assert( pxPalHandle != NULL, "ppcLabel was NULL." );
     __CPROVER_assert( ppcLabel != NULL, "ppcLabel was NULL." );
     __CPROVER_assert( pxLabelLength != NULL, "ppcLabel was NULL." );
 
-    __CPROVER_assume( handle < 4 );
+    __CPROVER_assume( handle < MAX_OBJECT_NUM );
     *pxPalHandle = handle;
 
-    if( nondet_bool() )
-    {
-        *ppcLabel = pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS;
-        *pxLabelLength = sizeof( pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS );
-    }
-    else
-    {
-        *ppcLabel = pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS;
-        *pxLabelLength = sizeof( pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS );
-    }
+    *ppcLabel = malloc( xLen );
+    *pxLabelLength = xLen;
 }
 
 void harness()
@@ -101,6 +101,7 @@ void harness()
     xResult = C_Initialize( NULL );
     __CPROVER_assume( xResult == CKR_OK );
 
-    __CPROVER_assume( hSession >= 1 && hSession <= pkcs11configMAX_SESSIONS );
+    __CPROVER_assume( ( hSession > CK_INVALID_HANDLE ) &&
+                      ( hSession <= pkcs11configMAX_SESSIONS ) );
     ( void ) C_DestroyObject( hSession, hObject );
 }

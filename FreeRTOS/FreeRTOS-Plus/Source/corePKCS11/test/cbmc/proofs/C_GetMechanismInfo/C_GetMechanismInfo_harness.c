@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -35,8 +35,7 @@ void harness()
 {
     CK_SLOT_ID xSlotId;
     CK_MECHANISM_TYPE xMech;
-    CK_MECHANISM_INFO xMechInfo;
+    CK_MECHANISM_INFO * pxMechInfo = malloc( sizeof( CK_MECHANISM_INFO ) );
 
-    ( void ) C_GetMechanismInfo( xSlotId, xMech, &xMechInfo );
-    __CPROVER_assert( CKR_ARGUMENTS_BAD == C_GetMechanismInfo( xSlotId, xMech, NULL ), "Expected a NULL pointer to fail." );
+    ( void ) C_GetMechanismInfo( xSlotId, xMech, pxMechInfo );
 }

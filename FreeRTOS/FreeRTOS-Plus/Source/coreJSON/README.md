@@ -2,9 +2,9 @@
 
 This repository contains the coreJSON library, a parser that strictly enforces the ECMA-404 JSON standard and is suitable for low memory footprint embedded devices. The coreJSON library is distributed under the [MIT Open Source License](LICENSE).
 
-This library has gone through code quality checks including verification that no function has a [GNU Complexity](https://www.gnu.org/software/complexity/manual/complexity.html) score over 8, and checks against deviations from mandatory rules in the [MISRA coding standard](https://www.misra.org.uk/MISRAHome/MISRAC2012/tabid/196/Default.aspx). Deviations from the MISRA C:2012 guidelines are documented under [MISRA Deviations](MISRA.md). This library has also undergone both static code analysis from [Coverity static analysis](https://scan.coverity.com/), and validation of memory safety and proof of functional correctness through the [CBMC automated reasoning tool](https://www.cprover.org/cbmc/).  
+This library has gone through code quality checks including verification that no function has a [GNU Complexity](https://www.gnu.org/software/complexity/manual/complexity.html) score over 8, and checks against deviations from mandatory rules in the [MISRA coding standard](https://www.misra.org.uk). Deviations from the MISRA C:2012 guidelines are documented under [MISRA Deviations](MISRA.md). This library has also undergone both static code analysis from [Coverity static analysis](https://scan.coverity.com/), and validation of memory safety through the [CBMC automated reasoning tool](https://www.cprover.org/cbmc/).
 
-See memory requirements for this library [here](https://docs.aws.amazon.com/embedded-csdk/202012.00/lib-ref/libraries/standard/coreJSON/docs/doxygen/output/html/index.html#json_memory_requirements).
+See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
 **coreJSON v3.0.0 [source code](https://github.com/FreeRTOS/coreJSON/tree/v3.0.0/source) is part of the [FreeRTOS 202012.00 LTS](https://github.com/FreeRTOS/FreeRTOS-LTS/tree/202012.00-LTS) release.**
 
@@ -55,7 +55,7 @@ A search may descend through nested objects when the `queryKey` contains matchin
 
 A compiler that supports **C90 or later** such as *gcc* is required to build the library.
 
-Additionally, the library uses 2 header files introduced in ISO C99, `stdbool.h` and `stdint.h`. For compilers that do not provide this header file, the [source/include](source/include) directory contains [stdbool.readme](source/include/stdbool.readme) and [stdbool.readme](source/include/stdint.readme), which can be renamed to `stdbool.h` and `stdint.h` respectively.
+Additionally, the library uses 2 header files introduced in ISO C99, `stdbool.h` and `stdint.h`. For compilers that do not provide this header file, the [source/include](source/include) directory contains [stdbool.readme](source/include/stdbool.readme) and [stdint.readme](source/include/stdint.readme), which can be renamed to `stdbool.h` and `stdint.h` respectively.
 
 For instance, if the example above is copied to a file named `example.c`, *gcc* can be used like so:
 ```bash
@@ -68,7 +68,19 @@ gcc -I source/include example.c source/core_json.c -o example
 gcc -I source/include -c source/core_json.c
 ```
 
-## Generating documentation
+## Documentation
+
+### Existing documentation
+For pre-generated documentation, please see the documentation linked in the locations below:
+
+| Location |
+| :-: |
+| [AWS IoT Device SDK for Embedded C](https://github.com/aws/aws-iot-device-sdk-embedded-C#releases-and-documentation) |
+| [FreeRTOS.org](https://freertos.org/Documentation/api-ref/coreJSON/docs/doxygen/output/html/index.html) |
+
+Note that the latest included version of the coreJSON library may differ across repositories.
+
+### Generating documentation
 
 The Doxygen references were created using Doxygen version 1.8.20. To generate the
 Doxygen pages, please run the following command from the root of this repository:
@@ -84,7 +96,7 @@ By default, the submodules in this repository are configured with `update=none` 
 
 To build unit tests, the submodule dependency of Unity is required. Use the following command to clone the submodule:
 ```
-git submodule update --checkout --init --recursive --test/unit-test/Unity
+git submodule update --checkout --init --recursive test/unit-test/Unity
 ```
 
 ### Platform Prerequisites

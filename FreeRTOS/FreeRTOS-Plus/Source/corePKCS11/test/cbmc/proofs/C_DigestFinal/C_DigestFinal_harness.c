@@ -1,5 +1,5 @@
 /*
- * corePKCS11 V3.0.0
+ * corePKCS11 v3.1.0
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -28,10 +28,9 @@
  * @brief Implements the proof harness for C_DigestFinal function.
  */
 
-#include "mbedtls/ecp.h"
-#include "mbedtls/oid.h"
-#include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/cmac.h"
 #include "core_pkcs11_config.h"
 #include "core_pkcs11.h"
 
@@ -56,51 +55,47 @@ typedef struct P11Session
     CK_OBJECT_HANDLE xSignKeyHandle;
     mbedtls_pk_context xSignKey;
     mbedtls_sha256_context xSHA256Context;
+    CK_OBJECT_HANDLE xHMACKeyHandle;
+    mbedtls_md_context_t xHMACSecretContext;
+    CK_OBJECT_HANDLE xCMACKeyHandle;
+    mbedtls_cipher_context_t xCMACSecretContext;
 } P11Session_t;
 
 CK_RV __CPROVER_file_local_core_pkcs11_mbedtls_c_prvCheckValidSessionAndModule( P11Session_t * pxSession )
 {
+    CK_RV xResult;
+
     __CPROVER_assert( pxSession != NULL, "pxSession was NULL." );
     pxSession->xOperationDigestMechanism = nondet_bool() ? CKM_SHA256 : CKM_SHA224;
-    return CKR_OK;
+    return xResult;
 }
 
 CK_BBOOL __CPROVER_file_local_core_pkcs11_mbedtls_c_prvOperationActive( const P11Session_t * pxSession )
 {
+    CK_RV xResult;
+
     __CPROVER_assert( pxSession != NULL, "pxSession was NULL." );
-    return nondet_bool() ? CK_TRUE : CK_FALSE;
+    return xResult;
 }
 
 void harness()
 {
     CK_SESSION_HANDLE hSession;
-    CK_ULONG ulPartlen;
-    CK_ULONG ulRequestedSizeLen;
+    CK_ULONG * pulPartLen = malloc( sizeof( CK_ULONG ) );
     CK_RV xResult;
     CK_BYTE_PTR pPart;
 
-    __CPROVER_assume( ulPartlen <= 1024 );
-    pPart = malloc( ulPartlen );
-
-    __CPROVER_assume( hSession >= 1 && hSession <= pkcs11configMAX_SESSIONS );
-    xResult = C_DigestFinal( hSession, NULL, &ulRequestedSizeLen );
-
-    if( xResult == CKR_OK )
+    if( pulPartLen != NULL )
     {
-        __CPROVER_assert( ulRequestedSizeLen == 32, "A NULL buffer pointer indicates a request for the needed"
-                                                    "buffer output size. Since we only do SHA-256, it should always be 32 bytes." );
+        pPart = malloc( *pulPartLen );
     }
 
-    xResult = C_DigestFinal( hSession, pPart, &ulPartlen );
+    __CPROVER_assume( hSession > CK_INVALID_HANDLE && hSession <= pkcs11configMAX_SESSIONS );
+    xResult = C_DigestFinal( hSession, pPart, pulPartLen );
 
-    if( xResult == CKR_OK )
+    if( ( ( xResult == CKR_OK ) && ( pulPartLen != NULL ) ) )
     {
-        __CPROVER_assert( ulPartlen == 32, "A NULL buffer pointer indicates a request for the needed"
-                                           "buffer output size. Since we only do SHA-256, it should always be 32 bytes." );
+        __CPROVER_assert( *pulPartLen == 32, "Since we only do SHA-256 we expect "
+                                             "the output buffer to always be 32 bytes." );
     }
-
-    xResult = C_DigestFinal( hSession, pPart, NULL );
-    __CPROVER_assert( xResult == CKR_ARGUMENTS_BAD, "A NULL length pointer is a bad argument." );
-
-    free( pPart );
 }

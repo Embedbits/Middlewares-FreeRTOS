@@ -89,8 +89,10 @@ bwinscaling
 bytecount
 callbacklist
 calloc
+cambridge
 camen
 carriersense
+castingmacrofunctions
 cbmc
 ccfg
 cchannel
@@ -154,6 +156,7 @@ dff
 dhcp
 dhcpbroadcast
 dhcpcookie
+dhcpserveraddress
 didn
 dm
 dma
@@ -180,8 +183,10 @@ dw
 dword
 dzpq
 eagain
+eapplicationprocesscustomframehook
 earpcachehit
 earpcachemiss
+earpgetcacheentry
 earptimerevent
 ec
 ecantsendpacket
@@ -256,6 +261,7 @@ esenddhcprequest
 esocketbindevent
 esocketcloseevent
 esocketselectevent
+esocketsetdeleteevent
 esocketsignalevent
 espressif
 estacktxevent
@@ -317,8 +323,10 @@ github
 gmac
 gmacpins
 gmacsa
+gnw
 gpio
 gpl
+greaterthan
 grr
 gswutr
 hal
@@ -385,6 +393,7 @@ isdhcpsocket
 isn
 isp
 isr
+isrs
 iss
 itemvalue
 jd
@@ -410,6 +419,7 @@ ldistance
 leds
 len
 lendofframe
+lessthan
 linkcurr
 linklayer
 linkmd
@@ -425,6 +435,7 @@ lmaxlength
 lminlength
 lnetlength
 loffset
+longjmp
 loopback
 loopbackmode
 loptionname
@@ -579,6 +590,7 @@ pcipaddress
 pcmessage
 pcname
 pcnetworkbuffer
+pcrequestedname
 pcs
 pcsource
 pcto
@@ -620,9 +632,11 @@ posix
 pparam
 ppkt
 ppointer
+ppucdata
 ppucrecvdata
 ppxnetworkbuffer
 pr
+pragma
 pre
 printf
 printfs
@@ -657,6 +671,8 @@ prvreadnamefield
 prvreadsackoption
 prvrxcallback
 prvsenddata
+prvsenddhcpdiscover
+prvsenddhcprequest
 prvsetoptions
 prvsetsynackoptions
 prvsinglesteptcpheaderoptions
@@ -714,6 +730,7 @@ pullups
 pulnetmask
 pulnumber
 pulvalue
+pvargument
 pvbuffer
 pvdata
 pvdestination
@@ -739,6 +756,7 @@ pxdestinationaddress
 pxdnsmessageheader
 pxduplicatenetworkbufferwithdescriptor
 pxevent
+pxgetnetworkbuffer
 pxgetnetworkbufferwithdescriptor
 pxhandleconnected
 pxhandlereceive
@@ -818,6 +836,7 @@ regist
 regvalue
 reinit
 renesas
+releaseudppayloadbuffer
 reqlength
 resetpins
 retrytransmission
@@ -831,6 +850,7 @@ richard
 rle
 rlex
 rmii
+rng
 ro
 rollover
 roreg
@@ -913,6 +933,7 @@ srdbl
 srtt
 ss
 starttx
+stderr
 stmicroelectronics
 strcmp
 streambuffer
@@ -1004,6 +1025,7 @@ uclen
 uclength
 uclinklayeripaddress
 ucmacaddress
+ucmessagetype
 ucmywinscalefactor
 ucname
 ucnamecode
@@ -1030,6 +1052,7 @@ uctcpoffset
 uctcpstate
 uctimetolive
 uctransmitcount
+ucserveridentifier
 uctypeofmessage
 uctypeofservice
 ucvalid
@@ -1049,6 +1072,7 @@ ulbytecount
 ulchecktime
 ulconnected
 ulcount
+ulclientipaddress
 ulcurrentsequencenumber
 ulcurrentspistatus
 uldefaultipaddress
@@ -1057,6 +1081,7 @@ uldestinationaddress
 uldestinationipaddress
 uldhcpcookie
 uldhcpserveraddress
+uldnsserver
 uldnsserveraddress
 uldonemask
 ulfifolength
@@ -1065,6 +1090,7 @@ ulfirst
 ulfirstsequencenumber
 ulflag
 ulflags
+ulgateway
 ulgatewayaddress
 ulgetruntimecountervalue
 ulhighestrxallowed
@@ -1114,6 +1140,7 @@ ulsize
 ulsourceipaddress
 ulspace
 ulstatus
+ulsubnetmask
 ulsum
 ultargetprotocoladdress
 ultcpwindowtxack
@@ -1136,6 +1163,7 @@ unhandled
 unicast
 unicastframesfilter
 unicastpauseframedetect
+uninitialised
 unsetmacaddr
 urg
 url
@@ -1149,6 +1177,7 @@ usauthrss
 usbacklog
 usboundport
 uschecksum
+uschecksumfound
 uschildcount
 usclass
 uscurmss
@@ -1239,6 +1268,7 @@ uxstreambufferget
 uxstreambuffermidspace
 uxtail
 uxtaskgetsystemstate
+uxtickstowait
 uxtimeout
 uxtimeoutstate
 uxtotaldatalength
@@ -1274,6 +1304,7 @@ vreleasenetworkbufferanddescriptor
 vrxfaultinjection
 vsocketbind
 vsocketclose
+vsocketclosenexttime
 vsocketselect
 vsocketwakeupuser
 vtasklist
@@ -1370,6 +1401,7 @@ xilinx
 xinternal
 xipheader
 xipheadersize
+xiptaskhandle
 xiptaskinitialised
 xisbound
 xisforrx
@@ -1421,6 +1453,7 @@ xqueuecreateset
 xqueuegenericsend
 xqueueitem
 xqueuereceive
+xrandomtaskhandle
 xreceiveblocktime
 xregister
 xreleaseaftersend
@@ -1453,6 +1486,8 @@ xstream
 xsum
 xtargethardwareaddress
 xtaskcheckfortimeout
+xtaskgetcurrenttaskhandle
+xtaskgettickcount
 xtaskhandle
 xtaskresumeall
 xtcp
@@ -1467,6 +1502,7 @@ xtcpwindowrxconfirm
 xtcpwindowtxdone
 xtime
 xtimeout
+xtotallength
 xtransmittimer
 xtxcallback
 xtxdescriptorsemaphore

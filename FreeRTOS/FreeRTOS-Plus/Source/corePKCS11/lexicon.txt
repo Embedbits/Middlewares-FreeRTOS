@@ -1,3 +1,4 @@
+aes
 alg
 algorithmidentifier
 algorithmidentifiersequence
@@ -23,6 +24,7 @@ cko
 ckr
 closeallsessions
 closesession
+cmac
 codesignkey
 colspan
 com
@@ -31,6 +33,7 @@ configlabel
 configmax
 configpal
 configsuppress
+copydoc
 copyobject
 coverity
 createmutex
@@ -60,10 +63,12 @@ digestinit
 digestkey
 digestupdate
 drbg
+eawscmacsecretkey
 eawscodesigningkey
 eawsdevicecertificate
 eawsdeviceprivatekey
 eawsdevicepublickey
+eawshmacsecretkey
 ec
 ecdsa
 einvalidhandle
@@ -73,7 +78,6 @@ encryptupdate
 enddot
 endif
 enums
-existance
 exportable
 fillcolor
 findobject
@@ -105,6 +109,7 @@ gettokeninfo
 github
 helvetica
 hkey
+hmac
 hobject
 href
 hsession
@@ -114,6 +119,7 @@ http
 https
 iattrib
 ietf
+ifdef
 ifndef
 inc
 ingroup
@@ -154,7 +160,6 @@ palfile
 papplication
 param
 params
-pclabelname
 pcfilename
 pclabel
 pclabelname
@@ -196,6 +201,7 @@ pslotlist
 ptemplate
 puc
 pucdata
+puckeydata
 pucsig
 pucsignature
 pucsigptr
@@ -269,11 +275,12 @@ ucsigcomponentlength
 uctemp
 uint
 ul
-ullabelnamelen
 ulcount
 uldatalen
 uldatasize
 ulindex
+ulkeydatalength
+ullabelnamelen
 ulmaxobjectcount
 ulobjectlength
 ulong
@@ -304,11 +311,17 @@ www
 xapphandle
 xbyte
 xcertificatetype
+xcmackeyhandle
+xcmacsecretcontext
 xclass
+xcmackeyhandle
+xcmacsecretcontext
 xfindobjectlabellen
 xfindobjectwithlabelandclass
 xgetslotlist
 xhandle
+xhmackeyhandle
+xhmacsecretcontext
 xinitializepkcs
 xisinitialized
 xisprivate

@@ -1,5 +1,5 @@
 /*
- * coreMQTT v1.1.0
+ * coreMQTT v1.1.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -1477,6 +1477,14 @@ void test_MQTT_DeserializeAck_suback( void )
     mqttPacketInfo.type = MQTT_PACKET_TYPE_SUBACK;
     mqttPacketInfo.pRemainingData = buffer;
     mqttPacketInfo.remainingLength = 2;
+    status = MQTT_DeserializeAck( &mqttPacketInfo, &packetIdentifier, &sessionPresent );
+    TEST_ASSERT_EQUAL_INT( MQTTBadResponse, status );
+
+    /* Invalid packet ID. */
+    buffer[ 0 ] = 0;
+    buffer[ 1 ] = 0;
+    mqttPacketInfo.remainingLength = 3;
+    buffer[ 2 ] = 0;
     status = MQTT_DeserializeAck( &mqttPacketInfo, &packetIdentifier, &sessionPresent );
     TEST_ASSERT_EQUAL_INT( MQTTBadResponse, status );
 

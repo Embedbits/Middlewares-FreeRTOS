@@ -1,5 +1,5 @@
 /*
- * coreHTTP v2.0.0
+ * coreHTTP v2.0.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -47,8 +47,8 @@ void httpParserOnHeaderFieldCallback_harness()
     pResponse = pParsingContext->pResponse;
     pResponse->pHeaderParsingCallback = &headerParserCallback;
 
-    __CPROVER_assume( length <= pResponse->bufferLen );
-    __CPROVER_assume( locOffset < length );
+    __CPROVER_assume( locOffset <= pResponse->bufferLen );
+    __CPROVER_assume( length <= pResponse->bufferLen - locOffset );
     pLoc = pResponse->pBuffer + locOffset;
 
     /* This assumption suppresses an overflow error when incrementing pResponse->headerCount. */

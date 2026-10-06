@@ -2,9 +2,9 @@
 
 The coreMQTT Agent library is a high level API that adds thread safety to the [coreMQTT](https://github.com/FreeRTOS/coreMQTT) library. The library provides thread safe equivalents to the coreMQTT's APIs, greatly simplifying its use in multi-threaded environments. The coreMQTT Agent library manages the MQTT connection by serializing the access to the coreMQTT library and reducing implementation overhead (e.g., removing the need for the application to repeatedly call to `MQTT_ProcessLoop`). This allows your multi-threaded applications to share the same MQTT connection, and enables you to design an embedded application without having to worry about coreMQTT thread safety.
 
-This library has gone through code quality checks including verification that no function has a [GNU Complexity](https://www.gnu.org/software/complexity/manual/complexity.html) score over 8, and checks against deviations from mandatory rules in the [MISRA coding standard](https://www.misra.org.uk/MISRAHome/MISRAC2012/tabid/196/Default.aspx).  Deviations from the MISRA C:2012 guidelines are documented under [MISRA Deviations](MISRA.md). This library has also undergone both static code analysis from [Coverity static analysis](https://scan.coverity.com/), and validation of memory safety through the [CBMC automated reasoning tool](https://www.cprover.org/cbmc/).
+This library has gone through code quality checks including verification that no function has a [GNU Complexity](https://www.gnu.org/software/complexity/manual/complexity.html) score over 8, and checks against deviations from mandatory rules in the [MISRA coding standard](https://www.misra.org.uk).  Deviations from the MISRA C:2012 guidelines are documented under [MISRA Deviations](MISRA.md). This library has also undergone both static code analysis from [Coverity static analysis](https://scan.coverity.com/), and validation of memory safety through the [CBMC automated reasoning tool](https://www.cprover.org/cbmc/).
 
-See memory requirements for this library [here](https://freertos.org/Documentation/api-ref/coreMQTT-Agent/docs/doxygen/output/html/index.html#core_mqtt_agent_memory_requirements).
+See memory requirements for this library [here](./docs/doxygen/include/size_table.md).
 
 ## Cloning this repository
 This repo uses [Git Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules) to bring in dependent components.
@@ -31,6 +31,28 @@ To provide values for these configuration values, they must be either:
 * Defined in `core_mqtt_config.h` used by coreMQTT
 **OR**
 * Passed as compile time preprocessor macros
+
+## Porting the coreMQTT Agent Library
+In order to use the MQTT Agent library on a platform, you need to supply thread safe functions for the agent's [messaging interface](source/include/core_mqtt_agent_message_interface.h).
+
+### Messaging Interface
+Each of the following functions must be thread safe.
+
+| Function Pointer | Description |
+| :-: | --- |
+| `MQTTAgentMessageSend_t` | A function that sends commands (as `MQTTAgentCommand_t *` pointers) to be received by `MQTTAgent_CommandLoop`. This can be implemented by pushing to a thread safe queue. |
+| `MQTTAgentMessageRecv_t` | A function used by `MQTTAgent_CommandLoop` to receive `MQTTAgentCommand_t *` pointers that were sent by API functions. This can be implemented by receiving from a thread safe queue. |
+| `MQTTAgentCommandGet_t` | A function that returns a pointer to an allocated `MQTTAgentCommand_t` structure, which is used to hold information and arguments for a command to be executed in `MQTTAgent_CommandLoop()`. If using dynamic memory, this can be implemented using `malloc()`. |
+| `MQTTAgentCommandRelease_t` | A function called to indicate that a command structure that had been allocated with the `MQTTAgentCommandGet_t` function pointer will no longer be used by the agent, so it may be freed or marked as not in use. If using dynamic memory, this can be implemented with `free()`. |
+
+Reference implementations for the interface functions can be found in the [reference examples](#reference-examples) below.
+### Additional Considerations
+
+#### Static Memory
+If only static allocation is used, then the `MQTTAgentCommandGet_t` and `MQTTAgentCommandRelease_t` could instead be implemented with a pool of `MQTTAgentCommand_t` structures, with a queue or semaphore used to control access and provide thread safety. The below [reference examples](#reference-examples) use static memory with a command pool.
+
+#### Subscription Management
+The MQTT Agent does not track subscriptions for MQTT topics. The receipt of any incoming PUBLISH packet will result in the invocation of a single `MQTTAgentIncomingPublishCallback_t` callback, which is passed to `MQTTAgent_Init()` for initialization. If it is desired for different handlers to be invoked for different incoming topics, then the publish callback will have to manage subscriptions and fan out messages. A platform independent subscription manager example is implemented in the [reference examples](#reference-examples) below.
 
 ## Building the Library
 
@@ -83,7 +105,7 @@ Please refer to the demos of the MQTT Agent library in the following locations f
 
 The MQTT Agent API documentation can be found [here](https://freertos.org/Documentation/api-ref/coreMQTT-Agent/docs/doxygen/output/html/index.html).
 
-## Generating documentation
+### Generating documentation
 
 The Doxygen references were created using Doxygen version 1.8.20. To generate the
 Doxygen pages yourself, please run the following command from the root of this repository:

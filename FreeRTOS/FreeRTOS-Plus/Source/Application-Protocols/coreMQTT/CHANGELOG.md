@@ -1,5 +1,17 @@
 # Changelog for coreMQTT Client Library
 
+## v1.1.2 (July 2021)
+
+### Updates
+ - [#168](https://github.com/FreeRTOS/coreMQTT/pull/168) Add header guards for C++ linkage.
+ - [#163](https://github.com/FreeRTOS/coreMQTT/pull/163) Fix bug to check for ping responses within `MQTT_PINGRESP_TIMEOUT_MS` instead of the entire keep alive interval.
+ - [#159](https://github.com/FreeRTOS/coreMQTT/pull/159) Add more checks for malformed packets when deserializing acknowledgments.
+
+## v1.1.1 (February 2021)
+
+### Changes
+ - [#142](https://github.com/FreeRTOS/coreMQTT/pull/142), [#143](https://github.com/FreeRTOS/coreMQTT/pull/143), and [#150](https://github.com/FreeRTOS/coreMQTT/pull/150) Documentation fixes.
+
 ## v1.1.0 (December 2020)
 
 ### Updates
@@ -31,4 +43,4 @@
 
 This is the first release of a coreMQTT client library in this repository.
 
-The MQTT library is a client-side implementation that is compliant with the [MQTT 3.1.1 specification](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).   It is optimized for resource-constrained devices, and does not allocate any memory.
+The MQTT library is a client-side implementation that is compliant with the [MQTT 3.1.1 specification](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).   It is optimized for resource-constrained devices, and does not allocate any memory.

@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.3.2
+ * FreeRTOS+TCP V2.3.3
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -421,6 +421,23 @@
 
         return xResult;
     }
+/*-----------------------------------------------------------*/
+
+/** @brief Close the socket another time.
+ *
+ * @param[in] pxSocket: The socket to be checked.
+ */
+    void vSocketCloseNextTime( FreeRTOS_Socket_t * pxSocket )
+    {
+        static FreeRTOS_Socket_t * xPreviousSocket = NULL;
+
+        if( ( xPreviousSocket != NULL ) && ( xPreviousSocket != pxSocket ) )
+        {
+            vSocketClose( xPreviousSocket );
+        }
+
+        xPreviousSocket = pxSocket;
+    }
     /*-----------------------------------------------------------*/
 
     #if ( ipconfigTCP_HANG_PROTECTION == 1 )
@@ -499,7 +516,7 @@
                      * gets connected. */
                     if( pxSocket->u.xTCP.bits.bPassQueued != pdFALSE_UNSIGNED )
                     {
-                        /* vTCPStateChange() has called FreeRTOS_closesocket()
+                        /* vTCPStateChange() has called vSocketCloseNextTime()
                          * in case the socket is not yet owned by the application.
                          * Return a negative value to inform the caller that
                          * the socket will be closed in the next cycle. */
@@ -810,12 +827,14 @@
                 {
                     pxNetworkBuffer = pxDuplicateNetworkBufferWithDescriptor( pxNetworkBuffer, ( size_t ) pxNetworkBuffer->xDataLength );
 
-                    if( pxNetworkBuffer == NULL )
+                    if( pxNetworkBuffer != NULL )
+                    {
+                        xDoRelease = pdTRUE;
+                    }
+                    else
                     {
                         FreeRTOS_debug_printf( ( "prvTCPReturnPacket: duplicate failed\n" ) );
                     }
-
-                    xDoRelease = pdTRUE;
                 }
             }
         #endif /* ipconfigZERO_COPY_TX_DRIVER */
@@ -962,7 +981,15 @@
             /* Just an increasing number. */
             pxIPHeader->usIdentification = FreeRTOS_htons( usPacketIdentifier );
             usPacketIdentifier++;
-            pxIPHeader->usFragmentOffset = 0U;
+
+            /* The stack doesn't support fragments, so the fragment offset field must always be zero.
+             * The header was never memset to zero, so set both the fragment offset and fragmentation flags in one go.
+             */
+            #if ( ipconfigFORCE_IP_DONT_FRAGMENT != 0 )
+                pxIPHeader->usFragmentOffset = ipFRAGMENT_FLAGS_DONT_FRAGMENT;
+            #else
+                pxIPHeader->usFragmentOffset = 0U;
+            #endif
 
             /* Important: tell NIC driver how many bytes must be sent. */
             pxNetworkBuffer->xDataLength = ulLen + ipSIZE_OF_ETH_HEADER;
@@ -1498,6 +1525,12 @@
                 uxIndex += ( size_t ) ucLen;
             }
         }
+
+        #if ( ipconfigUSE_TCP_WIN == 0 )
+            /* Avoid compiler warnings when TCP window is not used. */
+            ( void ) xHasSYNFlag;
+        #endif
+
         return uxIndex;
     }
     /*-----------------------------------------------------------*/
@@ -1828,7 +1861,8 @@
 
                     if( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED )
                     {
-                        ( void ) FreeRTOS_closesocket( pxSocket );
+                        configASSERT( xIsCallingFromIPTask() != pdFALSE );
+                        vSocketCloseNextTime( pxSocket );
                     }
                 }
             }
@@ -2595,11 +2629,12 @@
         TCPHeader_t * pxTCPHeader = &pxProtocolHeaders->xTCPHeader;
         const TCPWindow_t * pxTCPWindow = &pxSocket->u.xTCP.xTCPWindow;
         UBaseType_t uxOptionsLength = pxTCPWindow->ucOptionLength;
-        /* memcpy() helper variables for MISRA Rule 21.15 compliance*/
-        const void * pvCopySource;
-        void * pvCopyDest;
 
         #if ( ipconfigUSE_TCP_WIN == 1 )
+            /* memcpy() helper variables for MISRA Rule 21.15 compliance*/
+            const void * pvCopySource;
+            void * pvCopyDest;
+
             if( uxOptionsLength != 0U )
             {
                 /* TCP options must be sent because a packet which is out-of-order
@@ -3566,9 +3601,9 @@
                                 vTCPStateChange( pxSocket, eCLOSED );
                             }
                             /* Otherwise, check whether the packet is within the receive window. */
-                            else if( ( ulSequenceNumber > pxSocket->u.xTCP.xTCPWindow.rx.ulCurrentSequenceNumber ) &&
-                                     ( ulSequenceNumber < ( pxSocket->u.xTCP.xTCPWindow.rx.ulCurrentSequenceNumber +
-                                                            pxSocket->u.xTCP.xTCPWindow.xSize.ulRxWindowLength ) ) )
+                            else if( ( xSequenceGreaterThan( ulSequenceNumber, pxSocket->u.xTCP.xTCPWindow.rx.ulCurrentSequenceNumber ) ) &&
+                                     ( xSequenceLessThan( ulSequenceNumber, ( pxSocket->u.xTCP.xTCPWindow.rx.ulCurrentSequenceNumber +
+                                                                              pxSocket->u.xTCP.xTCPWindow.xSize.ulRxWindowLength ) ) ) )
                             {
                                 /* Send a challenge ACK. */
                                 ( void ) prvTCPSendChallengeAck( pxNetworkBuffer );
@@ -3879,7 +3914,7 @@
         if( vSocketBind( pxNewSocket, &xAddress, sizeof( xAddress ), pdTRUE ) != 0 )
         {
             FreeRTOS_debug_printf( ( "TCP: Listen: new socket bind error\n" ) );
-            ( void ) FreeRTOS_closesocket( pxNewSocket );
+            vSocketClose( pxNewSocket );
             xResult = pdFALSE;
         }
         else

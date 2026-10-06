@@ -1,5 +1,5 @@
 /*
- * coreHTTP v2.0.0
+ * coreHTTP v2.0.2
  * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -46,12 +46,13 @@ void findHeaderValueParserCallback_harness()
                       pResponse->pBuffer != NULL &&
                       pResponse->bufferLen > 0 );
 
-    __CPROVER_assume( 0 < valueLen && valueLen <= pResponse->bufferLen );
-    __CPROVER_assume( valueOffset < valueLen );
+    __CPROVER_assume( valueOffset <= pResponse->bufferLen );
+    __CPROVER_assume( valueLen <= pResponse->bufferLen - valueOffset );
     pValueLoc = pResponse->pBuffer + valueOffset;
 
-    __CPROVER_assume( 0 < fieldLen && fieldLen <= pResponse->bufferLen );
-    __CPROVER_assume( fieldOffset < fieldLen );
+    __CPROVER_assume( fieldOffset <= pResponse->bufferLen );
+    __CPROVER_assume( fieldLen > 0 );
+    __CPROVER_assume( fieldLen <= pResponse->bufferLen - fieldOffset );
     pFindHeaderContext->pField = pResponse->pBuffer + fieldOffset;
     pFindHeaderContext->fieldLen = fieldLen;
     pFindHeaderContext->pValueLen = &valueLen;
